@@ -1,0 +1,30 @@
+{
+  "name": "nook",
+  "private": true,
+  "version": "0.0.1",
+  "description": "Nook monorepo — iOS, Android, and Web",
+  "scripts": {
+    "dev": "pnpm --filter @nook/web dev",
+    "build": "pnpm --filter @nook/web build",
+    "lint": "pnpm -r lint",
+    "lint:fix": "pnpm -r lint --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "pnpm -r typecheck",
+    "prepare": "husky"
+  },
+  "engines": {
+    "node": ">=20",
+    "pnpm": ">=9"
+  },
+  "packageManager": "pnpm@10.9.0",
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.4.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.0.5",
+    "prettier": "^3.8.3",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.59.4"
+  }
+}

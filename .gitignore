@@ -1,0 +1,48 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+*.swp
+*.swo
+*~
+.vscode/settings.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# iOS
+apps/ios/Nook.xcodeproj/xcuserdata/
+apps/ios/Nook.xcodeproj/project.xcworkspace/xcuserdata/
+apps/ios/DerivedData/
+*.xcuserstate
+
+# Android
+apps/android/.gradle/
+apps/android/build/
+apps/android/app/build/
+apps/android/local.properties
+apps/android/.idea/
+*.apk
+*.aab
+
+# Testing
+coverage/
+*.lcov
+
+# Misc
+*.log
+*.tsbuildinfo
