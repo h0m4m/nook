@@ -6,7 +6,6 @@ import SwiftUI
 
 enum AppScreen: Hashable {
     case intro
-    case emailConfirmation(email: String)
     case home
 }
 

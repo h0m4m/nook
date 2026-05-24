@@ -24,7 +24,6 @@
 		C7A0531D0AEB4260772159C3 /* NookFonts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2480F7DC49F5AF409A6F9B5D /* NookFonts.swift */; };
 		CCB0999F746FC1447FA54DD5 /* NookApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47CBA70A6F7BC8F3D41E9242 /* NookApp.swift */; };
 		DDF31DFAC904631728E8BE97 /* IntroView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD3FD31533A8320839C66978 /* IntroView.swift */; };
-		B1C2D3E4F5A6B7C8D9E0F1A2 /* EmailConfirmationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E4F5A6B7C8D9E0F1A3 /* EmailConfirmationView.swift */; };
 		FA09B67D88C18710F1E272DC /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 8A3F7E0B4B346D5AAAB15FBA /* Supabase */; };
 		A1B2C3D5E5F6A7B8C9D0E1F3 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = A1B2C3D6E5F6A7B8C9D0E1F4 /* GoogleSignIn */; };
 		A1B2C3D7E5F6A7B8C9D0E1F5 /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = A1B2C3D8E5F6A7B8C9D0E1F6 /* GoogleSignInSwift */; };
@@ -49,7 +48,6 @@
 		9702BBB3E69FB7B1267F94CD /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		AD7EDC639242E213297A4E3B /* NookTextField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NookTextField.swift; sourceTree = "<group>"; };
 		BD3FD31533A8320839C66978 /* IntroView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntroView.swift; sourceTree = "<group>"; };
-		B1C2D3E4F5A6B7C8D9E0F1A3 /* EmailConfirmationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailConfirmationView.swift; sourceTree = "<group>"; };
 		CEAD2EC6E8B677C15E76C760 /* arrow-right.svg */ = {isa = PBXFileReference; lastKnownFileType = text; path = "arrow-right.svg"; sourceTree = "<group>"; };
 		D7A3FD70DAD38D02B5A01342 /* PlusJakartaSans-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "PlusJakartaSans-Regular.ttf"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -90,7 +88,6 @@
 		2EB4817CF8337A5C7465A44A /* Views */ = {
 			isa = PBXGroup;
 			children = (
-				B1C2D3E4F5A6B7C8D9E0F1A3 /* EmailConfirmationView.swift */,
 				BD3FD31533A8320839C66978 /* IntroView.swift */,
 				C36B6457C06F36C7515EB6DC /* Components */,
 			);
@@ -244,7 +241,6 @@
 			files = (
 				6D58DF4AD9876C5ED6C3862A /* AppRouter.swift in Sources */,
 				14027C35E1B179163E7D7A72 /* ContentView.swift in Sources */,
-				B1C2D3E4F5A6B7C8D9E0F1A2 /* EmailConfirmationView.swift in Sources */,
 				DDF31DFAC904631728E8BE97 /* IntroView.swift in Sources */,
 				CCB0999F746FC1447FA54DD5 /* NookApp.swift in Sources */,
 				4986E3F77DEFDEB9D6BA662F /* NookColors.swift in Sources */,

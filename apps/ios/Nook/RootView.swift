@@ -15,9 +15,6 @@ struct RootView: View {
                 case .home:
                     ContentView(router: router)
                         .transition(.opacity)
-                case .emailConfirmation(let email):
-                    EmailConfirmationView(router: router, email: email)
-                        .transition(.opacity)
                 case .intro:
                     IntroView(router: router)
                         .transition(.opacity)
