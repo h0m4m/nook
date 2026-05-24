@@ -10,20 +10,26 @@ struct RootView: View {
             if router.isLoading {
                 ProgressView()
                     .tint(Color.nook.primary)
-            } else if router.currentScreen == .home {
-                ContentView()
-                    .transition(.opacity)
-            } else if router.currentScreen == .signIn || router.currentScreen == .signUp {
-                AuthView(router: router)
-                    .transition(.opacity)
             } else {
-                IntroView(router: router)
-                    .transition(.opacity)
+                switch router.currentScreen {
+                case .home:
+                    ContentView(router: router)
+                        .transition(.opacity)
+                case .signIn, .signUp:
+                    AuthView(router: router)
+                        .transition(.opacity)
+                case .emailConfirmation(let email):
+                    EmailConfirmationView(router: router, email: email)
+                        .transition(.opacity)
+                case .intro:
+                    IntroView(router: router)
+                        .transition(.opacity)
+                }
             }
         }
         .animation(.easeInOut(duration: 0.35), value: router.currentScreen)
         .task {
-            await router.checkAuth()
+            router.startListening()
         }
     }
 }

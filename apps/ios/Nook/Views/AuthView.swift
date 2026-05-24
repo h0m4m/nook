@@ -1,3 +1,4 @@
+import AuthenticationServices
 import SwiftUI
 
 private enum AuthTab: Int, CaseIterable {
@@ -37,7 +38,7 @@ struct AuthView: View {
                         .padding(.top, 32)
                         .padding(.horizontal, 24)
 
-                    AuthSocialSection()
+                    AuthSocialSection(router: router)
                         .padding(.top, 32)
                         .padding(.horizontal, 24)
                 }
@@ -164,6 +165,7 @@ private struct AuthFormFields: View {
     @State private var confirmPassword = ""
     @State private var isLoading = false
     @State private var errorMessage: String?
+    @State private var showResetConfirmation = false
 
     private var isFormValid: Bool {
         let hasEmail = !email.trimmingCharacters(in: .whitespaces).isEmpty
@@ -206,7 +208,7 @@ private struct AuthFormFields: View {
 
                     if activeTab == .signIn {
                         Button {
-                            // Forgot password action
+                            resetPassword()
                         } label: {
                             Text("Forgot password?")
                                 .font(NookFont.captionSemiBold)
@@ -294,6 +296,11 @@ private struct AuthFormFields: View {
             confirmPassword = ""
             errorMessage = nil
         }
+        .alert("Check your email", isPresented: $showResetConfirmation) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("If an account exists for that email, we've sent a password reset link.")
+        }
     }
 
     private func submit() {
@@ -314,8 +321,33 @@ private struct AuthFormFields: View {
                 if activeTab == .signIn {
                     try await router.signIn(email: trimmedEmail, password: password)
                 } else {
-                    try await router.signUp(email: trimmedEmail, password: password)
+                    let needsConfirmation = try await router.signUp(
+                        email: trimmedEmail, password: password
+                    )
+                    if needsConfirmation {
+                        router.currentScreen = .emailConfirmation(email: trimmedEmail)
+                    }
                 }
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+            isLoading = false
+        }
+    }
+
+    private func resetPassword() {
+        let trimmedEmail = email.trimmingCharacters(in: .whitespaces)
+        guard !trimmedEmail.isEmpty else {
+            errorMessage = "Enter your email address first."
+            return
+        }
+
+        isLoading = true
+        errorMessage = nil
+        Task {
+            do {
+                try await router.resetPassword(email: trimmedEmail)
+                showResetConfirmation = true
             } catch {
                 errorMessage = error.localizedDescription
             }
@@ -324,9 +356,20 @@ private struct AuthFormFields: View {
     }
 }
 
-// MARK: - Social Section (static, never re-renders)
+// MARK: - Social Section
+
+private enum SocialProvider {
+    case apple, google
+}
 
 private struct AuthSocialSection: View {
+    let router: AppRouter
+
+    @State private var loadingProvider: SocialProvider?
+    @State private var errorMessage: String?
+
+    private var isLoading: Bool { loadingProvider != nil }
+
     var body: some View {
         VStack(spacing: 32) {
             HStack(spacing: 0) {
@@ -347,36 +390,100 @@ private struct AuthSocialSection: View {
             }
 
             HStack(spacing: 16) {
-                SocialButton(label: "Apple") {
+                SocialButton(
+                    label: "Apple",
+                    isLoading: loadingProvider == .apple
+                ) {
                     Image(systemName: "apple.logo")
                         .font(.system(size: 18))
                         .foregroundStyle(Color.nook.foreground)
                 } action: {
-                    // Apple sign-in
+                    // Apple uses SignInWithAppleButton overlay
                 }
+                .overlay {
+                    SignInWithAppleButton(.continue) { request in
+                        request.requestedScopes = [.email, .fullName]
+                    } onCompletion: { result in
+                        handleApple(result)
+                    }
+                    .blendMode(.overlay)
+                    .opacity(0.02)
+                }
+                .disabled(isLoading)
 
-                SocialButton(label: "Google") {
+                SocialButton(
+                    label: "Google",
+                    isLoading: loadingProvider == .google
+                ) {
                     Image("google-logo")
                         .resizable()
                         .aspectRatio(contentMode: .fit)
                 } action: {
-                    // Google sign-in
+                    handleGoogle()
                 }
+                .disabled(isLoading)
             }
+
+            if let errorMessage {
+                Text(errorMessage)
+                    .font(NookFont.bodySmall)
+                    .foregroundStyle(.red)
+                    .multilineTextAlignment(.center)
+            }
+        }
+    }
+
+    private func handleApple(_ result: Result<ASAuthorization, any Error>) {
+        switch result {
+        case .success(let authorization):
+            loadingProvider = .apple
+            errorMessage = nil
+            Task {
+                do {
+                    try await router.signInWithApple(authorization)
+                } catch {
+                    errorMessage = error.localizedDescription
+                }
+                loadingProvider = nil
+            }
+        case .failure(let error):
+            if (error as NSError).code != ASAuthorizationError.canceled.rawValue {
+                errorMessage = error.localizedDescription
+            }
+        }
+    }
+
+    private func handleGoogle() {
+        loadingProvider = .google
+        errorMessage = nil
+        Task {
+            do {
+                try await router.signInWithGoogle()
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+            loadingProvider = nil
         }
     }
 }
 
 private struct SocialButton<Icon: View>: View {
     let label: String
+    let isLoading: Bool
     @ViewBuilder let icon: () -> Icon
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
             HStack(spacing: 12) {
-                icon()
-                    .frame(width: 20, height: 20)
+                if isLoading {
+                    ProgressView()
+                        .tint(Color.nook.primary)
+                        .frame(width: 20, height: 20)
+                } else {
+                    icon()
+                        .frame(width: 20, height: 20)
+                }
 
                 Text(label)
                     .font(NookFont.labelSmall)
