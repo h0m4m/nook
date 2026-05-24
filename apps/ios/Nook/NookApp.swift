@@ -2,9 +2,9 @@ import SwiftUI
 
 @main
 struct NookApp: App {
-    var body: some Scene {
+var body: some Scene {
         WindowGroup {
-            ContentView()
+            RootView()
         }
     }
 }

@@ -1,35 +1,30 @@
 package com.nook.app.ui.theme
 
-import android.os.Build
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalContext
 
-private val DarkColorScheme = darkColorScheme()
-private val LightColorScheme = lightColorScheme()
+private val NookColorScheme = lightColorScheme(
+    primary = NookColors.Primary,
+    onPrimary = NookColors.PrimaryForeground,
+    secondary = NookColors.Secondary,
+    onSecondary = NookColors.SecondaryForeground,
+    tertiary = NookColors.Accent,
+    background = NookColors.Background,
+    onBackground = NookColors.Foreground,
+    surface = NookColors.Card,
+    onSurface = NookColors.CardForeground,
+    surfaceVariant = NookColors.Input,
+    onSurfaceVariant = NookColors.MutedForeground,
+    outline = NookColors.Border,
+)
 
 @Composable
-fun NookTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = true,
-    content: @Composable () -> Unit,
-) {
-    val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
-    }
-
+fun NookTheme(content: @Composable () -> Unit) {
     MaterialTheme(
-        colorScheme = colorScheme,
+        colorScheme = NookColorScheme,
+        typography = NookTypography,
+        shapes = NookShapes,
         content = content,
     )
 }

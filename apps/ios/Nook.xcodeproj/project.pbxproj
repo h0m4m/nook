@@ -1,0 +1,466 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		01A2B3C4D5E6F7A8B9C0D1E2 /* AuthView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A7B8C9D0E1F2 /* AuthView.swift */; };
+		03B16B4355BCB873356D3B7E /* NookTextField.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD7EDC639242E213297A4E3B /* NookTextField.swift */; };
+		0C7A7928EDF8261A60C69B7B /* PlusJakartaSans-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 0434AC2CEBC0E104ADA7C5E9 /* PlusJakartaSans-Medium.ttf */; };
+		14027C35E1B179163E7D7A72 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19FAF1FC5B046085F9880E74 /* ContentView.swift */; };
+		2D8A14360C20E0E7E22153DE /* PlusJakartaSans-SemiBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 05F9C84C24F6EFFF4A6F80EA /* PlusJakartaSans-SemiBold.ttf */; };
+		4183747E99656D4952E06508 /* Supabase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E01623977F7EFDA29CEB48F /* Supabase.swift */; };
+		4986E3F77DEFDEB9D6BA662F /* NookColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7606A1FC37BD878D7E0CED14 /* NookColors.swift */; };
+		6D58DF4AD9876C5ED6C3862A /* AppRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BC8194956769B7D778E9F0A /* AppRouter.swift */; };
+		8B544F2AF1CC75C4F2A0FB54 /* PlusJakartaSans-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = D7A3FD70DAD38D02B5A01342 /* PlusJakartaSans-Regular.ttf */; };
+		955936B2203D8BE8196F47CD /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 7DA5927064C06EEF957F7211 /* Assets.xcassets */; };
+		9824705C3F3D4A38D99A5158 /* PlusJakartaSans-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 36CCF438887FD12973FB2122 /* PlusJakartaSans-Bold.ttf */; };
+		AA608F1EC2813B24E0BA9BC7 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9702BBB3E69FB7B1267F94CD /* RootView.swift */; };
+		B71606E538E66BF6FEE28D41 /* arrow-right.svg in Resources */ = {isa = PBXBuildFile; fileRef = CEAD2EC6E8B677C15E76C760 /* arrow-right.svg */; };
+		BF2BE3CA0888D9E8587C644B /* NookRadii.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79500004AE1BD8CD909A45CA /* NookRadii.swift */; };
+		C0BCA61662166A4D878EE5CB /* NookTypography.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1BE8C3C05BEF5A710223A7AF /* NookTypography.swift */; };
+		C7A0531D0AEB4260772159C3 /* NookFonts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2480F7DC49F5AF409A6F9B5D /* NookFonts.swift */; };
+		CCB0999F746FC1447FA54DD5 /* NookApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47CBA70A6F7BC8F3D41E9242 /* NookApp.swift */; };
+		DDF31DFAC904631728E8BE97 /* IntroView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD3FD31533A8320839C66978 /* IntroView.swift */; };
+		FA09B67D88C18710F1E272DC /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 8A3F7E0B4B346D5AAAB15FBA /* Supabase */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		022144C0BA47F49B651F7CB0 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		0434AC2CEBC0E104ADA7C5E9 /* PlusJakartaSans-Medium.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "PlusJakartaSans-Medium.ttf"; sourceTree = "<group>"; };
+		05F9C84C24F6EFFF4A6F80EA /* PlusJakartaSans-SemiBold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "PlusJakartaSans-SemiBold.ttf"; sourceTree = "<group>"; };
+		A1B2C3D4E5F6A7B8C9D0E1F2 /* AuthView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthView.swift; sourceTree = "<group>"; };
+		19FAF1FC5B046085F9880E74 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		1BE8C3C05BEF5A710223A7AF /* NookTypography.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NookTypography.swift; sourceTree = "<group>"; };
+		2480F7DC49F5AF409A6F9B5D /* NookFonts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NookFonts.swift; sourceTree = "<group>"; };
+		36CCF438887FD12973FB2122 /* PlusJakartaSans-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "PlusJakartaSans-Bold.ttf"; sourceTree = "<group>"; };
+		3BC8194956769B7D778E9F0A /* AppRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppRouter.swift; sourceTree = "<group>"; };
+		47CBA70A6F7BC8F3D41E9242 /* NookApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NookApp.swift; sourceTree = "<group>"; };
+		6AF31C476DBDFF1170647A72 /* Nook.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Nook.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		7606A1FC37BD878D7E0CED14 /* NookColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NookColors.swift; sourceTree = "<group>"; };
+		79500004AE1BD8CD909A45CA /* NookRadii.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NookRadii.swift; sourceTree = "<group>"; };
+		7DA5927064C06EEF957F7211 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		7E01623977F7EFDA29CEB48F /* Supabase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Supabase.swift; sourceTree = "<group>"; };
+		9702BBB3E69FB7B1267F94CD /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		AD7EDC639242E213297A4E3B /* NookTextField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NookTextField.swift; sourceTree = "<group>"; };
+		BD3FD31533A8320839C66978 /* IntroView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntroView.swift; sourceTree = "<group>"; };
+		CEAD2EC6E8B677C15E76C760 /* arrow-right.svg */ = {isa = PBXFileReference; lastKnownFileType = text; path = "arrow-right.svg"; sourceTree = "<group>"; };
+		D7A3FD70DAD38D02B5A01342 /* PlusJakartaSans-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "PlusJakartaSans-Regular.ttf"; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		49C4221EF767866BBF7D296F /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				FA09B67D88C18710F1E272DC /* Supabase in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		14C874CD16D32415FE6FF399 /* Fonts */ = {
+			isa = PBXGroup;
+			children = (
+				36CCF438887FD12973FB2122 /* PlusJakartaSans-Bold.ttf */,
+				0434AC2CEBC0E104ADA7C5E9 /* PlusJakartaSans-Medium.ttf */,
+				D7A3FD70DAD38D02B5A01342 /* PlusJakartaSans-Regular.ttf */,
+				05F9C84C24F6EFFF4A6F80EA /* PlusJakartaSans-SemiBold.ttf */,
+			);
+			path = Fonts;
+			sourceTree = "<group>";
+		};
+		2BC4096393F32D2C9D30B854 /* Icons */ = {
+			isa = PBXGroup;
+			children = (
+				CEAD2EC6E8B677C15E76C760 /* arrow-right.svg */,
+			);
+			path = Icons;
+			sourceTree = "<group>";
+		};
+		2EB4817CF8337A5C7465A44A /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				A1B2C3D4E5F6A7B8C9D0E1F2 /* AuthView.swift */,
+				BD3FD31533A8320839C66978 /* IntroView.swift */,
+				C36B6457C06F36C7515EB6DC /* Components */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		3B0328E73DB78F0B95AD9373 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				14C874CD16D32415FE6FF399 /* Fonts */,
+				2BC4096393F32D2C9D30B854 /* Icons */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		726FFD2802A28B7087BEA2D4 /* Nook */ = {
+			isa = PBXGroup;
+			children = (
+				3BC8194956769B7D778E9F0A /* AppRouter.swift */,
+				7DA5927064C06EEF957F7211 /* Assets.xcassets */,
+				19FAF1FC5B046085F9880E74 /* ContentView.swift */,
+				022144C0BA47F49B651F7CB0 /* Info.plist */,
+				47CBA70A6F7BC8F3D41E9242 /* NookApp.swift */,
+				9702BBB3E69FB7B1267F94CD /* RootView.swift */,
+				7E01623977F7EFDA29CEB48F /* Supabase.swift */,
+				3B0328E73DB78F0B95AD9373 /* Resources */,
+				EF70A497D928E7F62EA9C3EA /* Theme */,
+				2EB4817CF8337A5C7465A44A /* Views */,
+			);
+			path = Nook;
+			sourceTree = "<group>";
+		};
+		C36B6457C06F36C7515EB6DC /* Components */ = {
+			isa = PBXGroup;
+			children = (
+				AD7EDC639242E213297A4E3B /* NookTextField.swift */,
+			);
+			path = Components;
+			sourceTree = "<group>";
+		};
+		CC3EFE3504B73EAEEDED18F5 = {
+			isa = PBXGroup;
+			children = (
+				726FFD2802A28B7087BEA2D4 /* Nook */,
+				EF799ADDBCF3DE03D240F860 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		EF70A497D928E7F62EA9C3EA /* Theme */ = {
+			isa = PBXGroup;
+			children = (
+				7606A1FC37BD878D7E0CED14 /* NookColors.swift */,
+				2480F7DC49F5AF409A6F9B5D /* NookFonts.swift */,
+				79500004AE1BD8CD909A45CA /* NookRadii.swift */,
+				1BE8C3C05BEF5A710223A7AF /* NookTypography.swift */,
+			);
+			path = Theme;
+			sourceTree = "<group>";
+		};
+		EF799ADDBCF3DE03D240F860 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				6AF31C476DBDFF1170647A72 /* Nook.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		8E7BD5965AE4DD3F52BB8C83 /* Nook */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 0EF7E3D1B814047D80676E12 /* Build configuration list for PBXNativeTarget "Nook" */;
+			buildPhases = (
+				1BE143C92FA501D5DCD601C2 /* Sources */,
+				95CFB352818574A5B3887ED3 /* Resources */,
+				49C4221EF767866BBF7D296F /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Nook;
+			packageProductDependencies = (
+				8A3F7E0B4B346D5AAAB15FBA /* Supabase */,
+			);
+			productName = Nook;
+			productReference = 6AF31C476DBDFF1170647A72 /* Nook.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		7138A22EF1642B27AC8B891C /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1600;
+				TargetAttributes = {
+					8E7BD5965AE4DD3F52BB8C83 = {
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = DAAFB02242CC68B8589BBFFD /* Build configuration list for PBXProject "Nook" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = CC3EFE3504B73EAEEDED18F5;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				983DCB3C8096AB5AC01BDD8A /* XCRemoteSwiftPackageReference "supabase-swift" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = EF799ADDBCF3DE03D240F860 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				8E7BD5965AE4DD3F52BB8C83 /* Nook */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		95CFB352818574A5B3887ED3 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				955936B2203D8BE8196F47CD /* Assets.xcassets in Resources */,
+				9824705C3F3D4A38D99A5158 /* PlusJakartaSans-Bold.ttf in Resources */,
+				0C7A7928EDF8261A60C69B7B /* PlusJakartaSans-Medium.ttf in Resources */,
+				8B544F2AF1CC75C4F2A0FB54 /* PlusJakartaSans-Regular.ttf in Resources */,
+				2D8A14360C20E0E7E22153DE /* PlusJakartaSans-SemiBold.ttf in Resources */,
+				B71606E538E66BF6FEE28D41 /* arrow-right.svg in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		1BE143C92FA501D5DCD601C2 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				01A2B3C4D5E6F7A8B9C0D1E2 /* AuthView.swift in Sources */,
+				6D58DF4AD9876C5ED6C3862A /* AppRouter.swift in Sources */,
+				14027C35E1B179163E7D7A72 /* ContentView.swift in Sources */,
+				DDF31DFAC904631728E8BE97 /* IntroView.swift in Sources */,
+				CCB0999F746FC1447FA54DD5 /* NookApp.swift in Sources */,
+				4986E3F77DEFDEB9D6BA662F /* NookColors.swift in Sources */,
+				C7A0531D0AEB4260772159C3 /* NookFonts.swift in Sources */,
+				BF2BE3CA0888D9E8587C644B /* NookRadii.swift in Sources */,
+				03B16B4355BCB873356D3B7E /* NookTextField.swift in Sources */,
+				C0BCA61662166A4D878EE5CB /* NookTypography.swift in Sources */,
+				AA608F1EC2813B24E0BA9BC7 /* RootView.swift in Sources */,
+				4183747E99656D4952E06508 /* Supabase.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		3313EE12AC021C4D9AE9FA9D /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		7A6C850226CBA973FA870E59 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		AC45F5D2BA9AECD737E19F87 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 8PP9FS9CAY;
+				INFOPLIST_FILE = Nook/Info.plist;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.nook.app;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		D80B35B219F56E4A95665AC5 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 8PP9FS9CAY;
+				INFOPLIST_FILE = Nook/Info.plist;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.nook.app;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		0EF7E3D1B814047D80676E12 /* Build configuration list for PBXNativeTarget "Nook" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D80B35B219F56E4A95665AC5 /* Debug */,
+				AC45F5D2BA9AECD737E19F87 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		DAAFB02242CC68B8589BBFFD /* Build configuration list for PBXProject "Nook" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7A6C850226CBA973FA870E59 /* Debug */,
+				3313EE12AC021C4D9AE9FA9D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		983DCB3C8096AB5AC01BDD8A /* XCRemoteSwiftPackageReference "supabase-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/supabase/supabase-swift.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		8A3F7E0B4B346D5AAAB15FBA /* Supabase */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 983DCB3C8096AB5AC01BDD8A /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Supabase;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 7138A22EF1642B27AC8B891C /* Project object */;
+}

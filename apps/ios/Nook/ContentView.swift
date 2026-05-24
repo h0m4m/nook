@@ -4,13 +4,14 @@ struct ContentView: View {
     var body: some View {
         VStack(spacing: 8) {
             Text("Nook")
-                .font(.largeTitle)
-                .fontWeight(.bold)
+                .font(NookFont.headingLarge)
+                .foregroundStyle(Color.nook.foreground)
             Text("Your personal space, reimagined.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .font(NookFont.bodyMedium)
+                .foregroundStyle(Color.nook.mutedForeground)
         }
-        .padding()
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.nook.background)
     }
 }
 

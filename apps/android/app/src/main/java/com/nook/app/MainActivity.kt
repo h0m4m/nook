@@ -14,8 +14,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.sp
 import com.nook.app.ui.theme.NookTheme
 
 class MainActivity : ComponentActivity() {
@@ -41,12 +39,11 @@ fun NookScreen(modifier: Modifier = Modifier) {
     ) {
         Text(
             text = "Nook",
-            fontSize = 36.sp,
-            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.displaySmall,
         )
         Text(
             text = "Your personal space, reimagined.",
-            fontSize = 16.sp,
+            style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }

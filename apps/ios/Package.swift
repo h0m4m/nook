@@ -7,11 +7,11 @@ let package = Package(
     platforms: [
         .iOS(.v17),
     ],
-    dependencies: [
-        .package(url: "https://github.com/supabase/supabase-swift.git", from: "2.0.0"),
-    ],
     products: [
         .library(name: "Nook", targets: ["Nook"]),
+    ],
+    dependencies: [
+        .package(url: "https://github.com/supabase/supabase-swift.git", from: "2.0.0"),
     ],
     targets: [
         .target(
@@ -19,7 +19,10 @@ let package = Package(
             dependencies: [
                 .product(name: "Supabase", package: "supabase-swift"),
             ],
-            path: "Nook"
+            path: "Nook",
+            resources: [
+                .process("Resources/Fonts"),
+            ]
         ),
     ]
 )

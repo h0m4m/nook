@@ -9,11 +9,15 @@ export default function Home() {
         alignItems: 'center',
         justifyContent: 'center',
         minHeight: '100vh',
-        fontFamily: 'system-ui, sans-serif',
+        fontFamily: 'var(--font-heading)',
       }}
     >
       <h1 style={{ fontSize: '3rem', fontWeight: 700 }}>{APP_NAME}</h1>
-      <p style={{ fontSize: '1.25rem', color: '#666', marginTop: '0.5rem' }}>Coming soon.</p>
+      <p
+        style={{ fontSize: '1.25rem', color: 'var(--color-muted-foreground)', marginTop: '0.5rem' }}
+      >
+        Coming soon.
+      </p>
     </main>
   );
 }
