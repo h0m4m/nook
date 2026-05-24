@@ -6,6 +6,7 @@ import SwiftUI
 
 enum AppScreen: Hashable {
     case intro
+    case onboarding
     case home
 }
 
@@ -22,10 +23,14 @@ final class AppRouter {
             for await (event, session) in supabase.auth.authStateChanges {
                 switch event {
                 case .initialSession:
-                    currentScreen = session != nil ? .home : .intro
+                    if session != nil {
+                        await navigateAfterAuth()
+                    } else {
+                        currentScreen = .intro
+                    }
                     isLoading = false
                 case .signedIn:
-                    currentScreen = .home
+                    await navigateAfterAuth()
                 case .signedOut:
                     currentScreen = .intro
                 case .tokenRefreshed, .userUpdated, .userDeleted,
@@ -34,6 +39,55 @@ final class AppRouter {
                 }
             }
         }
+    }
+
+    private func navigateAfterAuth() async {
+        let hasOnboarded = await checkOnboardingCompleted()
+        currentScreen = hasOnboarded ? .home : .onboarding
+    }
+
+    private func checkOnboardingCompleted() async -> Bool {
+        guard let userId = try? await supabase.auth.session.user.id else {
+            return false
+        }
+
+        struct ProfileRow: Decodable {
+            let onboarding_completed: Bool
+        }
+
+        do {
+            let row: ProfileRow = try await supabase
+                .from("user_profiles")
+                .select("onboarding_completed")
+                .eq("id", value: userId.uuidString)
+                .single()
+                .execute()
+                .value
+            return row.onboarding_completed
+        } catch {
+            return false
+        }
+    }
+
+    func saveInterests(_ interests: Set<String>) async throws {
+        let userId = try await supabase.auth.session.user.id
+
+        struct ProfileUpsert: Encodable {
+            let id: String
+            let interests: [String]
+            let onboarding_completed: Bool
+        }
+
+        try await supabase
+            .from("user_profiles")
+            .upsert(ProfileUpsert(
+                id: userId.uuidString,
+                interests: Array(interests).sorted(),
+                onboarding_completed: true
+            ))
+            .execute()
+
+        currentScreen = .home
     }
 
     func signInWithOTP(email: String) async throws {

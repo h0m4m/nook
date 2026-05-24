@@ -18,6 +18,12 @@ struct NookColors {
     let border = Color(hex: 0xE6DFD8)
     let input = Color(hex: 0xF4F1EE)
     let segmentBackground = Color(hex: 0xEEEAE5)
+
+    // Onboarding-specific tokens from Figma
+    let onboardingBackground = Color(hex: 0xFAFAF9)
+    let onboardingHeading = Color(hex: 0x2C282B)
+    let onboardingSubtitle = Color(hex: 0x8A8387)
+    let onboardingPrimary = Color(hex: 0x432C3A)
 }
 
 extension Color {

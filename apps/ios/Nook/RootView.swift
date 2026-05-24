@@ -15,6 +15,9 @@ struct RootView: View {
                 case .home:
                     ContentView(router: router)
                         .transition(.opacity)
+                case .onboarding:
+                    OnboardingInterestsView(router: router)
+                        .transition(.opacity)
                 case .intro:
                     IntroView(router: router)
                         .transition(.opacity)

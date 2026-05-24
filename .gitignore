@@ -25,6 +25,7 @@ out/
 Thumbs.db
 
 # iOS
+apps/ios/.build/
 apps/ios/Nook.xcodeproj/xcuserdata/
 apps/ios/Nook.xcodeproj/project.xcworkspace/xcuserdata/
 apps/ios/DerivedData/
@@ -42,6 +43,9 @@ apps/android/.idea/
 # Testing
 coverage/
 *.lcov
+
+# MCP
+.mcp.json
 
 # Misc
 *.log

@@ -24,6 +24,8 @@
 		C7A0531D0AEB4260772159C3 /* NookFonts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2480F7DC49F5AF409A6F9B5D /* NookFonts.swift */; };
 		CCB0999F746FC1447FA54DD5 /* NookApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47CBA70A6F7BC8F3D41E9242 /* NookApp.swift */; };
 		DDF31DFAC904631728E8BE97 /* IntroView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD3FD31533A8320839C66978 /* IntroView.swift */; };
+		E1A2B3C4D5E6F7A8B9C0D1E2 /* OnboardingInterestsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1A2B3C4D5E6F7A8B9C0D1E3 /* OnboardingInterestsView.swift */; };
+		E1A2B3C4D5E6F7A8B9C0D1E4 /* Outfit-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = E1A2B3C4D5E6F7A8B9C0D1E5 /* Outfit-Bold.ttf */; };
 		FA09B67D88C18710F1E272DC /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 8A3F7E0B4B346D5AAAB15FBA /* Supabase */; };
 		A1B2C3D5E5F6A7B8C9D0E1F3 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = A1B2C3D6E5F6A7B8C9D0E1F4 /* GoogleSignIn */; };
 		A1B2C3D7E5F6A7B8C9D0E1F5 /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = A1B2C3D8E5F6A7B8C9D0E1F6 /* GoogleSignInSwift */; };
@@ -50,6 +52,8 @@
 		BD3FD31533A8320839C66978 /* IntroView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntroView.swift; sourceTree = "<group>"; };
 		CEAD2EC6E8B677C15E76C760 /* arrow-right.svg */ = {isa = PBXFileReference; lastKnownFileType = text; path = "arrow-right.svg"; sourceTree = "<group>"; };
 		D7A3FD70DAD38D02B5A01342 /* PlusJakartaSans-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "PlusJakartaSans-Regular.ttf"; sourceTree = "<group>"; };
+		E1A2B3C4D5E6F7A8B9C0D1E3 /* OnboardingInterestsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingInterestsView.swift; sourceTree = "<group>"; };
+		E1A2B3C4D5E6F7A8B9C0D1E5 /* Outfit-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Outfit-Bold.ttf"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -69,6 +73,7 @@
 		14C874CD16D32415FE6FF399 /* Fonts */ = {
 			isa = PBXGroup;
 			children = (
+				E1A2B3C4D5E6F7A8B9C0D1E5 /* Outfit-Bold.ttf */,
 				36CCF438887FD12973FB2122 /* PlusJakartaSans-Bold.ttf */,
 				0434AC2CEBC0E104ADA7C5E9 /* PlusJakartaSans-Medium.ttf */,
 				D7A3FD70DAD38D02B5A01342 /* PlusJakartaSans-Regular.ttf */,
@@ -89,6 +94,7 @@
 			isa = PBXGroup;
 			children = (
 				BD3FD31533A8320839C66978 /* IntroView.swift */,
+				E1A2B3C4D5E6F7A8B9C0D1E3 /* OnboardingInterestsView.swift */,
 				C36B6457C06F36C7515EB6DC /* Components */,
 			);
 			path = Views;
@@ -228,6 +234,7 @@
 				0C7A7928EDF8261A60C69B7B /* PlusJakartaSans-Medium.ttf in Resources */,
 				8B544F2AF1CC75C4F2A0FB54 /* PlusJakartaSans-Regular.ttf in Resources */,
 				2D8A14360C20E0E7E22153DE /* PlusJakartaSans-SemiBold.ttf in Resources */,
+				E1A2B3C4D5E6F7A8B9C0D1E4 /* Outfit-Bold.ttf in Resources */,
 				B71606E538E66BF6FEE28D41 /* arrow-right.svg in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -243,6 +250,7 @@
 				14027C35E1B179163E7D7A72 /* ContentView.swift in Sources */,
 				DDF31DFAC904631728E8BE97 /* IntroView.swift in Sources */,
 				CCB0999F746FC1447FA54DD5 /* NookApp.swift in Sources */,
+				E1A2B3C4D5E6F7A8B9C0D1E2 /* OnboardingInterestsView.swift in Sources */,
 				4986E3F77DEFDEB9D6BA662F /* NookColors.swift in Sources */,
 				C7A0531D0AEB4260772159C3 /* NookFonts.swift in Sources */,
 				BF2BE3CA0888D9E8587C644B /* NookRadii.swift in Sources */,
