@@ -7,7 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		01A2B3C4D5E6F7A8B9C0D1E2 /* AuthView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A7B8C9D0E1F2 /* AuthView.swift */; };
 		03B16B4355BCB873356D3B7E /* NookTextField.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD7EDC639242E213297A4E3B /* NookTextField.swift */; };
 		0C7A7928EDF8261A60C69B7B /* PlusJakartaSans-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 0434AC2CEBC0E104ADA7C5E9 /* PlusJakartaSans-Medium.ttf */; };
 		14027C35E1B179163E7D7A72 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19FAF1FC5B046085F9880E74 /* ContentView.swift */; };
@@ -48,7 +47,6 @@
 		7DA5927064C06EEF957F7211 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		7E01623977F7EFDA29CEB48F /* Supabase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Supabase.swift; sourceTree = "<group>"; };
 		9702BBB3E69FB7B1267F94CD /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
-		A1B2C3D4E5F6A7B8C9D0E1F2 /* AuthView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthView.swift; sourceTree = "<group>"; };
 		AD7EDC639242E213297A4E3B /* NookTextField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NookTextField.swift; sourceTree = "<group>"; };
 		BD3FD31533A8320839C66978 /* IntroView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntroView.swift; sourceTree = "<group>"; };
 		B1C2D3E4F5A6B7C8D9E0F1A3 /* EmailConfirmationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailConfirmationView.swift; sourceTree = "<group>"; };
@@ -92,7 +90,6 @@
 		2EB4817CF8337A5C7465A44A /* Views */ = {
 			isa = PBXGroup;
 			children = (
-				A1B2C3D4E5F6A7B8C9D0E1F2 /* AuthView.swift */,
 				B1C2D3E4F5A6B7C8D9E0F1A3 /* EmailConfirmationView.swift */,
 				BD3FD31533A8320839C66978 /* IntroView.swift */,
 				C36B6457C06F36C7515EB6DC /* Components */,
@@ -245,7 +242,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				01A2B3C4D5E6F7A8B9C0D1E2 /* AuthView.swift in Sources */,
 				6D58DF4AD9876C5ED6C3862A /* AppRouter.swift in Sources */,
 				14027C35E1B179163E7D7A72 /* ContentView.swift in Sources */,
 				B1C2D3E4F5A6B7C8D9E0F1A2 /* EmailConfirmationView.swift in Sources */,

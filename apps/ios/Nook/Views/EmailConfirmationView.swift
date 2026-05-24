@@ -11,7 +11,7 @@ struct EmailConfirmationView: View {
                     // Header
                     HStack {
                         Button {
-                            router.currentScreen = .signUp
+                            router.currentScreen = .intro
                         } label: {
                             Image(systemName: "arrow.left")
                                 .font(.system(size: 18, weight: .medium))
@@ -36,17 +36,13 @@ struct EmailConfirmationView: View {
 
                     // Title
                     VStack(spacing: 12) {
-                        Text("Check your email")
+                        Text("Enter code")
                             .font(.custom("PlusJakartaSans-Bold", size: 28))
                             .foregroundStyle(Color.nook.foreground)
 
-                        Text("We sent a 6-digit code to")
+                        Text("Code sent to \(email)")
                             .font(NookFont.bodyMedium)
                             .foregroundStyle(Color.nook.mutedForeground)
-
-                        Text(email)
-                            .font(NookFont.labelSmall)
-                            .foregroundStyle(Color.nook.foreground)
                     }
                     .multilineTextAlignment(.center)
                     .padding(.top, 24)
@@ -197,7 +193,7 @@ private struct OTPFields: View {
         errorMessage = nil
         Task {
             do {
-                try await router.resendConfirmation(email: email)
+                try await router.resendOTP(email: email)
                 showResendConfirmation = true
                 startCooldown()
             } catch {
