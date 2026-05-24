@@ -74,6 +74,7 @@ private struct NookTabBar: View {
             tabButton(.library)
             tabButton(.groups)
         }
+        .padding(.horizontal, 16)
         .padding(.top, 17)
         .padding(.bottom, 0)
         .background {
