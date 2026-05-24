@@ -6,9 +6,14 @@ struct HomeView: View {
     @State private var avatarURL: URL?
 
     var body: some View {
-        VStack(spacing: 0) {
-            HomeHeaderView(userName: userName, avatarURL: avatarURL)
-            Spacer()
+        ScrollView {
+            VStack(spacing: 0) {
+                HomeHeaderView(userName: userName, avatarURL: avatarURL)
+
+                ContinueTrackingSection(items: ContinueTrackingSection.mockItems)
+                    .padding(.top, 8)
+                Spacer()
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.nook.background)

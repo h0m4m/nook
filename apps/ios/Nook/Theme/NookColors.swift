@@ -34,6 +34,20 @@ struct NookColors {
     let headerIconForeground = Color(hex: 0x2B2527)
     let headerAvatarBorder = Color(hex: 0xE8E2DF)
 
+    // Section tokens from Figma
+    let sectionTitle = Color(hex: 0x2B2527)
+    let sectionAction = Color(hex: 0x7C7176)
+    let cardTitle = Color(hex: 0x2B2527)
+    let cardSubtitle = Color(hex: 0x7C7176)
+
+    // Category badge tokens from Figma
+    let badgeAnimeBg = Color(hex: 0xF3EBF5, alpha: 0.9)
+    let badgeAnimeText = Color(hex: 0xBA68C8)
+    let badgeTvShowBg = Color(hex: 0xEEF2F5, alpha: 0.9)
+    let badgeTvShowText = Color(hex: 0x64B5F6)
+    let badgeBookBg = Color(hex: 0xF5F1EB, alpha: 0.9)
+    let badgeBookText = Color(hex: 0xD4A373)
+
     // Tab bar tokens from Figma
     let tabBarBackground = Color(hex: 0xFAF8F6)
     let tabBarBorder = Color(hex: 0xE8E2DF)

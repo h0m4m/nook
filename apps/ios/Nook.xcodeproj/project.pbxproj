@@ -32,6 +32,7 @@
 		A1B2C3D7E5F6A7B8C9D0E1F5 /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = A1B2C3D8E5F6A7B8C9D0E1F6 /* GoogleSignInSwift */; };
 		H0M3V13WABC123456789AB01 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = H0M3V13WABC123456789AB02 /* HomeView.swift */; };
 		H0M3HDR1ABC123456789AB01 /* HomeHeaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = H0M3HDR1ABC123456789AB02 /* HomeHeaderView.swift */; };
+		C0NT1NU3TRK1234567890AB01 /* ContinueTrackingSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0NT1NU3TRK1234567890AB02 /* ContinueTrackingSection.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -60,6 +61,7 @@
 		E1A2B3C4D5E6F7A8B9C0D1E5 /* Outfit-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Outfit-Bold.ttf"; sourceTree = "<group>"; };
 		H0M3V13WABC123456789AB02 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
 		H0M3HDR1ABC123456789AB02 /* HomeHeaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeHeaderView.swift; sourceTree = "<group>"; };
+		C0NT1NU3TRK1234567890AB02 /* ContinueTrackingSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContinueTrackingSection.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -111,6 +113,7 @@
 		H0M3GRP1ABC123456789AB01 /* Home */ = {
 			isa = PBXGroup;
 			children = (
+				C0NT1NU3TRK1234567890AB02 /* ContinueTrackingSection.swift */,
 				H0M3HDR1ABC123456789AB02 /* HomeHeaderView.swift */,
 				H0M3V13WABC123456789AB02 /* HomeView.swift */,
 			);
@@ -267,6 +270,7 @@
 				14027C35E1B179163E7D7A72 /* ContentView.swift in Sources */,
 				H0M3V13WABC123456789AB01 /* HomeView.swift in Sources */,
 				H0M3HDR1ABC123456789AB01 /* HomeHeaderView.swift in Sources */,
+				C0NT1NU3TRK1234567890AB01 /* ContinueTrackingSection.swift in Sources */,
 				DDF31DFAC904631728E8BE97 /* IntroView.swift in Sources */,
 				F2A3B4C5D6E7F8A9B0C1D2E3 /* MainTabView.swift in Sources */,
 				CCB0999F746FC1447FA54DD5 /* NookApp.swift in Sources */,

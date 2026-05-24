@@ -20,7 +20,11 @@ enum NookFont {
     static let labelBold = Font.custom("PlusJakartaSans-Bold", size: 16, relativeTo: .subheadline)
     static let tabLabel = Font.custom("PlusJakartaSans-Bold", size: 10, relativeTo: .caption2)
 
+    static let labelBoldSmall = Font.custom("PlusJakartaSans-Bold", size: 14, relativeTo: .footnote)
+    static let labelMediumSmall = Font.custom("PlusJakartaSans-Medium", size: 14, relativeTo: .footnote)
+
     // Outfit display font (onboarding headings)
     static let outfitDisplay = Font.custom("Outfit-Bold", size: 36, relativeTo: .largeTitle)
+    static let outfitHeadingSmall = Font.custom("Outfit-Bold", size: 20, relativeTo: .title3)
     static let outfitLabel = Font.custom("Outfit-Bold", size: 18, relativeTo: .body)
 }
