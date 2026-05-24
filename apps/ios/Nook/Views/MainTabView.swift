@@ -44,7 +44,7 @@ struct MainTabView: View {
             Group {
                 switch selectedTab {
                 case .home:
-                    HomeTabPlaceholder()
+                    HomeView()
                 case .search:
                     SearchTabPlaceholder()
                 case .library:
@@ -145,17 +145,6 @@ private struct NookTabBar: View {
 
 // MARK: - Placeholder Tabs
 
-private struct HomeTabPlaceholder: View {
-    var body: some View {
-        VStack {
-            Text("Home")
-                .font(NookFont.headingMedium)
-                .foregroundStyle(Color.nook.foreground)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.nook.background)
-    }
-}
 
 private struct SearchTabPlaceholder: View {
     var body: some View {

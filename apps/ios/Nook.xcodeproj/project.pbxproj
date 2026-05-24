@@ -30,6 +30,8 @@
 		FA09B67D88C18710F1E272DC /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 8A3F7E0B4B346D5AAAB15FBA /* Supabase */; };
 		A1B2C3D5E5F6A7B8C9D0E1F3 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = A1B2C3D6E5F6A7B8C9D0E1F4 /* GoogleSignIn */; };
 		A1B2C3D7E5F6A7B8C9D0E1F5 /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = A1B2C3D8E5F6A7B8C9D0E1F6 /* GoogleSignInSwift */; };
+		H0M3V13WABC123456789AB01 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = H0M3V13WABC123456789AB02 /* HomeView.swift */; };
+		H0M3HDR1ABC123456789AB01 /* HomeHeaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = H0M3HDR1ABC123456789AB02 /* HomeHeaderView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -56,6 +58,8 @@
 		E1A2B3C4D5E6F7A8B9C0D1E3 /* OnboardingInterestsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingInterestsView.swift; sourceTree = "<group>"; };
 		F2A3B4C5D6E7F8A9B0C1D2E4 /* MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTabView.swift; sourceTree = "<group>"; };
 		E1A2B3C4D5E6F7A8B9C0D1E5 /* Outfit-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Outfit-Bold.ttf"; sourceTree = "<group>"; };
+		H0M3V13WABC123456789AB02 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
+		H0M3HDR1ABC123456789AB02 /* HomeHeaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeHeaderView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -99,8 +103,18 @@
 				F2A3B4C5D6E7F8A9B0C1D2E4 /* MainTabView.swift */,
 				E1A2B3C4D5E6F7A8B9C0D1E3 /* OnboardingInterestsView.swift */,
 				C36B6457C06F36C7515EB6DC /* Components */,
+				H0M3GRP1ABC123456789AB01 /* Home */,
 			);
 			path = Views;
+			sourceTree = "<group>";
+		};
+		H0M3GRP1ABC123456789AB01 /* Home */ = {
+			isa = PBXGroup;
+			children = (
+				H0M3HDR1ABC123456789AB02 /* HomeHeaderView.swift */,
+				H0M3V13WABC123456789AB02 /* HomeView.swift */,
+			);
+			path = Home;
 			sourceTree = "<group>";
 		};
 		3B0328E73DB78F0B95AD9373 /* Resources */ = {
@@ -251,6 +265,8 @@
 			files = (
 				6D58DF4AD9876C5ED6C3862A /* AppRouter.swift in Sources */,
 				14027C35E1B179163E7D7A72 /* ContentView.swift in Sources */,
+				H0M3V13WABC123456789AB01 /* HomeView.swift in Sources */,
+				H0M3HDR1ABC123456789AB01 /* HomeHeaderView.swift in Sources */,
 				DDF31DFAC904631728E8BE97 /* IntroView.swift in Sources */,
 				F2A3B4C5D6E7F8A9B0C1D2E3 /* MainTabView.swift in Sources */,
 				CCB0999F746FC1447FA54DD5 /* NookApp.swift in Sources */,

@@ -17,6 +17,7 @@ enum NookFont {
     static let caption = Font.custom("PlusJakartaSans-Regular", size: 12, relativeTo: .caption)
     static let captionBold = Font.custom("PlusJakartaSans-Bold", size: 12, relativeTo: .caption)
     static let captionSemiBold = Font.custom("PlusJakartaSans-SemiBold", size: 12, relativeTo: .caption)
+    static let labelBold = Font.custom("PlusJakartaSans-Bold", size: 16, relativeTo: .subheadline)
     static let tabLabel = Font.custom("PlusJakartaSans-Bold", size: 10, relativeTo: .caption2)
 
     // Outfit display font (onboarding headings)

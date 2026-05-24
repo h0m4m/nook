@@ -25,6 +25,15 @@ struct NookColors {
     let onboardingSubtitle = Color(hex: 0x8A8387)
     let onboardingPrimary = Color(hex: 0x432C3A)
 
+    // Header tokens from Figma
+    let headerBackground = Color(hex: 0xFAF8F6, alpha: 0.8)
+    let headerGreeting = Color(hex: 0x7C7176)
+    let headerName = Color(hex: 0x2B2527)
+    let headerIconBackground = Color.white
+    let headerIconBorder = Color(hex: 0xE8E2DF)
+    let headerIconForeground = Color(hex: 0x2B2527)
+    let headerAvatarBorder = Color(hex: 0xE8E2DF)
+
     // Tab bar tokens from Figma
     let tabBarBackground = Color(hex: 0xFAF8F6)
     let tabBarBorder = Color(hex: 0xE8E2DF)
