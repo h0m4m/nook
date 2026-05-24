@@ -13,7 +13,7 @@ struct RootView: View {
             } else {
                 switch router.currentScreen {
                 case .home:
-                    ContentView(router: router)
+                    MainTabView(router: router)
                         .transition(.opacity)
                 case .onboarding:
                     OnboardingInterestsView(router: router)

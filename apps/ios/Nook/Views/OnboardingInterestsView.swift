@@ -78,19 +78,12 @@ struct OnboardingInterestsView: View {
                 .ignoresSafeArea()
 
             VStack(alignment: .leading, spacing: 0) {
-                // Progress indicators
-                progressBar
-                    .padding(.top, 12)
-                    .padding(.horizontal, 24)
-                    .offset(y: appeared ? 0 : -8)
-                    .opacity(appeared ? 1 : 0)
-
                 // Heading
                 Text("Choose your worlds.")
                     .font(NookFont.outfitDisplay)
                     .lineSpacing(9)
                     .foregroundStyle(Color.nook.onboardingHeading)
-                    .padding(.top, 32)
+                    .padding(.top, 44)
                     .padding(.horizontal, 24)
                     .offset(y: appeared ? 0 : 12)
                     .opacity(appeared ? 1 : 0)

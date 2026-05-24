@@ -24,18 +24,6 @@
 		<string>PlusJakartaSans-Medium.ttf</string>
 		<string>PlusJakartaSans-SemiBold.ttf</string>
 		<string>PlusJakartaSans-Bold.ttf</string>
-		<string>Outfit-Bold.ttf</string>
-	</array>
-	<key>GIDClientID</key>
-	<string>997851156157-slefjd6o94i8c8l83fupsgrf0d0a3ku2.apps.googleusercontent.com</string>
-	<key>CFBundleURLTypes</key>
-	<array>
-		<dict>
-			<key>CFBundleURLSchemes</key>
-			<array>
-				<string>com.googleusercontent.apps.997851156157-slefjd6o94i8c8l83fupsgrf0d0a3ku2</string>
-			</array>
-		</dict>
 	</array>
 	<key>UILaunchScreen</key>
 	<dict>

@@ -25,6 +25,7 @@
 		CCB0999F746FC1447FA54DD5 /* NookApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47CBA70A6F7BC8F3D41E9242 /* NookApp.swift */; };
 		DDF31DFAC904631728E8BE97 /* IntroView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD3FD31533A8320839C66978 /* IntroView.swift */; };
 		E1A2B3C4D5E6F7A8B9C0D1E2 /* OnboardingInterestsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1A2B3C4D5E6F7A8B9C0D1E3 /* OnboardingInterestsView.swift */; };
+		F2A3B4C5D6E7F8A9B0C1D2E3 /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2A3B4C5D6E7F8A9B0C1D2E4 /* MainTabView.swift */; };
 		E1A2B3C4D5E6F7A8B9C0D1E4 /* Outfit-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = E1A2B3C4D5E6F7A8B9C0D1E5 /* Outfit-Bold.ttf */; };
 		FA09B67D88C18710F1E272DC /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 8A3F7E0B4B346D5AAAB15FBA /* Supabase */; };
 		A1B2C3D5E5F6A7B8C9D0E1F3 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = A1B2C3D6E5F6A7B8C9D0E1F4 /* GoogleSignIn */; };
@@ -53,6 +54,7 @@
 		CEAD2EC6E8B677C15E76C760 /* arrow-right.svg */ = {isa = PBXFileReference; lastKnownFileType = text; path = "arrow-right.svg"; sourceTree = "<group>"; };
 		D7A3FD70DAD38D02B5A01342 /* PlusJakartaSans-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "PlusJakartaSans-Regular.ttf"; sourceTree = "<group>"; };
 		E1A2B3C4D5E6F7A8B9C0D1E3 /* OnboardingInterestsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingInterestsView.swift; sourceTree = "<group>"; };
+		F2A3B4C5D6E7F8A9B0C1D2E4 /* MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTabView.swift; sourceTree = "<group>"; };
 		E1A2B3C4D5E6F7A8B9C0D1E5 /* Outfit-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Outfit-Bold.ttf"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -94,6 +96,7 @@
 			isa = PBXGroup;
 			children = (
 				BD3FD31533A8320839C66978 /* IntroView.swift */,
+				F2A3B4C5D6E7F8A9B0C1D2E4 /* MainTabView.swift */,
 				E1A2B3C4D5E6F7A8B9C0D1E3 /* OnboardingInterestsView.swift */,
 				C36B6457C06F36C7515EB6DC /* Components */,
 			);
@@ -249,6 +252,7 @@
 				6D58DF4AD9876C5ED6C3862A /* AppRouter.swift in Sources */,
 				14027C35E1B179163E7D7A72 /* ContentView.swift in Sources */,
 				DDF31DFAC904631728E8BE97 /* IntroView.swift in Sources */,
+				F2A3B4C5D6E7F8A9B0C1D2E3 /* MainTabView.swift in Sources */,
 				CCB0999F746FC1447FA54DD5 /* NookApp.swift in Sources */,
 				E1A2B3C4D5E6F7A8B9C0D1E2 /* OnboardingInterestsView.swift in Sources */,
 				4986E3F77DEFDEB9D6BA662F /* NookColors.swift in Sources */,
