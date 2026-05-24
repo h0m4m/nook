@@ -109,7 +109,7 @@ private struct EmailEntryStep: View {
                     .foregroundStyle(Color.nook.mutedForeground)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.top, 32)
+            .padding(.top, 48)
             .padding(.horizontal, 24)
 
             Spacer()
