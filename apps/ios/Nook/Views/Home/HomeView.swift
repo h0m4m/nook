@@ -16,6 +16,9 @@ struct HomeView: View {
 
                     TrendingReviewsSection(items: TrendingReviewsSection.mockItems)
                         .padding(.top, 32)
+
+                    PopularNooksSection(items: PopularNooksSection.mockItems)
+                        .padding(.top, 32)
                 }
                 .padding(.bottom, 100)
             }

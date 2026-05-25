@@ -34,6 +34,7 @@
 		H0M3HDR1ABC123456789AB01 /* HomeHeaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = H0M3HDR1ABC123456789AB02 /* HomeHeaderView.swift */; };
 		C0NT1NU3TRK1234567890AB01 /* ContinueTrackingSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0NT1NU3TRK1234567890AB02 /* ContinueTrackingSection.swift */; };
 		TR3ND1NGR3V1234567890AB01 /* TrendingReviewsSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = TR3ND1NGR3V1234567890AB02 /* TrendingReviewsSection.swift */; };
+		P0PUL4RN00K1234567890AB01 /* PopularNooksSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = P0PUL4RN00K1234567890AB02 /* PopularNooksSection.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -64,6 +65,7 @@
 		H0M3HDR1ABC123456789AB02 /* HomeHeaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeHeaderView.swift; sourceTree = "<group>"; };
 		C0NT1NU3TRK1234567890AB02 /* ContinueTrackingSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContinueTrackingSection.swift; sourceTree = "<group>"; };
 		TR3ND1NGR3V1234567890AB02 /* TrendingReviewsSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrendingReviewsSection.swift; sourceTree = "<group>"; };
+		P0PUL4RN00K1234567890AB02 /* PopularNooksSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PopularNooksSection.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -118,6 +120,7 @@
 				C0NT1NU3TRK1234567890AB02 /* ContinueTrackingSection.swift */,
 				H0M3HDR1ABC123456789AB02 /* HomeHeaderView.swift */,
 				H0M3V13WABC123456789AB02 /* HomeView.swift */,
+				P0PUL4RN00K1234567890AB02 /* PopularNooksSection.swift */,
 				TR3ND1NGR3V1234567890AB02 /* TrendingReviewsSection.swift */,
 			);
 			path = Home;
@@ -275,6 +278,7 @@
 				H0M3HDR1ABC123456789AB01 /* HomeHeaderView.swift in Sources */,
 				C0NT1NU3TRK1234567890AB01 /* ContinueTrackingSection.swift in Sources */,
 				TR3ND1NGR3V1234567890AB01 /* TrendingReviewsSection.swift in Sources */,
+				P0PUL4RN00K1234567890AB01 /* PopularNooksSection.swift in Sources */,
 				DDF31DFAC904631728E8BE97 /* IntroView.swift in Sources */,
 				F2A3B4C5D6E7F8A9B0C1D2E3 /* MainTabView.swift in Sources */,
 				CCB0999F746FC1447FA54DD5 /* NookApp.swift in Sources */,
