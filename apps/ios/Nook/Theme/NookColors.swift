@@ -48,6 +48,11 @@ struct NookColors {
     let badgeBookBg = Color(hex: 0xF5F1EB, alpha: 0.9)
     let badgeBookText = Color(hex: 0xD4A373)
 
+    // Review tokens from Figma
+    let reviewRating = Color(hex: 0xF59E0B)
+    let reviewBody = Color(hex: 0x7C7176)
+    let reviewBorder = Color(hex: 0xE8E2DF)
+
     // Tab bar tokens from Figma
     let tabBarBackground = Color(hex: 0xFAF8F6)
     let tabBarBorder = Color(hex: 0xE8E2DF)

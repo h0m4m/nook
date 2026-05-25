@@ -6,13 +6,18 @@ struct HomeView: View {
     @State private var avatarURL: URL?
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 0) {
-                HomeHeaderView(userName: userName, avatarURL: avatarURL)
+        VStack(spacing: 0) {
+            HomeHeaderView(userName: userName, avatarURL: avatarURL)
 
-                ContinueTrackingSection(items: ContinueTrackingSection.mockItems)
-                    .padding(.top, 8)
-                Spacer()
+            ScrollView {
+                VStack(spacing: 0) {
+                    ContinueTrackingSection(items: ContinueTrackingSection.mockItems)
+                        .padding(.top, 8)
+
+                    TrendingReviewsSection(items: TrendingReviewsSection.mockItems)
+                        .padding(.top, 32)
+                }
+                .padding(.bottom, 100)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

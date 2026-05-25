@@ -75,14 +75,13 @@ private struct NookTabBar: View {
             tabButton(.groups)
         }
         .padding(.horizontal, 16)
-        .padding(.top, 17)
+        .padding(.top, 7)
         .padding(.bottom, 0)
         .background {
             Color.nook.background
                 .overlay(alignment: .top) {
                     Color.nook.tabBarBorder
                         .frame(height: 1)
-                        .padding(.top, 10)
                 }
                 .ignoresSafeArea(.container, edges: .bottom)
         }

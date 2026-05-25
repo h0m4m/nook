@@ -33,6 +33,7 @@
 		H0M3V13WABC123456789AB01 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = H0M3V13WABC123456789AB02 /* HomeView.swift */; };
 		H0M3HDR1ABC123456789AB01 /* HomeHeaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = H0M3HDR1ABC123456789AB02 /* HomeHeaderView.swift */; };
 		C0NT1NU3TRK1234567890AB01 /* ContinueTrackingSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0NT1NU3TRK1234567890AB02 /* ContinueTrackingSection.swift */; };
+		TR3ND1NGR3V1234567890AB01 /* TrendingReviewsSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = TR3ND1NGR3V1234567890AB02 /* TrendingReviewsSection.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -62,6 +63,7 @@
 		H0M3V13WABC123456789AB02 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
 		H0M3HDR1ABC123456789AB02 /* HomeHeaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeHeaderView.swift; sourceTree = "<group>"; };
 		C0NT1NU3TRK1234567890AB02 /* ContinueTrackingSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContinueTrackingSection.swift; sourceTree = "<group>"; };
+		TR3ND1NGR3V1234567890AB02 /* TrendingReviewsSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrendingReviewsSection.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -116,6 +118,7 @@
 				C0NT1NU3TRK1234567890AB02 /* ContinueTrackingSection.swift */,
 				H0M3HDR1ABC123456789AB02 /* HomeHeaderView.swift */,
 				H0M3V13WABC123456789AB02 /* HomeView.swift */,
+				TR3ND1NGR3V1234567890AB02 /* TrendingReviewsSection.swift */,
 			);
 			path = Home;
 			sourceTree = "<group>";
@@ -271,6 +274,7 @@
 				H0M3V13WABC123456789AB01 /* HomeView.swift in Sources */,
 				H0M3HDR1ABC123456789AB01 /* HomeHeaderView.swift in Sources */,
 				C0NT1NU3TRK1234567890AB01 /* ContinueTrackingSection.swift in Sources */,
+				TR3ND1NGR3V1234567890AB01 /* TrendingReviewsSection.swift in Sources */,
 				DDF31DFAC904631728E8BE97 /* IntroView.swift in Sources */,
 				F2A3B4C5D6E7F8A9B0C1D2E3 /* MainTabView.swift in Sources */,
 				CCB0999F746FC1447FA54DD5 /* NookApp.swift in Sources */,
