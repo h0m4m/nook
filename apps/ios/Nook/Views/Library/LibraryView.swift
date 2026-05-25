@@ -166,7 +166,6 @@ enum LibraryFilter: CaseIterable, Identifiable {
 
 struct LibraryView: View {
     @State private var selectedFilter: LibraryFilter = .all
-    @State private var searchText = ""
     @State private var items: [LibraryItem] = LibraryView.mockItems
 
     private var filteredItems: [LibraryItem] {
@@ -186,19 +185,12 @@ struct LibraryView: View {
             results = results.filter { $0.status == .completed }
         }
 
-        if !searchText.isEmpty {
-            results = results.filter {
-                $0.title.localizedCaseInsensitiveContains(searchText)
-            }
-        }
-
         return results
     }
 
     var body: some View {
         VStack(spacing: 0) {
             headerTitle
-            searchBar
             filterChips
             libraryItems
         }
@@ -211,57 +203,44 @@ struct LibraryView: View {
     private var headerTitle: some View {
         HStack(alignment: .center) {
             Text("Library")
-                .font(.custom("Outfit-Bold", size: 28))
+                .font(NookFont.headingLarge)
                 .foregroundStyle(Color.nook.sectionTitle)
 
             Spacer()
 
-            // Filter button (no action for now)
-            Button {
-                // No action
-            } label: {
-                Circle()
-                    .fill(Color.nook.searchBarBackground)
-                    .frame(width: 40, height: 40)
-                    .overlay {
-                        Image(systemName: "line.3.horizontal.decrease")
-                            .font(.system(size: 16, weight: .medium))
-                            .foregroundStyle(Color.nook.sectionTitle)
-                    }
+            // Search + Sort buttons
+            HStack(spacing: 0) {
+                Button {
+                    // No action
+                } label: {
+                    Image("magnifying-glass-bold")
+                        .renderingMode(.template)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 18, height: 18)
+                        .foregroundStyle(Color.nook.sectionTitle)
+                        .frame(width: 40, height: 40)
+                }
+                .buttonStyle(.plain)
+
+                Button {
+                    // No action
+                } label: {
+                    Image("sort-ascending-bold")
+                        .renderingMode(.template)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 18, height: 18)
+                        .foregroundStyle(Color.nook.sectionTitle)
+                        .frame(width: 40, height: 40)
+                }
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
+            .background(Color.nook.searchBarBackground)
+            .clipShape(Capsule())
         }
         .padding(.horizontal, 24)
         .padding(.top, 8)
-    }
-
-    // MARK: - Search Bar
-
-    private var searchBar: some View {
-        HStack(spacing: 12) {
-            Image("magnifying-glass-bold")
-                .renderingMode(.template)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(width: 20, height: 20)
-                .foregroundStyle(Color.nook.searchBarPlaceholder)
-
-            TextField(
-                "Search your library...",
-                text: $searchText,
-                prompt: Text("Search your library...")
-                    .font(NookFont.labelMediumSmall)
-                    .foregroundStyle(Color.nook.searchBarPlaceholder)
-            )
-            .font(NookFont.labelMediumSmall)
-            .foregroundStyle(Color.nook.searchBarText)
-        }
-        .padding(.horizontal, 20)
-        .frame(height: 56)
-        .background(Color.nook.searchBarBackground)
-        .clipShape(Capsule())
-        .padding(.horizontal, 24)
-        .padding(.top, 12)
     }
 
     // MARK: - Filter Chips
@@ -312,7 +291,7 @@ struct LibraryView: View {
     private var libraryItems: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 0) {
-                Text("YOUR COLLECTION")
+                Text("\(filteredItems.count) ITEMS")
                     .font(NookFont.tabLabel)
                     .tracking(1)
                     .foregroundStyle(Color.nook.searchSectionLabel)

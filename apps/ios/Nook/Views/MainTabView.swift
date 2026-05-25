@@ -11,7 +11,7 @@ enum Tab: CaseIterable {
         case .home: "Home"
         case .search: "Discover"
         case .library: "Library"
-        case .groups: "Nooks"
+        case .groups: "Groups"
         }
     }
 
@@ -50,7 +50,7 @@ struct MainTabView: View {
                 case .library:
                     LibraryView()
                 case .groups:
-                    GroupsTabPlaceholder()
+                    CommunitiesView()
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -76,7 +76,7 @@ private struct NookTabBar: View {
         }
         .padding(.horizontal, 16)
         .padding(.top, 7)
-        .padding(.bottom, 0)
+        .padding(.bottom, -10)
         .background {
             Color.nook.background
                 .overlay(alignment: .top) {
@@ -142,20 +142,6 @@ private struct NookTabBar: View {
     }
 }
 
-// MARK: - Placeholder Tabs
-
-
-private struct GroupsTabPlaceholder: View {
-    var body: some View {
-        VStack {
-            Text("Groups")
-                .font(NookFont.headingMedium)
-                .foregroundStyle(Color.nook.foreground)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.nook.background)
-    }
-}
 
 #Preview {
     MainTabView(router: AppRouter())
