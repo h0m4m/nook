@@ -73,6 +73,11 @@ struct NookColors {
     let categoryBook = Color(hex: 0xD4A373)
     let categoryGame = Color(hex: 0x81C784)
 
+    // Library tokens from Figma
+    let libraryStatusActive = Color(hex: 0x00C950)
+    let libraryStatusReading = Color(hex: 0x2B7FFF)
+    let libraryCompletedTrack = Color(hex: 0x00C950, alpha: 0.2)
+
     // Tab bar tokens from Figma
     let tabBarBackground = Color(hex: 0xFAF8F6)
     let tabBarBorder = Color(hex: 0xE8E2DF)

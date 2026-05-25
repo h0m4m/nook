@@ -15,6 +15,7 @@ enum NookFonts {
             "PlusJakartaSans-SemiBold",
             "PlusJakartaSans-Bold",
             "Outfit-Bold",
+            "PlusJakartaSans-Italic",
         ]
 
         for name in fontNames {

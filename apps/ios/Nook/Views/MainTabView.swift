@@ -48,7 +48,7 @@ struct MainTabView: View {
                 case .search:
                     SearchView()
                 case .library:
-                    LibraryTabPlaceholder()
+                    LibraryView()
                 case .groups:
                     GroupsTabPlaceholder()
                 }
@@ -144,18 +144,6 @@ private struct NookTabBar: View {
 
 // MARK: - Placeholder Tabs
 
-
-private struct LibraryTabPlaceholder: View {
-    var body: some View {
-        VStack {
-            Text("Library")
-                .font(NookFont.headingMedium)
-                .foregroundStyle(Color.nook.foreground)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.nook.background)
-    }
-}
 
 private struct GroupsTabPlaceholder: View {
     var body: some View {

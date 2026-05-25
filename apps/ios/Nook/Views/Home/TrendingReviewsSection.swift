@@ -138,8 +138,7 @@ private struct ReviewCard: View {
 
     private var cardBody: some View {
         Text("\"\(item.body)\"")
-            .font(.custom("PlusJakartaSans-Regular", size: 14))
-            .italic()
+            .font(.custom("PlusJakartaSans-Italic", size: 14))
             .foregroundStyle(Color.nook.reviewBody)
             .lineSpacing(6)
             .lineLimit(3)
