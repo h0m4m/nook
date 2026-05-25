@@ -72,11 +72,14 @@ private struct ReviewCard: View {
                 .padding(.bottom, 16)
         }
         .frame(width: 280, height: 200)
-        .background(Color.nook.card)
+        .background(
+            RoundedRectangle(cornerRadius: NookRadii.lg)
+                .fill(Color.nook.card)
+        )
         .clipShape(RoundedRectangle(cornerRadius: NookRadii.lg))
         .overlay(
             RoundedRectangle(cornerRadius: NookRadii.lg)
-                .stroke(Color.nook.reviewBorder, lineWidth: 1)
+                .strokeBorder(Color.nook.reviewBorder, lineWidth: 1)
         )
     }
 

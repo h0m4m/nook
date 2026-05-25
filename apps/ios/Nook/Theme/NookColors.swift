@@ -53,6 +53,26 @@ struct NookColors {
     let reviewBody = Color(hex: 0x7C7176)
     let reviewBorder = Color(hex: 0xE8E2DF)
 
+    // Search tokens from Figma
+    let searchBackground = Color(hex: 0xFAF8F6)
+    let searchBarBackground = Color(hex: 0xF0EBE8)
+    let searchBarText = Color(hex: 0x2B2527)
+    let searchBarPlaceholder = Color(hex: 0x7C7176)
+    let searchFilterSelected = Color(hex: 0x4A3243)
+    let searchFilterBorder = Color(hex: 0xE8E2DF)
+    let searchFilterText = Color(hex: 0x2B2527)
+    let searchSectionLabel = Color(hex: 0x7C7176)
+    let searchAddButton = Color(hex: 0xF0EBE8)
+    let searchAddedButton = Color(hex: 0x4A3243)
+
+    // Media category colors from Figma
+    let categoryMovie = Color(hex: 0xE57373)
+    let categoryTvShow = Color(hex: 0x64B5F6)
+    let categoryAnime = Color(hex: 0xBA68C8)
+    let categoryManga = Color(hex: 0x81C784)
+    let categoryBook = Color(hex: 0xD4A373)
+    let categoryGame = Color(hex: 0x81C784)
+
     // Tab bar tokens from Figma
     let tabBarBackground = Color(hex: 0xFAF8F6)
     let tabBarBorder = Color(hex: 0xE8E2DF)
