@@ -232,20 +232,43 @@ struct LibraryView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            filterChips
-            libraryItems
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .background(Color.nook.searchBackground)
-        .modifier(
-            LibraryTopBar(
-                isSearchActive: $isSearchActive,
-                searchText: $searchText,
-                isSearchFocused: $isSearchFocused,
-                selectedSort: $selectedSort
+        scrollContent
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .background(Color.nook.searchBackground)
+            .modifier(
+                LibraryTopBar(
+                    isSearchActive: $isSearchActive,
+                    searchText: $searchText,
+                    isSearchFocused: $isSearchFocused,
+                    selectedSort: $selectedSort
+                )
             )
-        )
+    }
+
+    private var scrollContent: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                filterChips
+
+                Text("\(filteredItems.count) ITEMS")
+                    .font(NookFont.tabLabel)
+                    .tracking(1)
+                    .foregroundStyle(Color.nook.searchSectionLabel)
+                    .padding(.horizontal, 24)
+                    .padding(.bottom, 24)
+
+                ForEach(Array(filteredItems.enumerated()), id: \.element.id) { index, item in
+                    LibraryItemRow(item: item)
+                        .padding(.horizontal, 24)
+
+                    if index < filteredItems.count - 1 {
+                        Spacer().frame(height: 24)
+                    }
+                }
+            }
+            .padding(.bottom, 100)
+        }
+        .modifier(LibrarySoftScrollEdge())
     }
 
     // MARK: - Filter Chips
@@ -312,31 +335,6 @@ struct LibraryView: View {
         }
     }
 
-    // MARK: - Library Items
-
-    private var libraryItems: some View {
-        ScrollView {
-            LazyVStack(alignment: .leading, spacing: 0) {
-                Text("\(filteredItems.count) ITEMS")
-                    .font(NookFont.tabLabel)
-                    .tracking(1)
-                    .foregroundStyle(Color.nook.searchSectionLabel)
-                    .padding(.bottom, 24)
-
-                ForEach(Array(filteredItems.enumerated()), id: \.element.id) { index, item in
-                    LibraryItemRow(item: item)
-
-                    if index < filteredItems.count - 1 {
-                        Spacer().frame(height: 24)
-                    }
-                }
-            }
-            .padding(.horizontal, 24)
-            .padding(.top, 24)
-            .padding(.bottom, 100)
-        }
-        .modifier(LibrarySoftScrollEdge())
-    }
 }
 
 // MARK: - Top Bar (safeAreaBar on iOS 26, safeAreaInset fallback)
@@ -379,7 +377,7 @@ private struct LibraryTopBar: ViewModifier {
     private var collapsedHeader: some View {
         HStack(alignment: .center) {
             Text("Library")
-                .font(NookFont.headingLarge)
+                .font(NookFont.headingMediumBold)
                 .foregroundStyle(Color.nook.sectionTitle)
                 .transition(.opacity)
 

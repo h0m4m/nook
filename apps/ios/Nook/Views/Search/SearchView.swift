@@ -97,16 +97,43 @@ struct SearchView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            filterChips
-            searchResults
+        scrollContent
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .background(Color.nook.searchBackground)
+            .modifier(SearchTopBar(searchText: $searchText, selectedFilter: selectedFilter))
+            .task {
+                await loadUserInterests()
+            }
+    }
+
+    private var scrollContent: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                filterChips
+
+                // Section header
+                Text("RECENT SEARCHES")
+                    .font(NookFont.tabLabel)
+                    .tracking(1)
+                    .foregroundStyle(Color.nook.searchSectionLabel)
+                    .padding(.horizontal, 24)
+                    .padding(.bottom, 24)
+
+                // Result rows
+                ForEach(Array(filteredResults.enumerated()), id: \.element.id) { index, item in
+                    SearchResultRow(item: item) {
+                        toggleAdded(item)
+                    }
+                    .padding(.horizontal, 24)
+
+                    if index < filteredResults.count - 1 {
+                        Spacer().frame(height: 24)
+                    }
+                }
+            }
+            .padding(.bottom, 100)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .background(Color.nook.searchBackground)
-        .modifier(SearchTopBar(searchText: $searchText, selectedFilter: selectedFilter))
-        .task {
-            await loadUserInterests()
-        }
+        .modifier(SoftScrollEdge())
     }
 
     // MARK: - Filter Chips
@@ -193,36 +220,6 @@ struct SearchView: View {
             }
             .buttonStyle(.plain)
         }
-    }
-
-    // MARK: - Search Results
-
-    private var searchResults: some View {
-        ScrollView {
-            LazyVStack(alignment: .leading, spacing: 0) {
-                // Section header
-                Text("RECENT SEARCHES")
-                    .font(NookFont.tabLabel)
-                    .tracking(1)
-                    .foregroundStyle(Color.nook.searchSectionLabel)
-                    .padding(.bottom, 24)
-
-                // Result rows
-                ForEach(Array(filteredResults.enumerated()), id: \.element.id) { index, item in
-                    SearchResultRow(item: item) {
-                        toggleAdded(item)
-                    }
-
-                    if index < filteredResults.count - 1 {
-                        Spacer().frame(height: 24)
-                    }
-                }
-            }
-            .padding(.horizontal, 24)
-            .padding(.top, 24)
-            .padding(.bottom, 100)
-        }
-        .modifier(SoftScrollEdge())
     }
 
     // MARK: - Actions

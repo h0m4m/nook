@@ -11,7 +11,7 @@ enum Tab: CaseIterable {
         case .home: "Home"
         case .search: "Discover"
         case .library: "Library"
-        case .groups: "Groups"
+        case .groups: "Clubs"
         }
     }
 
@@ -50,7 +50,7 @@ struct MainTabView: View {
                 case .library:
                     LibraryView()
                 case .groups:
-                    CommunitiesView()
+                    ClubsView()
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)

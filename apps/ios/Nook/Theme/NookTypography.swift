@@ -5,6 +5,7 @@ enum NookFont {
 
     static let headingLarge = Font.custom("PlusJakartaSans-Bold", size: 34, relativeTo: .largeTitle)
     static let headingMedium = Font.custom("PlusJakartaSans-SemiBold", size: 28, relativeTo: .title)
+    static let headingMediumBold = Font.custom("PlusJakartaSans-Bold", size: 28, relativeTo: .title)
     static let headingSmall = Font.custom("PlusJakartaSans-SemiBold", size: 22, relativeTo: .title2)
 
     static let bodyLarge = Font.custom("PlusJakartaSans-Regular", size: 18, relativeTo: .body)
