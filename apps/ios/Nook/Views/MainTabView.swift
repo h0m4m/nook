@@ -99,7 +99,7 @@ private struct LiquidGlassTabBar: View {
                 fabButton
             }
             .padding(.horizontal, 20)
-            .padding(.bottom, 4)
+            .padding(.bottom, -8)
         }
     }
 
@@ -162,7 +162,7 @@ private struct ClassicTabBar: View {
         }
         .padding(.horizontal, 16)
         .padding(.top, 7)
-        .padding(.bottom, -10)
+        .padding(.bottom, -14)
         .background {
             Color.nook.background
                 .overlay(alignment: .top) {
