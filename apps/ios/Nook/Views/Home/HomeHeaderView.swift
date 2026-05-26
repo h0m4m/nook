@@ -1,20 +1,15 @@
 import SwiftUI
 
 struct HomeHeaderView: View {
-    let userName: String
     let avatarURL: URL?
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack {
             avatar
-            greetingText
             Spacer()
             notificationButton
         }
-        .padding(.horizontal, 24)
-        .padding(.top, 26)
-        .padding(.bottom, 24)
-        .background(.clear)
+        .padding(.horizontal, 20)
     }
 
     // MARK: - Avatar
@@ -30,49 +25,49 @@ struct HomeHeaderView: View {
                 Color.nook.secondary
             }
         }
-        .frame(width: 40, height: 40)
+        .frame(width: 34, height: 34)
         .clipShape(Circle())
         .overlay {
             Circle()
                 .stroke(Color.nook.headerAvatarBorder, lineWidth: 1)
         }
-        .shadow(color: .black.opacity(0.1), radius: 1.5, y: 1)
-        .shadow(color: .black.opacity(0.1), radius: 1, y: -0.5)
-    }
-
-    // MARK: - Greeting
-
-    private var greetingText: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text(greeting.uppercased())
-                .font(NookFont.tabLabel)
-                .tracking(0.5)
-                .foregroundStyle(Color.nook.headerGreeting)
-
-            Text(userName)
-                .font(NookFont.labelBold)
-                .foregroundStyle(Color.nook.headerName)
-        }
-    }
-
-    private var greeting: String {
-        let hour = Calendar.current.component(.hour, from: Date())
-        switch hour {
-        case 5..<12: return "Good Morning"
-        case 12..<17: return "Good Afternoon"
-        default: return "Good Evening"
-        }
     }
 
     // MARK: - Notification Button
 
+    @ViewBuilder
     private var notificationButton: some View {
+        if #available(iOS 26, *) {
+            glassNotificationButton
+        } else {
+            classicNotificationButton
+        }
+    }
+
+    @available(iOS 26, *)
+    private var glassNotificationButton: some View {
+        Button {
+            // TODO: Notifications
+        } label: {
+            Image("bell-fill")
+                .renderingMode(.template)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 18, height: 18)
+                .foregroundStyle(.primary)
+                .frame(width: 34, height: 34)
+        }
+        .buttonStyle(.plain)
+        .glassEffect(.regular.interactive(), in: .circle)
+    }
+
+    private var classicNotificationButton: some View {
         Button {
             // TODO: Notifications
         } label: {
             Circle()
                 .fill(Color.nook.headerIconBackground)
-                .frame(width: 40, height: 40)
+                .frame(width: 34, height: 34)
                 .overlay {
                     Circle()
                         .stroke(Color.nook.headerIconBorder, lineWidth: 1)
@@ -82,7 +77,7 @@ struct HomeHeaderView: View {
                         .renderingMode(.template)
                         .resizable()
                         .aspectRatio(contentMode: .fit)
-                        .frame(width: 20, height: 20)
+                        .frame(width: 18, height: 18)
                         .foregroundStyle(Color.nook.headerIconForeground)
                 }
         }
@@ -92,10 +87,7 @@ struct HomeHeaderView: View {
 
 #Preview {
     VStack {
-        HomeHeaderView(
-            userName: "humam",
-            avatarURL: nil
-        )
+        HomeHeaderView(avatarURL: nil)
         Spacer()
     }
     .background(Color.nook.background)

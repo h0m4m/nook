@@ -2,45 +2,75 @@ import Supabase
 import SwiftUI
 
 struct HomeView: View {
-    @State private var userName = ""
     @State private var avatarURL: URL?
 
     var body: some View {
-        VStack(spacing: 0) {
-            HomeHeaderView(userName: userName, avatarURL: avatarURL)
-
-            ScrollView {
-                VStack(spacing: 0) {
-                    ContinueTrackingSection(items: ContinueTrackingSection.mockItems)
-                        .padding(.top, 8)
-
-                    TrendingReviewsSection(items: TrendingReviewsSection.mockItems)
-                        .padding(.top, 32)
-
-                    PopularNooksSection(items: PopularNooksSection.mockItems)
-                        .padding(.top, 32)
-                }
-                .padding(.bottom, 100)
+        scrollContent
+            .background(Color.nook.background)
+            .modifier(HomeTopBar(avatarURL: avatarURL))
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .task {
+                await loadUserProfile()
             }
+    }
+
+    private var scrollContent: some View {
+        ScrollView {
+            VStack(spacing: 0) {
+                ContinueTrackingSection(items: ContinueTrackingSection.mockItems)
+                    .padding(.top, 8)
+
+                TrendingReviewsSection(items: TrendingReviewsSection.mockItems)
+                    .padding(.top, 32)
+
+                PopularNooksSection(items: PopularNooksSection.mockItems)
+                    .padding(.top, 32)
+            }
+            .padding(.bottom, 100)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.nook.background)
-        .task {
-            await loadUserProfile()
-        }
+        .modifier(SoftScrollEdge())
     }
 
     private func loadUserProfile() async {
         guard let user = try? await supabase.auth.session.user else { return }
 
-        if let fullName = user.userMetadata["full_name"]?.stringValue {
-            userName = fullName.components(separatedBy: " ").first ?? fullName
-        } else if let email = user.email {
-            userName = email.components(separatedBy: "@").first ?? email
-        }
-
         if let urlString = user.userMetadata["avatar_url"]?.stringValue {
             avatarURL = URL(string: urlString)
+        }
+    }
+}
+
+// MARK: - Top bar (safeAreaBar on iOS 26, safeAreaInset fallback)
+
+private struct HomeTopBar: ViewModifier {
+    let avatarURL: URL?
+
+    func body(content: Content) -> some View {
+        if #available(iOS 26, *) {
+            content.safeAreaBar(edge: .top, spacing: 0) {
+                HomeHeaderView(avatarURL: avatarURL)
+                    .padding(.top, 4)
+                    .padding(.bottom, 8)
+            }
+        } else {
+            content.safeAreaInset(edge: .top, spacing: 0) {
+                HomeHeaderView(avatarURL: avatarURL)
+                    .background(Color.nook.background)
+                    .padding(.top, 4)
+                    .padding(.bottom, 8)
+            }
+        }
+    }
+}
+
+// MARK: - Scroll edge blur (iOS 26+)
+
+private struct SoftScrollEdge: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 26, *) {
+            content.scrollEdgeEffectStyle(.soft, for: .top)
+        } else {
+            content
         }
     }
 }

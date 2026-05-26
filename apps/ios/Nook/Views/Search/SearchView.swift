@@ -98,44 +98,15 @@ struct SearchView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            searchBar
             filterChips
             searchResults
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(Color.nook.searchBackground)
+        .modifier(SearchTopBar(searchText: $searchText, selectedFilter: selectedFilter))
         .task {
             await loadUserInterests()
         }
-    }
-
-    // MARK: - Search Bar
-
-    private var searchBar: some View {
-        HStack(spacing: 12) {
-            Image("magnifying-glass-bold")
-                .renderingMode(.template)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(width: 20, height: 20)
-                .foregroundStyle(Color.nook.searchBarPlaceholder)
-
-            TextField(
-                "Search movies, books, games...",
-                text: $searchText,
-                prompt: Text("Search movies, books, games...")
-                    .font(NookFont.labelMediumSmall)
-                    .foregroundStyle(Color.nook.searchBarPlaceholder)
-            )
-            .font(NookFont.labelMediumSmall)
-            .foregroundStyle(Color.nook.searchBarText)
-        }
-        .padding(.horizontal, 20)
-        .frame(height: 56)
-        .background(Color.nook.searchBarBackground)
-        .clipShape(Capsule())
-        .padding(.horizontal, 24)
-        .padding(.top, 8)
     }
 
     // MARK: - Filter Chips
@@ -161,43 +132,68 @@ struct SearchView: View {
             }
             .padding(.horizontal, 24)
         }
-        .padding(.top, 24)
-        .padding(.bottom, 8)
+        .padding(.vertical, 14)
     }
 
+    @ViewBuilder
     private func filterChip(
         label: String,
         dotColor: Color? = nil,
         isSelected: Bool,
         action: @escaping () -> Void
     ) -> some View {
-        Button(action: action) {
-            HStack(spacing: 6) {
-                if let dotColor, !isSelected {
-                    Circle()
-                        .fill(dotColor)
-                        .frame(width: 8, height: 8)
-                }
+        if #available(iOS 26, *) {
+            Button(action: action) {
+                HStack(spacing: 6) {
+                    if let dotColor, !isSelected {
+                        Circle()
+                            .fill(dotColor)
+                            .frame(width: 8, height: 8)
+                    }
 
-                Text(label)
-                    .font(NookFont.labelBoldSmall)
-                    .foregroundStyle(isSelected ? .white : Color.nook.searchFilterText)
+                    Text(label)
+                        .font(NookFont.labelBoldSmall)
+                        .foregroundStyle(isSelected ? .white : .primary)
+                }
+                .padding(.horizontal, isSelected && dotColor == nil ? 22.5 : 20)
+                .frame(height: 38)
+                .glassEffect(
+                    isSelected
+                        ? .regular.tint(Color.nook.searchFilterSelected)
+                        : .regular,
+                    in: .capsule
+                )
             }
-            .padding(.horizontal, isSelected && dotColor == nil ? 22.5 : 20)
-            .frame(height: 38)
-            .background(
-                Capsule()
-                    .fill(isSelected ? Color.nook.searchFilterSelected : Color.white)
-            )
-            .overlay(
-                Capsule()
-                    .strokeBorder(
-                        isSelected ? Color.clear : Color.nook.searchFilterBorder,
-                        lineWidth: 1
-                    )
-            )
+            .buttonStyle(.plain)
+        } else {
+            Button(action: action) {
+                HStack(spacing: 6) {
+                    if let dotColor, !isSelected {
+                        Circle()
+                            .fill(dotColor)
+                            .frame(width: 8, height: 8)
+                    }
+
+                    Text(label)
+                        .font(NookFont.labelBoldSmall)
+                        .foregroundStyle(isSelected ? .white : Color.nook.searchFilterText)
+                }
+                .padding(.horizontal, isSelected && dotColor == nil ? 22.5 : 20)
+                .frame(height: 38)
+                .background(
+                    Capsule()
+                        .fill(isSelected ? Color.nook.searchFilterSelected : Color.white)
+                )
+                .overlay(
+                    Capsule()
+                        .strokeBorder(
+                            isSelected ? Color.clear : Color.nook.searchFilterBorder,
+                            lineWidth: 1
+                        )
+                )
+            }
+            .buttonStyle(.plain)
         }
-        .buttonStyle(.plain)
     }
 
     // MARK: - Search Results
@@ -227,6 +223,7 @@ struct SearchView: View {
             .padding(.top, 24)
             .padding(.bottom, 100)
         }
+        .modifier(SoftScrollEdge())
     }
 
     // MARK: - Actions
@@ -271,6 +268,91 @@ struct SearchView: View {
     }
 }
 
+// MARK: - Top bar (safeAreaBar on iOS 26, safeAreaInset fallback)
+
+private struct SearchTopBar: ViewModifier {
+    @Binding var searchText: String
+    var selectedFilter: SearchMediaCategory?
+
+    private var placeholder: String {
+        if let filter = selectedFilter {
+            "Search \(filter.label)..."
+        } else {
+            "Search movies, books, games..."
+        }
+    }
+
+    func body(content: Content) -> some View {
+        if #available(iOS 26, *) {
+            content.safeAreaBar(edge: .top, spacing: 0) {
+                searchBarContent
+                    .padding(.top, 4)
+                    .padding(.bottom, 4)
+            }
+        } else {
+            content.safeAreaInset(edge: .top, spacing: 0) {
+                searchBarContent
+                    .background(Color.nook.searchBackground)
+                    .padding(.top, 4)
+                    .padding(.bottom, 4)
+            }
+        }
+    }
+
+    private var searchBarContent: some View {
+        HStack(spacing: 12) {
+            Image("magnifying-glass-bold")
+                .renderingMode(.template)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 18, height: 18)
+                .foregroundStyle(Color.nook.searchBarPlaceholder)
+
+            TextField(
+                placeholder,
+                text: $searchText,
+                prompt: Text(placeholder)
+                    .font(NookFont.labelMediumSmall)
+                    .foregroundStyle(Color.nook.searchBarPlaceholder)
+            )
+            .font(NookFont.labelMediumSmall)
+            .foregroundStyle(Color.nook.searchBarText)
+        }
+        .padding(.horizontal, 18)
+        .frame(height: 44)
+        .modifier(SearchBarBackground())
+        .padding(.horizontal, 24)
+    }
+}
+
+// MARK: - Search bar background (glass on iOS 26, solid fallback)
+
+private struct SearchBarBackground: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 26, *) {
+            content
+                .background(.white, in: Capsule())
+                .glassEffect(.regular, in: .capsule)
+        } else {
+            content
+                .background(Color.nook.searchBarBackground)
+                .clipShape(Capsule())
+        }
+    }
+}
+
+// MARK: - Scroll edge blur (iOS 26+)
+
+private struct SoftScrollEdge: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 26, *) {
+            content.scrollEdgeEffectStyle(.soft, for: .top)
+        } else {
+            content
+        }
+    }
+}
+
 // MARK: - Search Result Row
 
 private struct SearchResultRow: View {
@@ -279,10 +361,8 @@ private struct SearchResultRow: View {
 
     var body: some View {
         HStack(spacing: 16) {
-            // Poster image
             posterImage
 
-            // Info
             VStack(alignment: .leading, spacing: 4) {
                 categoryAndYear
                 titleText
@@ -291,7 +371,6 @@ private struct SearchResultRow: View {
 
             Spacer(minLength: 8)
 
-            // Add/Added button
             addButton
         }
         .frame(height: 80)
@@ -340,7 +419,6 @@ private struct SearchResultRow: View {
 
     private var ratingAndGenres: some View {
         HStack(spacing: 6) {
-            // Star icon
             Image("star-fill")
                 .renderingMode(.template)
                 .resizable()
@@ -348,12 +426,10 @@ private struct SearchResultRow: View {
                 .frame(width: 12, height: 12)
                 .foregroundStyle(Color.nook.reviewRating)
 
-            // Rating
             Text(String(format: "%.1f", item.rating))
                 .font(NookFont.captionBold)
                 .foregroundStyle(Color.nook.reviewRating)
 
-            // Genres
             Text(item.genres)
                 .font(NookFont.caption.italic())
                 .foregroundStyle(Color.nook.searchSectionLabel)
@@ -361,7 +437,44 @@ private struct SearchResultRow: View {
         }
     }
 
+    @ViewBuilder
     private var addButton: some View {
+        if #available(iOS 26, *) {
+            glassAddButton
+        } else {
+            classicAddButton
+        }
+    }
+
+    @available(iOS 26, *)
+    private var glassAddButton: some View {
+        Button(action: onToggleAdded) {
+            Group {
+                if item.isAdded {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundStyle(.white)
+                } else {
+                    Image("plus-bold")
+                        .renderingMode(.template)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 18, height: 18)
+                        .foregroundStyle(.primary)
+                }
+            }
+            .frame(width: 40, height: 40)
+            .background(item.isAdded ? Color.nook.searchAddedButton : .clear)
+            .clipShape(Circle())
+            .glassEffect(
+                item.isAdded ? .regular : .regular.interactive(),
+                in: .circle
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var classicAddButton: some View {
         Button(action: onToggleAdded) {
             Circle()
                 .fill(item.isAdded ? Color.nook.searchAddedButton : Color.nook.searchAddButton)
