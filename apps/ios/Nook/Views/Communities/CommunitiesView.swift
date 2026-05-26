@@ -45,7 +45,6 @@ struct CommunityItem: Identifiable {
     let description: String
     let category: CommunityFilter
     let bannerColor: Color
-    let iconColor: Color
     var isJoined: Bool
 
     init(
@@ -54,7 +53,6 @@ struct CommunityItem: Identifiable {
         description: String,
         category: CommunityFilter,
         bannerColor: Color,
-        iconColor: Color,
         isJoined: Bool = false
     ) {
         self.name = name
@@ -62,7 +60,6 @@ struct CommunityItem: Identifiable {
         self.description = description
         self.category = category
         self.bannerColor = bannerColor
-        self.iconColor = iconColor
         self.isJoined = isJoined
     }
 }
@@ -83,7 +80,6 @@ struct CommunitiesView: View {
     var body: some View {
         VStack(spacing: 0) {
             headerSection
-            searchBar
             filterChips
             communityList
         }
@@ -94,43 +90,30 @@ struct CommunitiesView: View {
     // MARK: - Header
 
     private var headerSection: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        HStack(alignment: .center) {
             Text("Communities")
                 .font(NookFont.headingLarge)
                 .foregroundStyle(Color.nook.sectionTitle)
 
-            Text("Find your people and share your taste.")
-                .font(NookFont.bodySmall)
-                .foregroundStyle(Color.nook.cardSubtitle)
+            Spacer()
+
+            Button {
+                // No action
+            } label: {
+                Image("magnifying-glass-bold")
+                    .renderingMode(.template)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 18, height: 18)
+                    .foregroundStyle(Color.nook.sectionTitle)
+                    .frame(width: 40, height: 40)
+                    .background(Color.nook.searchBarBackground)
+                    .clipShape(Circle())
+            }
+            .buttonStyle(.plain)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 24)
         .padding(.top, 8)
-    }
-
-    // MARK: - Search Bar
-
-    private var searchBar: some View {
-        HStack(spacing: 12) {
-            Image("magnifying-glass-bold")
-                .renderingMode(.template)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(width: 20, height: 20)
-                .foregroundStyle(Color.nook.searchBarPlaceholder)
-
-            Text("Search communities...")
-                .font(NookFont.labelMediumSmall)
-                .foregroundStyle(Color.nook.searchBarPlaceholder)
-
-            Spacer()
-        }
-        .padding(.horizontal, 20)
-        .frame(height: 56)
-        .background(Color.nook.searchBarBackground)
-        .clipShape(Capsule())
-        .padding(.horizontal, 24)
-        .padding(.top, 16)
     }
 
     // MARK: - Filter Chips
@@ -216,25 +199,36 @@ private struct CommunityCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Banner
-            banner
+            community.bannerColor
+                .frame(height: 120)
 
             // Content
             VStack(alignment: .leading, spacing: 8) {
-                // Icon row + join button
-                iconAndJoinRow
-                    .padding(.top, -22)
+                // Title + Join button
+                HStack(alignment: .center) {
+                    Text(community.name)
+                        .font(NookFont.labelBold)
+                        .foregroundStyle(Color.nook.cardTitle)
+                        .lineLimit(1)
+
+                    Spacer()
+
+                    joinButton
+                }
 
                 // Member count
                 HStack(spacing: 4) {
-                    Image(systemName: "person.2.fill")
-                        .font(.system(size: 10))
+                    Image("users-bold")
+                        .renderingMode(.template)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 14, height: 14)
                         .foregroundStyle(Color.nook.cardSubtitle)
 
                     Text(community.memberCount)
                         .font(NookFont.caption)
                         .foregroundStyle(Color.nook.cardSubtitle)
                 }
-                .padding(.top, 2)
 
                 // Description
                 Text(community.description)
@@ -242,64 +236,27 @@ private struct CommunityCard: View {
                     .foregroundStyle(Color.nook.cardSubtitle)
                     .lineLimit(2)
             }
-            .padding(.horizontal, 16)
-            .padding(.bottom, 16)
+            .padding(.horizontal, 20)
+            .padding(.top, 16)
+            .padding(.bottom, 20)
+            .background(Color.nook.card)
         }
-        .background(Color.nook.card)
-        .clipShape(RoundedRectangle(cornerRadius: NookRadii.sm, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: NookRadii.lg, style: .continuous))
         .shadow(color: .black.opacity(0.04), radius: 8, x: 0, y: 2)
         .shadow(color: .black.opacity(0.02), radius: 2, x: 0, y: 1)
     }
 
-    // MARK: - Banner
-
-    private var banner: some View {
-        community.bannerColor
-            .frame(height: 100)
-            .clipShape(
-                UnevenRoundedRectangle(
-                    topLeadingRadius: NookRadii.sm,
-                    bottomLeadingRadius: 0,
-                    bottomTrailingRadius: 0,
-                    topTrailingRadius: NookRadii.sm,
-                    style: .continuous
-                )
-            )
-    }
-
-    // MARK: - Icon + Join Row
-
-    private var iconAndJoinRow: some View {
-        HStack(alignment: .bottom) {
-            // Community icon
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(community.iconColor)
-                .frame(width: 44, height: 44)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .strokeBorder(Color.nook.card, lineWidth: 3)
-                )
-
-            Text(community.name)
-                .font(NookFont.labelBold)
-                .foregroundStyle(Color.nook.cardTitle)
-                .lineLimit(1)
-                .padding(.bottom, 2)
-
-            Spacer()
-
-            // Join / Joined button
-            joinButton
-                .padding(.bottom, 2)
-        }
-    }
+    // MARK: - Join Button
 
     private var joinButton: some View {
         Button(action: onToggleJoined) {
             HStack(spacing: 4) {
                 if community.isJoined {
-                    Image(systemName: "checkmark")
-                        .font(.system(size: 11, weight: .bold))
+                    Image("check-bold")
+                        .renderingMode(.template)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 12, height: 12)
                 }
 
                 Text(community.isJoined ? "Joined" : "Join")
@@ -310,7 +267,7 @@ private struct CommunityCard: View {
             .frame(height: 34)
             .background(
                 Capsule()
-                    .fill(community.isJoined ? Color.nook.searchAddedButton : Color.white)
+                    .fill(community.isJoined ? Color.nook.searchAddedButton : Color.nook.card)
             )
             .overlay(
                 Capsule()
@@ -333,8 +290,7 @@ extension CommunitiesView {
             memberCount: "24.5k Members",
             description: "The ultimate spot for seasonal discussions, recommendation threads, and sharing your",
             category: .anime,
-            bannerColor: Color(hex: 0xBA68C8).opacity(0.3),
-            iconColor: Color(hex: 0xBA68C8)
+            bannerColor: Color(hex: 0xBA68C8).opacity(0.3)
         ),
         CommunityItem(
             name: "Cozy Book Club",
@@ -342,7 +298,6 @@ extension CommunitiesView {
             description: "Monthly reads, candle-lit aesthetics, and warm discussions about your favorite literary",
             category: .books,
             bannerColor: Color(hex: 0xD4A373).opacity(0.3),
-            iconColor: Color(hex: 0xD4A373),
             isJoined: true
         ),
         CommunityItem(
@@ -350,8 +305,7 @@ extension CommunitiesView {
             memberCount: "45.8k Members",
             description: "From blockbuster hits to indie gems. Review swap and nightly watch-party threads.",
             category: .movies,
-            bannerColor: Color(hex: 0xE57373).opacity(0.3),
-            iconColor: Color(hex: 0xE57373)
+            bannerColor: Color(hex: 0xE57373).opacity(0.3)
         ),
     ]
 }

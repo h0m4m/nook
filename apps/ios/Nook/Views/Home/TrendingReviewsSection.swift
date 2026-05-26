@@ -72,15 +72,10 @@ private struct ReviewCard: View {
                 .padding(.bottom, 16)
         }
         .frame(width: 280, height: 200)
-        .background(
-            RoundedRectangle(cornerRadius: NookRadii.lg)
-                .fill(Color.nook.card)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: NookRadii.lg))
-        .overlay(
-            RoundedRectangle(cornerRadius: NookRadii.lg)
-                .strokeBorder(Color.nook.reviewBorder, lineWidth: 1)
-        )
+        .background(Color.nook.card)
+        .clipShape(RoundedRectangle(cornerRadius: NookRadii.lg, style: .continuous))
+        .shadow(color: .black.opacity(0.04), radius: 8, x: 0, y: 2)
+        .shadow(color: .black.opacity(0.02), radius: 2, x: 0, y: 1)
     }
 
     // MARK: - Header (avatar, name, rating)
