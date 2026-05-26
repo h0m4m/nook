@@ -56,6 +56,7 @@ struct HomeHeaderView: View {
                 .frame(width: 18, height: 18)
                 .foregroundStyle(.primary)
                 .frame(width: 34, height: 34)
+                .background(.white, in: Circle())
         }
         .buttonStyle(.plain)
         .glassEffect(.regular.interactive(), in: .circle)

@@ -157,12 +157,11 @@ struct SearchView: View {
                 }
                 .padding(.horizontal, isSelected && dotColor == nil ? 22.5 : 20)
                 .frame(height: 38)
-                .glassEffect(
-                    isSelected
-                        ? .regular.tint(Color.nook.searchFilterSelected)
-                        : .regular,
-                    in: .capsule
+                .background(
+                    isSelected ? Color.nook.searchFilterSelected : .white,
+                    in: Capsule()
                 )
+                .glassEffect(.regular, in: .capsule)
             }
             .buttonStyle(.plain)
         } else {
@@ -464,8 +463,7 @@ private struct SearchResultRow: View {
                 }
             }
             .frame(width: 40, height: 40)
-            .background(item.isAdded ? Color.nook.searchAddedButton : .clear)
-            .clipShape(Circle())
+            .background(item.isAdded ? Color.nook.searchAddedButton : .white, in: Circle())
             .glassEffect(
                 item.isAdded ? .regular : .regular.interactive(),
                 in: .circle

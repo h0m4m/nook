@@ -110,20 +110,14 @@ private struct LiquidGlassTabBar: View {
                 selectedTab = tab
             }
         } label: {
-            VStack(spacing: 3) {
-                Image(isActive ? tab.fillIcon : tab.boldIcon)
-                    .renderingMode(.template)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 22, height: 22)
-
-                Text(tab.title)
-                    .font(NookFont.tabLabel)
-                    .textCase(.uppercase)
-            }
-            .foregroundStyle(isActive ? .primary : .secondary)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 8)
+            Image(isActive ? tab.fillIcon : tab.boldIcon)
+                .renderingMode(.template)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 22, height: 22)
+                .foregroundStyle(isActive ? .primary : .secondary)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
             .background {
                 if isActive {
                     Capsule()
@@ -184,18 +178,12 @@ private struct ClassicTabBar: View {
         return Button {
             selectedTab = tab
         } label: {
-            VStack(spacing: 4) {
-                Image(isActive ? tab.fillIcon : tab.boldIcon)
-                    .renderingMode(.template)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 24, height: 24)
-
-                Text(tab.title)
-                    .font(NookFont.tabLabel)
-                    .textCase(.uppercase)
-            }
-            .foregroundStyle(
+            Image(isActive ? tab.fillIcon : tab.boldIcon)
+                .renderingMode(.template)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 24, height: 24)
+                .foregroundStyle(
                 isActive
                     ? Color.nook.tabBarActive
                     : Color.nook.tabBarInactive
