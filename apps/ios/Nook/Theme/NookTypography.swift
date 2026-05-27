@@ -28,4 +28,6 @@ enum NookFont {
     static let outfitDisplay = Font.custom("Outfit-Bold", size: 36, relativeTo: .largeTitle)
     static let outfitHeadingSmall = Font.custom("Outfit-Bold", size: 20, relativeTo: .title3)
     static let outfitLabel = Font.custom("Outfit-Bold", size: 18, relativeTo: .body)
+    static let outfitHeadingMedium = Font.custom("Outfit-Bold", size: 24, relativeTo: .title2)
+    static let outfitLabelBold = Font.custom("Outfit-Bold", size: 16, relativeTo: .subheadline)
 }

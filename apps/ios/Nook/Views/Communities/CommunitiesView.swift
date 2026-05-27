@@ -46,7 +46,7 @@ enum ClubCategory: CaseIterable, Identifiable {
 
 // MARK: - Club Model
 
-struct ClubItem: Identifiable {
+struct ClubItem: Identifiable, Hashable {
     let id = UUID()
     let name: String
     let memberCount: String
@@ -54,6 +54,14 @@ struct ClubItem: Identifiable {
     let category: ClubCategory
     let bannerColor: Color
     var isJoined: Bool
+
+    static func == (lhs: ClubItem, rhs: ClubItem) -> Bool {
+        lhs.id == rhs.id
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+    }
 
     init(
         name: String,
@@ -122,13 +130,19 @@ struct ClubsView: View {
 
                 LazyVStack(spacing: 20) {
                     ForEach(filteredClubs) { club in
-                        ClubCard(club: club) {
-                            toggleJoined(club)
+                        NavigationLink(value: club) {
+                            ClubCard(club: club) {
+                                toggleJoined(club)
+                            }
                         }
+                        .buttonStyle(.plain)
                     }
                 }
                 .padding(.horizontal, 24)
                 .padding(.top, 16)
+                .navigationDestination(for: ClubItem.self) { club in
+                    ClubDetailView(club: club)
+                }
             }
             .padding(.bottom, 100)
         }

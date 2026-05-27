@@ -103,6 +103,19 @@ struct NookColors {
     let detailOverlayButton = Color(hex: 0x000000, alpha: 0.2)
     let detailHeroGradient = Color(hex: 0x000000, alpha: 0.5)
 
+    // Club detail tokens
+    let clubDetailBackground = Color(hex: 0xFDFCF9)
+    let clubDetailTitle = Color(hex: 0x1C1917)
+    let clubDetailMeta = Color(hex: 0x78716C)
+    let clubDetailPinned = Color(hex: 0x8B5CF6)
+    let clubDetailPostCard = Color.white
+    let clubDetailPostCardBorder = Color(hex: 0xE8E5E1, alpha: 0.5)
+    let clubDetailComposeCard = Color.white
+    let clubDetailComposeBorder = Color(hex: 0xE8E5E1, alpha: 0.5)
+    let clubDetailJoinedButton = Color(hex: 0x362A31)
+    let clubDetailBannerGradient = Color(hex: 0x000000, alpha: 0.6)
+    let clubDetailAvatarBorder = Color(hex: 0xFDFCF9)
+
     // Tab bar tokens from Figma
     let tabBarBackground = Color(hex: 0xFAF8F6)
     let tabBarBorder = Color(hex: 0xE8E2DF)

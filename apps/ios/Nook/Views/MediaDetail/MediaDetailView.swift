@@ -179,6 +179,7 @@ struct MediaDetailView: View {
             )
             .presentationDetents([.large])
             .presentationDragIndicator(.visible)
+            .presentationBackground(Color.nook.detailBackground)
         }
         .sheet(isPresented: $showReviewSheet) {
             ReviewSheetView(
@@ -191,6 +192,7 @@ struct MediaDetailView: View {
             )
             .presentationDetents([.large])
             .presentationDragIndicator(.visible)
+            .presentationBackground(Color.nook.detailBackground)
         }
     }
 

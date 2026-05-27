@@ -38,6 +38,7 @@
 		EBCA79A9A49144D5A443A16B /* SearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 454CB4C34D7941B1AEDE361B /* SearchView.swift */; };
 		A27881B804224019B33F7B18 /* LibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D1662AB256F4B7192FEB135 /* LibraryView.swift */; };
 		C0MMUN1T1ES123456789AB01 /* CommunitiesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0MMUN1T1ES123456789AB02 /* CommunitiesView.swift */; };
+		CLUBD3TA1L123456789AB01 /* ClubDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CLUBD3TA1L123456789AB02 /* ClubDetailView.swift */; };
 		FAB39E1984C0432BB85F931D /* PlusJakartaSans-Italic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = A4B7743F9C3F4A9DA5DE4D00 /* PlusJakartaSans-Italic.ttf */; };
 		MED1AD3TA1L123456789AB01 /* MediaDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = MED1AD3TA1L123456789AB02 /* MediaDetailView.swift */; };
 /* End PBXBuildFile section */
@@ -74,6 +75,7 @@
 		454CB4C34D7941B1AEDE361B /* SearchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchView.swift; sourceTree = "<group>"; };
 		8D1662AB256F4B7192FEB135 /* LibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryView.swift; sourceTree = "<group>"; };
 		C0MMUN1T1ES123456789AB02 /* CommunitiesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommunitiesView.swift; sourceTree = "<group>"; };
+		CLUBD3TA1L123456789AB02 /* ClubDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClubDetailView.swift; sourceTree = "<group>"; };
 		A4B7743F9C3F4A9DA5DE4D00 /* PlusJakartaSans-Italic.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "PlusJakartaSans-Italic.ttf"; sourceTree = "<group>"; };
 		MED1AD3TA1L123456789AB02 /* MediaDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaDetailView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -223,6 +225,7 @@
 			isa = PBXGroup;
 			children = (
 				C0MMUN1T1ES123456789AB02 /* CommunitiesView.swift */,
+				CLUBD3TA1L123456789AB02 /* ClubDetailView.swift */,
 			);
 			path = Communities;
 			sourceTree = "<group>";
@@ -341,6 +344,7 @@
 				EBCA79A9A49144D5A443A16B /* SearchView.swift in Sources */,
 				A27881B804224019B33F7B18 /* LibraryView.swift in Sources */,
 				C0MMUN1T1ES123456789AB01 /* CommunitiesView.swift in Sources */,
+				CLUBD3TA1L123456789AB01 /* ClubDetailView.swift in Sources */,
 				MED1AD3TA1L123456789AB01 /* MediaDetailView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
