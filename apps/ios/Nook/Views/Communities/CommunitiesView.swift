@@ -31,6 +31,17 @@ enum ClubCategory: CaseIterable, Identifiable {
         case .games: "Games"
         }
     }
+
+    var dotColor: Color {
+        switch self {
+        case .movies: Color.nook.badgeMovieText
+        case .tvShows: Color.nook.badgeTvShowText
+        case .anime: Color.nook.badgeAnimeText
+        case .manga: Color.nook.badgeMangaText
+        case .books: Color.nook.badgeBookText
+        case .games: Color.nook.badgeGameText
+        }
+    }
 }
 
 // MARK: - Club Model
@@ -208,16 +219,24 @@ struct ClubsView: View {
                     selectedCategory = isSelected ? nil : category
                 }
             } label: {
-                Text(category.label)
-                    .font(NookFont.labelBoldSmall)
-                    .foregroundStyle(isSelected ? .white : .primary)
-                    .padding(.horizontal, 20)
-                    .frame(height: 38)
-                    .background(
-                        isSelected ? Color.nook.searchFilterSelected : .white,
-                        in: Capsule()
-                    )
-                    .glassEffect(.regular, in: .capsule)
+                HStack(spacing: 6) {
+                    if !isSelected {
+                        Circle()
+                            .fill(category.dotColor)
+                            .frame(width: 8, height: 8)
+                    }
+
+                    Text(category.label)
+                        .font(NookFont.labelBoldSmall)
+                        .foregroundStyle(isSelected ? .white : .primary)
+                }
+                .padding(.horizontal, 20)
+                .frame(height: 38)
+                .background(
+                    isSelected ? Color.nook.searchFilterSelected : .white,
+                    in: Capsule()
+                )
+                .glassEffect(.regular, in: .capsule)
             }
             .buttonStyle(.plain)
         } else {
@@ -226,18 +245,26 @@ struct ClubsView: View {
                     selectedCategory = isSelected ? nil : category
                 }
             } label: {
-                Text(category.label)
-                    .font(NookFont.labelBoldSmall)
-                    .foregroundStyle(isSelected ? .white : Color.nook.searchFilterText)
-                    .padding(.horizontal, 20)
-                    .frame(height: 38)
-                    .background(
-                        Capsule()
-                            .fill(isSelected ? Color.nook.searchFilterSelected : Color.white)
-                    )
-                    .overlay(
-                        Capsule()
-                            .strokeBorder(
+                HStack(spacing: 6) {
+                    if !isSelected {
+                        Circle()
+                            .fill(category.dotColor)
+                            .frame(width: 8, height: 8)
+                    }
+
+                    Text(category.label)
+                        .font(NookFont.labelBoldSmall)
+                        .foregroundStyle(isSelected ? .white : Color.nook.searchFilterText)
+                }
+                .padding(.horizontal, 20)
+                .frame(height: 38)
+                .background(
+                    Capsule()
+                        .fill(isSelected ? Color.nook.searchFilterSelected : Color.white)
+                )
+                .overlay(
+                    Capsule()
+                        .strokeBorder(
                                 isSelected ? Color.clear : Color.nook.searchFilterBorder,
                                 lineWidth: 1
                             )

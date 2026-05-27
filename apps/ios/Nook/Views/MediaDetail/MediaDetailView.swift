@@ -120,9 +120,14 @@ struct MediaDetailView: View {
     @State private var isReviewed = false
     @State private var isInNook = false
     @State private var showTrackingSheet = false
+    @State private var showReviewSheet = false
     @State private var selectedStatus: TrackingStatus?
     @State private var currentEpisode: Int
     @State private var userScore: Int?
+    @State private var reviewRating: Int = 0
+    @State private var reviewTitle: String = ""
+    @State private var reviewBody: String = ""
+    @State private var containsSpoilers: Bool = false
 
     init(media: MediaDetail) {
         self.media = media
@@ -171,6 +176,18 @@ struct MediaDetailView: View {
                 userScore: $userScore,
                 isTracking: $isTracking,
                 isRated: $isRated
+            )
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
+        }
+        .sheet(isPresented: $showReviewSheet) {
+            ReviewSheetView(
+                media: media,
+                rating: $reviewRating,
+                title: $reviewTitle,
+                reviewText: $reviewBody,
+                containsSpoilers: $containsSpoilers,
+                isReviewed: $isReviewed
             )
             .presentationDetents([.large])
             .presentationDragIndicator(.visible)
@@ -535,13 +552,7 @@ private extension MediaDetailView {
                 isActive: isRated
             )
 
-            actionButton(
-                activeIcon: "pencil-line-fill",
-                inactiveIcon: "pencil-line",
-                activeLabel: "Reviewed",
-                inactiveLabel: "Review",
-                isActive: $isReviewed
-            )
+            reviewSheetButton
 
             actionButton(
                 activeIcon: "folders-fill",
@@ -552,6 +563,28 @@ private extension MediaDetailView {
             )
         }
         .padding(.vertical, 8)
+    }
+
+    private var reviewSheetButton: some View {
+        let active = isReviewed
+        let icon = active ? "pencil-line-fill" : "pencil-line"
+        let label = active ? "Reviewed" : "Review"
+        let fgColor = active ? Color.nook.detailActionActiveLabel : Color.nook.detailTitle
+        let labelColor = active ? Color.nook.detailActionActiveLabel : Color.nook.detailActionLabel
+
+        return Button {
+            showReviewSheet = true
+        } label: {
+            VStack(spacing: 6) {
+                actionIcon(icon: icon, isActive: active, fgColor: fgColor)
+
+                Text(label)
+                    .font(.custom("PlusJakartaSans-SemiBold", size: 11))
+                    .foregroundStyle(labelColor)
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.plain)
     }
 
     @ViewBuilder
@@ -913,41 +946,38 @@ private extension MediaDetailView {
 
     func similarCard(_ item: SimilarItem) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            ZStack(alignment: .topLeading) {
-                Group {
-                    if let color = item.placeholderColor {
-                        color
-                    } else {
-                        Image(item.imageName)
-                            .resizable()
-                            .scaledToFill()
-                    }
+            Group {
+                if let color = item.placeholderColor {
+                    color
+                } else {
+                    Image(item.imageName)
+                        .resizable()
+                        .scaledToFill()
                 }
-                .frame(maxWidth: .infinity)
-                .aspectRatio(3 / 4, contentMode: .fill)
-                .clipShape(RoundedRectangle(cornerRadius: NookRadii.md, style: .continuous))
-
-                // Category badge
-                Text(item.category.label)
-                    .font(NookFont.tabLabel)
-                    .tracking(0.5)
-                    .textCase(.uppercase)
-                    .foregroundStyle(item.category.textColor)
-                    .padding(.horizontal, 6.5)
-                    .padding(.vertical, 5)
-                    .background(
-                        Capsule()
-                            .fill(item.category.backgroundColor)
-                            .background(.ultraThinMaterial, in: Capsule())
-                    )
-                    .padding(10)
             }
+            .frame(maxWidth: .infinity)
+            .aspectRatio(3 / 4, contentMode: .fill)
+            .clipShape(RoundedRectangle(cornerRadius: NookRadii.md, style: .continuous))
+
+            // Category badge
+            Text(item.category.label)
+                .font(NookFont.tabLabel)
+                .tracking(0.5)
+                .textCase(.uppercase)
+                .foregroundStyle(item.category.textColor)
+                .padding(.horizontal, 6.5)
+                .padding(.vertical, 5)
+                .background(
+                    RoundedRectangle(cornerRadius: 6.39, style: .continuous)
+                        .fill(item.category.backgroundColor)
+                )
+                .padding(.top, 10)
 
             Text(item.title)
                 .font(NookFont.labelBoldSmall)
                 .foregroundStyle(Color.nook.detailTitle)
                 .lineLimit(1)
-                .padding(.top, 10)
+                .padding(.top, 6)
 
             HStack(spacing: 4) {
                 Image("star-fill")
@@ -1295,6 +1325,384 @@ struct TrackingSheetView: View {
         let formatter = DateFormatter()
         formatter.dateFormat = "MMM d, yyyy"
         return "\(formatter.string(from: startDate)) – \(formatter.string(from: endDate))"
+    }
+}
+
+// MARK: - Review Sheet
+
+struct ReviewSheetView: View {
+    let media: MediaDetail
+    @Binding var rating: Int
+    @Binding var title: String
+    @Binding var reviewText: String
+    @Binding var containsSpoilers: Bool
+    @Binding var isReviewed: Bool
+    @Environment(\.dismiss) private var dismiss
+    @FocusState private var focusedField: ReviewField?
+
+    private enum ReviewField {
+        case title, reviewBody
+    }
+
+    private var wordCount: Int {
+        reviewText.split(whereSeparator: { $0.isWhitespace || $0.isNewline }).count
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            reviewHeader
+
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 0) {
+                    mediaCard
+                        .padding(.top, 16)
+                        .padding(.horizontal, 16)
+
+                    ratingSection
+                        .padding(.top, 28)
+                        .padding(.horizontal, 16)
+
+                    reviewFields
+                        .padding(.top, 28)
+                        .padding(.horizontal, 16)
+                }
+                .padding(.bottom, 100)
+            }
+
+            reviewFooter
+        }
+        .background(Color.nook.detailBackground)
+    }
+
+    // MARK: - Header
+
+    private var reviewHeader: some View {
+        HStack(spacing: 8) {
+            Button {
+                dismiss()
+            } label: {
+                Image("x-bold")
+                    .renderingMode(.template)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 16, height: 16)
+                    .foregroundStyle(Color.nook.detailTitle)
+                    .frame(width: 36, height: 36)
+                    .background(Color.nook.card)
+                    .clipShape(Circle())
+                    .shadow(color: .black.opacity(0.04), radius: 4, y: 2)
+            }
+            .buttonStyle(.plain)
+
+            Spacer()
+
+            Button {
+                // TODO: Save draft
+            } label: {
+                Text("Save Draft")
+                    .font(NookFont.labelMediumSmall)
+                    .foregroundStyle(Color.nook.detailTitle)
+                    .padding(.horizontal, 16)
+                    .frame(height: 36)
+                    .background(
+                        Capsule()
+                            .fill(Color.nook.card)
+                            .overlay(
+                                Capsule()
+                                    .strokeBorder(Color.nook.detailTabBorder, lineWidth: 1)
+                            )
+                    )
+            }
+            .buttonStyle(.plain)
+
+            Button {
+                isReviewed = !reviewText.isEmpty || rating > 0
+                dismiss()
+            } label: {
+                Text("Publish")
+                    .font(NookFont.labelBoldSmall)
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 16)
+                    .frame(height: 36)
+                    .background(
+                        Capsule()
+                            .fill(Color.nook.primary)
+                            .shadow(color: .black.opacity(0.1), radius: 3, y: 2)
+                    )
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 16)
+        .padding(.bottom, 8)
+    }
+
+    // MARK: - Media Card
+
+    private var mediaCard: some View {
+        HStack(spacing: 13) {
+            Group {
+                if let color = media.placeholderColor {
+                    color
+                } else {
+                    Image(media.imageName)
+                        .resizable()
+                        .scaledToFill()
+                }
+            }
+            .frame(width: 64, height: 90)
+            .clipShape(RoundedRectangle(cornerRadius: 17.78, style: .continuous))
+            .shadow(color: .black.opacity(0.1), radius: 1.5, y: 0.5)
+
+            VStack(alignment: .leading, spacing: 0) {
+                Text(media.title)
+                    .font(NookFont.labelBold)
+                    .foregroundStyle(Color.nook.detailTitle)
+                    .lineLimit(1)
+
+                HStack(spacing: 2) {
+                    Image("star-fill")
+                        .renderingMode(.template)
+                        .resizable()
+                        .frame(width: 10, height: 10)
+                        .foregroundStyle(Color.nook.detailRatingText)
+
+                    Text("\(String(format: "%.1f", media.rating)) / 10 Avg")
+                        .font(NookFont.captionBold)
+                        .foregroundStyle(Color.nook.detailRatingText)
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(
+                    Capsule()
+                        .fill(Color.nook.detailRatingBadge)
+                )
+                .padding(.top, 6)
+            }
+
+            Spacer()
+        }
+        .padding(13)
+        .background(
+            RoundedRectangle(cornerRadius: NookRadii.md, style: .continuous)
+                .fill(Color.nook.card)
+                .overlay(
+                    RoundedRectangle(cornerRadius: NookRadii.md, style: .continuous)
+                        .strokeBorder(Color.nook.detailProgressCardBorder, lineWidth: 1)
+                )
+        )
+    }
+
+    // MARK: - Rating Section
+
+    private var ratingSection: some View {
+        VStack(spacing: 16) {
+            Text("YOUR RATING")
+                .font(NookFont.labelSmall)
+                .tracking(0.7)
+                .foregroundStyle(Color.nook.detailMeta)
+
+            HStack(spacing: 12) {
+                VStack(spacing: 6) {
+                    ZStack {
+                        Circle()
+                            .fill(Color.nook.primary)
+                            .frame(width: 48, height: 48)
+                            .shadow(color: Color.nook.primary.opacity(0.1), radius: 7.5, y: 5)
+                            .shadow(color: Color.nook.primary.opacity(0.1), radius: 3)
+
+                        Text(rating > 0 ? "\(rating)" : "–")
+                            .font(NookFont.outfitHeadingSmall)
+                            .foregroundStyle(.white)
+                    }
+
+                    Text(ratingLabel)
+                        .font(NookFont.tabLabel)
+                        .tracking(0.5)
+                        .textCase(.uppercase)
+                        .foregroundStyle(Color.nook.detailTitle)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                }
+                .frame(width: 68)
+
+                Slider(
+                    value: Binding(
+                        get: { Double(rating) },
+                        set: { rating = Int($0.rounded()) }
+                    ),
+                    in: 0...10,
+                    step: 1
+                )
+                .tint(Color.nook.primary)
+
+                Text("10")
+                    .font(NookFont.outfitHeadingSmall)
+                    .foregroundStyle(Color.nook.detailMeta.opacity(0.3))
+            }
+        }
+    }
+
+    private var ratingLabel: String {
+        switch rating {
+        case 10: "Masterpiece"
+        case 9: "Excellent"
+        case 8: "Great"
+        case 7: "Good"
+        case 6: "Decent"
+        case 5: "Average"
+        case 4: "Below Avg"
+        case 3: "Poor"
+        case 2: "Terrible"
+        case 1: "Appalling"
+        default: "Not Rated"
+        }
+    }
+
+    // MARK: - Review Fields
+
+    private var reviewFields: some View {
+        VStack(spacing: 0) {
+            VStack(spacing: 0) {
+                TextField(
+                    "Review Title (Optional)",
+                    text: $title
+                )
+                .font(NookFont.labelBold)
+                .foregroundStyle(Color.nook.detailTitle)
+                .focused($focusedField, equals: .title)
+
+                Rectangle()
+                    .fill(Color.nook.detailTabBorder)
+                    .frame(height: 1)
+                    .padding(.top, 12)
+            }
+
+            ZStack(alignment: .topLeading) {
+                if reviewText.isEmpty {
+                    Text("Write your thoughts about this masterpiece...")
+                        .font(NookFont.bodyMedium)
+                        .foregroundStyle(Color.nook.detailMeta)
+                        .padding(.top, 16)
+                }
+
+                TextEditor(text: $reviewText)
+                    .font(NookFont.bodyMedium)
+                    .foregroundStyle(Color.nook.detailTitle)
+                    .lineSpacing(5)
+                    .scrollContentBackground(.hidden)
+                    .focused($focusedField, equals: .reviewBody)
+                    .frame(minHeight: 200)
+                    .padding(.top, 8)
+                    .padding(.leading, -5)
+            }
+        }
+    }
+
+    // MARK: - Footer
+
+    private var reviewFooter: some View {
+        VStack(spacing: 0) {
+            // Text formatting toolbar
+            HStack(spacing: 0) {
+                formatButton(icon: "bold", isSystem: true)
+                formatButton(icon: "text-italic-bold", isSystem: false)
+                formatButton(icon: "quotes-bold", isSystem: false)
+
+                Rectangle()
+                    .fill(Color.nook.detailTabBorder)
+                    .frame(width: 1, height: 16)
+                    .padding(.horizontal, 8)
+
+                formatButton(icon: "link-bold", isSystem: false)
+
+                Spacer()
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .background(
+                Capsule()
+                    .fill(Color.nook.card)
+                    .overlay(
+                        Capsule()
+                            .strokeBorder(Color.nook.detailTabBorder, lineWidth: 1)
+                    )
+            )
+            .padding(.horizontal, 16)
+            .padding(.bottom, 12)
+
+            Rectangle()
+                .fill(Color.nook.detailTabBorder)
+                .frame(height: 1)
+
+            HStack {
+                Button {
+                    containsSpoilers.toggle()
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(containsSpoilers ? "eye-slash-fill" : "eye-slash-bold")
+                            .renderingMode(.template)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 14, height: 14)
+                            .foregroundStyle(
+                                containsSpoilers ? Color.nook.primary : Color.nook.detailTitle
+                            )
+
+                        Text("Contains Spoilers")
+                            .font(NookFont.caption)
+                            .foregroundStyle(
+                                containsSpoilers ? Color.nook.primary : Color.nook.detailTitle
+                            )
+                    }
+                    .padding(.horizontal, 14)
+                    .frame(height: 30)
+                    .background(
+                        Capsule()
+                            .fill(containsSpoilers ? Color.nook.primary.opacity(0.1) : .clear)
+                            .overlay(
+                                Capsule()
+                                    .strokeBorder(
+                                        containsSpoilers ? Color.nook.primary : Color.nook.detailTabBorder,
+                                        lineWidth: 1
+                                    )
+                            )
+                    )
+                }
+                .buttonStyle(.plain)
+
+                Spacer()
+
+                Text("\(wordCount) words")
+                    .font(NookFont.caption)
+                    .foregroundStyle(Color.nook.detailMeta)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+        }
+        .background(Color.nook.detailBackground)
+    }
+
+    private func formatButton(icon: String, isSystem: Bool) -> some View {
+        Button {
+            // TODO: Text formatting
+        } label: {
+            Group {
+                if isSystem {
+                    Image(systemName: icon)
+                        .font(.system(size: 14, weight: .semibold))
+                } else {
+                    Image(icon)
+                        .renderingMode(.template)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 16, height: 16)
+                }
+            }
+            .foregroundStyle(Color.nook.detailTitle)
+            .frame(width: 36, height: 32)
+        }
+        .buttonStyle(.plain)
     }
 }
 

@@ -637,7 +637,7 @@ private struct LibraryItemRow: View {
             Text(item.category.label)
                 .font(NookFont.tabLabel)
                 .tracking(0.5)
-                .foregroundStyle(item.category.backgroundColor)
+                .foregroundStyle(item.category.textColor)
 
             Circle()
                 .fill(Color.nook.searchSectionLabel)

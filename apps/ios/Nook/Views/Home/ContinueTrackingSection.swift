@@ -121,60 +121,52 @@ private struct TrackingCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            cardImage
-            cardText
+            posterImage
+
+            Text(item.title)
+                .font(NookFont.labelBoldSmall)
+                .foregroundStyle(Color.nook.cardTitle)
+                .lineLimit(1)
+                .padding(.top, 10)
+
+            HStack(spacing: 6) {
+                categoryBadge
+
+                Text(item.progress)
+                    .font(NookFont.caption)
+                    .foregroundStyle(Color.nook.cardSubtitle)
+            }
+            .padding(.top, 6)
         }
         .frame(width: 180)
     }
 
-    private var cardImage: some View {
-        ZStack(alignment: .topLeading) {
-            Group {
-                if let color = item.placeholderColor {
-                    color
-                } else {
-                    Image(item.imageName)
-                        .resizable()
-                        .scaledToFill()
-                }
+    private var posterImage: some View {
+        Group {
+            if let color = item.placeholderColor {
+                color
+            } else {
+                Image(item.imageName)
+                    .resizable()
+                    .scaledToFill()
             }
-            .frame(width: 180, height: 240)
-            .clipShape(RoundedRectangle(cornerRadius: 44))
-            .shadow(color: .black.opacity(0.1), radius: 1.5, x: 0, y: 1)
-            .shadow(color: .black.opacity(0.1), radius: 1, x: 0, y: -0.5)
-
-            categoryBadge
-                .padding(12)
         }
+        .frame(width: 180, height: 240)
+        .clipShape(RoundedRectangle(cornerRadius: NookRadii.md, style: .continuous))
     }
 
     private var categoryBadge: some View {
         Text(item.category.label)
             .font(NookFont.tabLabel)
+            .tracking(0.5)
             .textCase(.uppercase)
             .foregroundStyle(item.category.textColor)
             .padding(.horizontal, 6.5)
             .padding(.vertical, 5)
             .background(
-                Capsule()
+                RoundedRectangle(cornerRadius: 6.39, style: .continuous)
                     .fill(item.category.backgroundColor)
-                    .background(.ultraThinMaterial, in: Capsule())
             )
-    }
-
-    private var cardText: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text(item.title)
-                .font(NookFont.labelBoldSmall)
-                .foregroundStyle(Color.nook.cardTitle)
-                .lineLimit(1)
-                .padding(.top, 12)
-
-            Text(item.progress)
-                .font(NookFont.caption)
-                .foregroundStyle(Color.nook.cardSubtitle)
-                .padding(.top, 4)
-        }
     }
 }
 
