@@ -88,7 +88,7 @@ struct ClubDetailView: View {
             .ignoresSafeArea(edges: .top)
             .modifier(ClubDetailSoftScrollEdge())
 
-            headerOverlay
+            headerBar
 
             if showComposeFAB {
                 VStack {
@@ -104,14 +104,6 @@ struct ClubDetailView: View {
             }
         }
         .background(Color.nook.clubDetailBackground.ignoresSafeArea())
-        .background(
-            VStack(spacing: 0) {
-                overscrollColor
-                    .frame(height: 400)
-                Spacer(minLength: 0)
-            }
-            .ignoresSafeArea()
-        )
         .navigationBarBackButtonHidden()
         .toolbar(.hidden, for: .navigationBar)
     }
@@ -156,51 +148,49 @@ private extension ClubDetailView {
     }
 }
 
-// MARK: - Header Overlay (floats over banner, gains background on scroll)
+// MARK: - Floating Header Bar
 
 private extension ClubDetailView {
-    var headerOverlay: some View {
+    var headerBar: some View {
         VStack(spacing: 0) {
-            headerBar
-                .background(
-                    Group {
-                        if showHeaderBar {
-                            Color.nook.clubDetailBackground
-                                .shadow(color: .black.opacity(0.06), radius: 8, y: 4)
+            HStack(spacing: 12) {
+                navButton(icon: "caret-left-bold") { dismiss() }
+
+                if showHeaderBar {
+                    Text(club.name)
+                        .font(NookFont.labelBold)
+                        .foregroundStyle(Color.nook.clubDetailTitle)
+                        .lineLimit(1)
+                        .transition(.opacity)
+                }
+
+                Spacer()
+
+                HStack(spacing: 8) {
+                    navButton(icon: "magnifying-glass-bold") {}
+                    navButton(icon: "dots-three-bold") {}
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.bottom, 8)
+            .background(
+                Group {
+                    if showHeaderBar {
+                        if #available(iOS 26, *) {
+                            Color.nook.clubDetailBackground.opacity(0.8)
+                                .background(.ultraThinMaterial)
                         } else {
-                            Color.clear
+                            Color.nook.clubDetailBackground
                         }
                     }
-                    .ignoresSafeArea(edges: .top)
-                )
-            Spacer()
-        }
-    }
-
-    var headerBar: some View {
-        HStack(spacing: 12) {
-            navButton(icon: "caret-left-bold") {
-                dismiss()
-            }
-
-            if showHeaderBar {
-                Text(club.name)
-                    .font(NookFont.labelBold)
-                    .foregroundStyle(Color.nook.clubDetailTitle)
-                    .lineLimit(1)
-                    .transition(.opacity.combined(with: .move(edge: .leading)))
-            }
+                }
+                .ignoresSafeArea(edges: .top)
+                .shadow(color: showHeaderBar ? .black.opacity(0.06) : .clear, radius: 8, y: 4)
+            )
+            .animation(.easeOut(duration: 0.2), value: showHeaderBar)
 
             Spacer()
-
-            HStack(spacing: 8) {
-                navButton(icon: "magnifying-glass-bold") {}
-                navButton(icon: "dots-three-bold") {}
-            }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 8)
-        .animation(.easeOut(duration: 0.2), value: showHeaderBar)
     }
 
     @ViewBuilder
@@ -212,13 +202,9 @@ private extension ClubDetailView {
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .frame(width: 20, height: 20)
-                    .foregroundStyle(showHeaderBar ? Color.nook.clubDetailTitle : .white)
+                    .foregroundStyle(.primary)
                     .frame(width: 40, height: 40)
-                    .background(
-                        showHeaderBar ? .clear : Color.black.opacity(0.15),
-                        in: Circle()
-                    )
-                    .glassEffect(showHeaderBar ? .regular.interactive() : .regular, in: .circle)
+                    .glassEffect(.regular, in: .circle)
             }
             .buttonStyle(.plain)
         } else {
@@ -228,14 +214,10 @@ private extension ClubDetailView {
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .frame(width: 20, height: 20)
-                    .foregroundStyle(showHeaderBar ? Color.nook.clubDetailTitle : .white)
+                    .foregroundStyle(Color.nook.clubDetailTitle)
                     .frame(width: 40, height: 40)
-                    .background(
-                        showHeaderBar
-                            ? Color.nook.searchBarBackground
-                            : Color.black.opacity(0.2),
-                        in: Circle()
-                    )
+                    .background(.white, in: Circle())
+                    .shadow(color: .black.opacity(0.1), radius: 3, y: 1)
             }
             .buttonStyle(.plain)
         }
