@@ -55,9 +55,6 @@ struct MainTabView: View {
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .navigationDestination(for: MediaDetail.self) { (media: MediaDetail) in
-                    MediaDetailView(media: media)
-                }
             }
 
             NookTabBar(selectedTab: $selectedTab)

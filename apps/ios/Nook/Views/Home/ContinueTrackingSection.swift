@@ -53,6 +53,7 @@ enum MediaCategory {
 
 struct ContinueTrackingSection: View {
     let items: [TrackingItem]
+    @Namespace private var heroNamespace
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
@@ -89,10 +90,23 @@ struct ContinueTrackingSection: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 16) {
                 ForEach(items) { item in
-                    NavigationLink(value: MediaDetailView.mockMedia) {
-                        TrackingCard(item: item)
+                    if #available(iOS 18, *) {
+                        NavigationLink {
+                            MediaDetailView(media: MediaDetailView.mockMedia)
+                                .navigationTransition(.zoom(sourceID: item.id, in: heroNamespace))
+                        } label: {
+                            TrackingCard(item: item)
+                        }
+                        .buttonStyle(.plain)
+                        .matchedTransitionSource(id: item.id, in: heroNamespace)
+                    } else {
+                        NavigationLink {
+                            MediaDetailView(media: MediaDetailView.mockMedia)
+                        } label: {
+                            TrackingCard(item: item)
+                        }
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
                 }
             }
             .padding(.horizontal, 24)
