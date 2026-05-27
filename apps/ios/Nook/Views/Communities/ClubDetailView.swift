@@ -110,33 +110,15 @@ struct ClubDetailView: View {
 
 private extension ClubDetailView {
     var heroSection: some View {
-        ZStack(alignment: .bottom) {
-            // Banner image/color
-            bannerImage
+        ZStack(alignment: .bottomLeading) {
+            club.bannerColor
+                .frame(maxWidth: .infinity)
+                .frame(height: 192)
 
-            // Gradient overlay
-            LinearGradient(
-                stops: [
-                    .init(color: Color.nook.clubDetailBannerGradient, location: 0),
-                    .init(color: .clear, location: 0.5),
-                    .init(color: .clear, location: 1),
-                ],
-                startPoint: .bottom,
-                endPoint: .top
-            )
-        }
-        .frame(height: 192)
-        .overlay(alignment: .bottomLeading) {
             clubAvatar
                 .offset(y: 44)
         }
-    }
-
-    var bannerImage: some View {
-        club.bannerColor
-            .frame(maxWidth: .infinity)
-            .frame(height: 192)
-            .clipped()
+        .zIndex(1)
     }
 
     var clubAvatar: some View {
@@ -549,7 +531,7 @@ private extension ClubDetailView {
                             .foregroundStyle(Color.nook.mutedForeground)
                     )
 
-                VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
                     Text(post.authorName)
                         .font(NookFont.labelSmall)
                         .foregroundStyle(Color.nook.clubDetailTitle)

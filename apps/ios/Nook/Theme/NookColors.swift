@@ -113,7 +113,6 @@ struct NookColors {
     let clubDetailComposeCard = Color.white
     let clubDetailComposeBorder = Color(hex: 0xE8E5E1, alpha: 0.5)
     let clubDetailJoinedButton = Color(hex: 0x362A31)
-    let clubDetailBannerGradient = Color(hex: 0x000000, alpha: 0.6)
     let clubDetailAvatarBorder = Color(hex: 0xFDFCF9)
 
     // Tab bar tokens from Figma
