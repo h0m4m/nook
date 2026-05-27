@@ -140,9 +140,6 @@ struct ClubsView: View {
                 }
                 .padding(.horizontal, 24)
                 .padding(.top, 16)
-                .navigationDestination(for: ClubItem.self) { club in
-                    ClubDetailView(club: club)
-                }
             }
             .padding(.bottom, 100)
         }

@@ -4,7 +4,7 @@ import SwiftUI
 
 enum ClubDetailTab: String, CaseIterable, Identifiable {
     case posts
-    case media
+    case mentions
     case members
     case events
 
@@ -13,7 +13,7 @@ enum ClubDetailTab: String, CaseIterable, Identifiable {
     var label: String {
         switch self {
         case .posts: "Posts"
-        case .media: "Media"
+        case .mentions: "Mentions"
         case .members: "Members"
         case .events: "Events"
         }
@@ -69,7 +69,6 @@ struct ClubDetailView: View {
     @State private var isJoined: Bool
     @State private var dominantColor: Color?
     @State private var isDescriptionExpanded = false
-    @State private var showComposeFAB = false
     @State private var showHeaderBar = false
 
     init(club: ClubItem) {
@@ -90,22 +89,20 @@ struct ClubDetailView: View {
 
             headerBar
 
-            if showComposeFAB {
-                VStack {
+            VStack {
+                Spacer()
+                HStack {
                     Spacer()
-                    HStack {
-                        Spacer()
-                        composeFAB
-                            .padding(.trailing, 20)
-                            .padding(.bottom, 100)
-                    }
+                    composeFAB
+                        .padding(.trailing, 20)
+                        .padding(.bottom, 32)
                 }
-                .transition(.scale(scale: 0.5).combined(with: .opacity))
             }
         }
         .background(Color.nook.clubDetailBackground.ignoresSafeArea())
         .navigationBarBackButtonHidden()
         .toolbar(.hidden, for: .navigationBar)
+        .modifier(InteractivePopGesture())
     }
 
     private var overscrollColor: Color {
@@ -152,45 +149,41 @@ private extension ClubDetailView {
 
 private extension ClubDetailView {
     var headerBar: some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 12) {
-                navButton(icon: "caret-left-bold") { dismiss() }
+        HStack(spacing: 12) {
+            navButton(icon: "caret-left-bold") { dismiss() }
 
-                if showHeaderBar {
-                    Text(club.name)
-                        .font(NookFont.labelBold)
-                        .foregroundStyle(Color.nook.clubDetailTitle)
-                        .lineLimit(1)
-                        .transition(.opacity)
-                }
-
-                Spacer()
-
-                HStack(spacing: 8) {
-                    navButton(icon: "magnifying-glass-bold") {}
-                    navButton(icon: "dots-three-bold") {}
-                }
+            if showHeaderBar {
+                Text(club.name)
+                    .font(NookFont.labelBold)
+                    .foregroundStyle(Color.nook.clubDetailTitle)
+                    .lineLimit(1)
+                    .transition(.opacity)
             }
-            .padding(.horizontal, 16)
-            .padding(.bottom, 8)
-            .background(
-                Group {
-                    if showHeaderBar {
-                        if #available(iOS 26, *) {
-                            Color.nook.clubDetailBackground.opacity(0.8)
-                                .background(.ultraThinMaterial)
-                        } else {
-                            Color.nook.clubDetailBackground
-                        }
-                    }
-                }
-                .ignoresSafeArea(edges: .top)
-                .shadow(color: showHeaderBar ? .black.opacity(0.06) : .clear, radius: 8, y: 4)
-            )
-            .animation(.easeOut(duration: 0.2), value: showHeaderBar)
 
             Spacer()
+
+            HStack(spacing: 8) {
+                navButton(icon: "magnifying-glass-bold") {}
+                navButton(icon: "dots-three-bold") {}
+            }
         }
+        .padding(.horizontal, 16)
+        .padding(.bottom, 8)
+        .background(
+            Group {
+                if showHeaderBar {
+                    if #available(iOS 26, *) {
+                        Color.nook.clubDetailBackground.opacity(0.8)
+                            .background(.ultraThinMaterial)
+                    } else {
+                        Color.nook.clubDetailBackground
+                    }
+                }
+            }
+            .ignoresSafeArea(edges: .top)
+            .shadow(color: showHeaderBar ? .black.opacity(0.06) : .clear, radius: 8, y: 4)
+        )
+        .animation(.easeOut(duration: 0.2), value: showHeaderBar)
     }
 
     @ViewBuilder
@@ -204,9 +197,12 @@ private extension ClubDetailView {
                     .frame(width: 20, height: 20)
                     .foregroundStyle(.primary)
                     .frame(width: 40, height: 40)
+                    .contentShape(Circle())
                     .glassEffect(.regular, in: .circle)
             }
             .buttonStyle(.plain)
+            .frame(width: 48, height: 48)
+            .contentShape(Rectangle())
         } else {
             Button(action: action) {
                 Image(icon)
@@ -220,6 +216,8 @@ private extension ClubDetailView {
                     .shadow(color: .black.opacity(0.1), radius: 3, y: 1)
             }
             .buttonStyle(.plain)
+            .frame(width: 48, height: 48)
+            .contentShape(Rectangle())
         }
     }
 }
@@ -227,22 +225,39 @@ private extension ClubDetailView {
 // MARK: - Compose FAB
 
 private extension ClubDetailView {
+    @ViewBuilder
     var composeFAB: some View {
-        Button {
-            // TODO: Open compose
-        } label: {
-            Image("chat-circle")
-                .renderingMode(.template)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(width: 22, height: 22)
-                .foregroundStyle(.white)
-                .frame(width: 56, height: 56)
-                .background(Color.nook.clubDetailJoinedButton, in: Circle())
-                .shadow(color: .black.opacity(0.1), radius: 7.5, y: 5)
-                .shadow(color: .black.opacity(0.1), radius: 3, y: -2)
+        if #available(iOS 26, *) {
+            Button {
+                // TODO: Open compose
+            } label: {
+                Image("chat-circle-text-fill")
+                    .renderingMode(.template)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 22, height: 22)
+                    .foregroundStyle(.primary)
+                    .frame(width: 56, height: 56)
+            }
+            .buttonStyle(.plain)
+            .glassEffect(.regular.interactive(), in: .circle)
+        } else {
+            Button {
+                // TODO: Open compose
+            } label: {
+                Image("chat-circle-text-fill")
+                    .renderingMode(.template)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 22, height: 22)
+                    .foregroundStyle(.white)
+                    .frame(width: 56, height: 56)
+                    .background(Color.nook.clubDetailJoinedButton, in: Circle())
+                    .shadow(color: .black.opacity(0.1), radius: 7.5, y: 5)
+                    .shadow(color: .black.opacity(0.1), radius: 3, y: -2)
+            }
+            .buttonStyle(.plain)
         }
-        .buttonStyle(.plain)
     }
 }
 
@@ -414,8 +429,8 @@ private extension ClubDetailView {
         switch selectedTab {
         case .posts:
             postsTab
-        case .media:
-            placeholderTab("Shared media from this club")
+        case .mentions:
+            placeholderTab("Mentions in this club")
         case .members:
             placeholderTab("Members of this club")
         case .events:
@@ -440,13 +455,6 @@ private extension ClubDetailView {
         VStack(spacing: 16) {
             composeBar
                 .padding(.top, 16)
-                .onGeometryChange(for: Bool.self) { proxy in
-                    proxy.frame(in: .global).maxY < 0
-                } action: { scrolledPast in
-                    withAnimation(.easeOut(duration: 0.2)) {
-                        showComposeFAB = scrolledPast
-                    }
-                }
 
             if let pinned = Self.mockPinnedDiscussion {
                 pinnedCard(pinned)

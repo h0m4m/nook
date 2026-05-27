@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		03B16B4355BCB873356D3B7E /* NookTextField.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD7EDC639242E213297A4E3B /* NookTextField.swift */; };
+		1NTERACT1VEPOP123456AB01 /* InteractivePopGesture.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1NTERACT1VEPOP123456AB02 /* InteractivePopGesture.swift */; };
 		0C7A7928EDF8261A60C69B7B /* PlusJakartaSans-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 0434AC2CEBC0E104ADA7C5E9 /* PlusJakartaSans-Medium.ttf */; };
 		14027C35E1B179163E7D7A72 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19FAF1FC5B046085F9880E74 /* ContentView.swift */; };
 		2D8A14360C20E0E7E22153DE /* PlusJakartaSans-SemiBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 05F9C84C24F6EFFF4A6F80EA /* PlusJakartaSans-SemiBold.ttf */; };
@@ -61,6 +62,7 @@
 		7E01623977F7EFDA29CEB48F /* Supabase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Supabase.swift; sourceTree = "<group>"; };
 		9702BBB3E69FB7B1267F94CD /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		AD7EDC639242E213297A4E3B /* NookTextField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NookTextField.swift; sourceTree = "<group>"; };
+		1NTERACT1VEPOP123456AB02 /* InteractivePopGesture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InteractivePopGesture.swift; sourceTree = "<group>"; };
 		BD3FD31533A8320839C66978 /* IntroView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntroView.swift; sourceTree = "<group>"; };
 		CEAD2EC6E8B677C15E76C760 /* arrow-right.svg */ = {isa = PBXFileReference; lastKnownFileType = text; path = "arrow-right.svg"; sourceTree = "<group>"; };
 		D7A3FD70DAD38D02B5A01342 /* PlusJakartaSans-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "PlusJakartaSans-Regular.ttf"; sourceTree = "<group>"; };
@@ -174,6 +176,7 @@
 			isa = PBXGroup;
 			children = (
 				AD7EDC639242E213297A4E3B /* NookTextField.swift */,
+				1NTERACT1VEPOP123456AB02 /* InteractivePopGesture.swift */,
 			);
 			path = Components;
 			sourceTree = "<group>";
@@ -338,6 +341,7 @@
 				C7A0531D0AEB4260772159C3 /* NookFonts.swift in Sources */,
 				BF2BE3CA0888D9E8587C644B /* NookRadii.swift in Sources */,
 				03B16B4355BCB873356D3B7E /* NookTextField.swift in Sources */,
+				1NTERACT1VEPOP123456AB01 /* InteractivePopGesture.swift in Sources */,
 				C0BCA61662166A4D878EE5CB /* NookTypography.swift in Sources */,
 				AA608F1EC2813B24E0BA9BC7 /* RootView.swift in Sources */,
 				4183747E99656D4952E06508 /* Supabase.swift in Sources */,

@@ -159,6 +159,7 @@ struct MediaDetailView: View {
         )
         .navigationBarBackButtonHidden()
         .toolbar(.hidden, for: .navigationBar)
+        .modifier(InteractivePopGesture())
         .modifier(SoftDetailScrollEdge())
         .task {
             let name = media.imageName
@@ -302,9 +303,12 @@ private extension MediaDetailView {
                     .frame(width: 20, height: 20)
                     .foregroundStyle(.primary)
                     .frame(width: 40, height: 40)
+                    .contentShape(Circle())
                     .glassEffect(.regular, in: .circle)
             }
             .buttonStyle(.plain)
+            .frame(width: 48, height: 48)
+            .contentShape(Rectangle())
         } else {
             Button(action: action) {
                 Image(icon)
@@ -317,6 +321,8 @@ private extension MediaDetailView {
                     .background(.ultraThinMaterial, in: Circle())
             }
             .buttonStyle(.plain)
+            .frame(width: 48, height: 48)
+            .contentShape(Rectangle())
         }
     }
 }

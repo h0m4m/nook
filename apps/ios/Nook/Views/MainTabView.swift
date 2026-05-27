@@ -38,10 +38,11 @@ struct MainTabView: View {
     var router: AppRouter
 
     @State private var selectedTab: Tab = .home
+    @State private var navPath = NavigationPath()
 
     var body: some View {
         ZStack(alignment: .bottom) {
-            NavigationStack {
+            NavigationStack(path: $navPath) {
                 Group {
                     switch selectedTab {
                     case .home:
@@ -55,9 +56,17 @@ struct MainTabView: View {
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .navigationDestination(for: ClubItem.self) { club in
+                    ClubDetailView(club: club)
+                }
+                .navigationDestination(for: MediaDetail.self) { media in
+                    MediaDetailView(media: media)
+                }
             }
 
-            NookTabBar(selectedTab: $selectedTab)
+            if navPath.isEmpty {
+                NookTabBar(selectedTab: $selectedTab)
+            }
         }
         .ignoresSafeArea(.keyboard)
     }

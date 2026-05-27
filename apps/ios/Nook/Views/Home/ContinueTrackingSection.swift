@@ -91,18 +91,13 @@ struct ContinueTrackingSection: View {
             HStack(spacing: 16) {
                 ForEach(items) { item in
                     if #available(iOS 18, *) {
-                        NavigationLink {
-                            MediaDetailView(media: MediaDetailView.mockMedia)
-                                .navigationTransition(.zoom(sourceID: item.id, in: heroNamespace))
-                        } label: {
+                        NavigationLink(value: MediaDetailView.mockMedia) {
                             TrackingCard(item: item)
                         }
                         .buttonStyle(.plain)
                         .matchedTransitionSource(id: item.id, in: heroNamespace)
                     } else {
-                        NavigationLink {
-                            MediaDetailView(media: MediaDetailView.mockMedia)
-                        } label: {
+                        NavigationLink(value: MediaDetailView.mockMedia) {
                             TrackingCard(item: item)
                         }
                         .buttonStyle(.plain)
