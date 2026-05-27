@@ -1340,6 +1340,13 @@ struct ReviewSheetView: View {
     @Environment(\.dismiss) private var dismiss
     @FocusState private var focusedField: ReviewField?
     @State private var richText: AttributedString = ""
+    @State private var formatter: RichTextFormatterProtocol = {
+        if #available(iOS 26, *) {
+            return RichTextFormatter()
+        } else {
+            return PlainTextFormatter()
+        }
+    }()
 
     enum ReviewField {
         case title, reviewBody
@@ -1356,30 +1363,34 @@ struct ReviewSheetView: View {
 
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 0) {
-                        if !isWriting {
-                            mediaCard
-                                .padding(.top, 16)
-                                .padding(.horizontal, 16)
-                                .transition(.opacity.combined(with: .move(edge: .top)))
+                        mediaCard
+                            .padding(.top, 16)
+                            .padding(.horizontal, 16)
+                            .frame(maxHeight: isWriting ? 0 : nil)
+                            .clipped()
+                            .opacity(isWriting ? 0 : 1)
 
-                            ratingSection
-                                .padding(.top, 28)
-                                .padding(.horizontal, 16)
-                                .transition(.opacity.combined(with: .move(edge: .top)))
-                        }
+                        ratingSection
+                            .padding(.top, isWriting ? 0 : 28)
+                            .padding(.horizontal, 16)
+                            .frame(maxHeight: isWriting ? 0 : nil)
+                            .clipped()
+                            .opacity(isWriting ? 0 : 1)
 
                         reviewFields
                             .padding(.top, isWriting ? 16 : 28)
                             .padding(.horizontal, 16)
                     }
-                    .animation(.easeInOut(duration: 0.3), value: isWriting)
+                    .animation(.easeOut(duration: 0.2), value: isWriting)
                     .padding(.bottom, 40)
                 }
                 .scrollDismissesKeyboard(.interactively)
 
-                if !isWriting {
-                    formattingToolbar
-                }
+                formattingToolbar
+                    .frame(maxHeight: isWriting ? 0 : nil)
+                    .clipped()
+                    .opacity(isWriting ? 0 : 1)
+                    .animation(.easeOut(duration: 0.2), value: isWriting)
             }
             .background(Color.nook.detailBackground)
             .navigationBarHidden(true)
@@ -1605,17 +1616,17 @@ struct ReviewSheetView: View {
 
     @ViewBuilder
     private var richTextEditor: some View {
-        if #available(iOS 26, *) {
+        if #available(iOS 26, *), let richFormatter = formatter as? RichTextFormatter {
             RichTextEditorView(
-                richText: $richText,
+                formatter: richFormatter,
                 reviewText: $reviewText,
                 focusedField: $focusedField
             )
         } else {
             ZStack(alignment: .topLeading) {
                 if reviewText.isEmpty {
-                    Text("Write your thoughts about this masterpiece...")
-                        .font(NookFont.bodyMedium)
+                    Text("Share your thoughts...")
+                        .font(NookFont.label)
                         .foregroundStyle(Color.nook.detailMeta)
                         .padding(.top, 16)
                         .onTapGesture {
@@ -1624,7 +1635,7 @@ struct ReviewSheetView: View {
                 }
 
                 TextEditor(text: $reviewText)
-                    .font(NookFont.bodyMedium)
+                    .font(NookFont.label)
                     .foregroundStyle(Color.nook.detailTitle)
                     .lineSpacing(5)
                     .scrollContentBackground(.hidden)
@@ -1639,24 +1650,15 @@ struct ReviewSheetView: View {
     // MARK: - Formatting Toolbar (floating bar)
 
     private var formattingToolbar: some View {
-        HStack(spacing: 0) {
+        HStack(spacing: 4) {
             toolbarIcon(icon: "bold", isSystem: true, isActive: isBold) {
                 toggleBold()
             }
             toolbarIcon(icon: "text-italic-bold", isSystem: false, isActive: isItalic) {
                 toggleItalic()
             }
-            toolbarIcon(icon: "quotes-bold", isSystem: false, isActive: false) {
-                insertQuote()
-            }
-
-            Rectangle()
-                .fill(Color.nook.detailTabBorder)
-                .frame(width: 1, height: 16)
-                .padding(.horizontal, 4)
-
-            toolbarIcon(icon: "link-bold", isSystem: false, isActive: false) {
-                insertLink()
+            toolbarIcon(icon: "quotes-bold", isSystem: false, isActive: isQuote) {
+                toggleQuote()
             }
 
             Rectangle()
@@ -1682,24 +1684,15 @@ struct ReviewSheetView: View {
     // MARK: - Keyboard Toolbar
 
     private var keyboardToolbar: some View {
-        HStack(spacing: 0) {
+        HStack(spacing: 4) {
             toolbarIcon(icon: "bold", isSystem: true, isActive: isBold) {
                 toggleBold()
             }
             toolbarIcon(icon: "text-italic-bold", isSystem: false, isActive: isItalic) {
                 toggleItalic()
             }
-            toolbarIcon(icon: "quotes-bold", isSystem: false, isActive: false) {
-                insertQuote()
-            }
-
-            Rectangle()
-                .fill(Color.nook.detailTabBorder)
-                .frame(width: 1, height: 16)
-                .padding(.horizontal, 4)
-
-            toolbarIcon(icon: "link-bold", isSystem: false, isActive: false) {
-                insertLink()
+            toolbarIcon(icon: "quotes-bold", isSystem: false, isActive: isQuote) {
+                toggleQuote()
             }
 
             Rectangle()
@@ -1721,7 +1714,7 @@ struct ReviewSheetView: View {
             }
             .buttonStyle(.plain)
         }
-        .padding(.bottom, 4)
+        .padding(.vertical, 6)
     }
 
     private var spoilerToggle: some View {
@@ -1777,36 +1770,273 @@ struct ReviewSheetView: View {
                 }
             }
             .foregroundStyle(isActive ? Color.nook.primary : Color.nook.detailTitle)
-            .frame(width: 36, height: 32)
+            .frame(width: 32, height: 32)
             .background(
                 isActive
                     ? Color.nook.primary.opacity(0.1)
                     : .clear,
-                in: RoundedRectangle(cornerRadius: 6, style: .continuous)
+                in: Circle()
             )
         }
         .buttonStyle(.plain)
     }
 
-    // MARK: - Formatting Actions (plain text fallback for < iOS 26)
+    // MARK: - Formatting Actions
 
-    private var isBold: Bool { false }
-    private var isItalic: Bool { false }
+    private var isBold: Bool { formatter.isBold }
+    private var isItalic: Bool { formatter.isItalic }
+    private var isQuote: Bool { formatter.isQuote }
 
-    private func toggleBold() {
-        // Rich text handled in RichTextEditorView on iOS 26+
+    private func toggleBold() { formatter.toggleBold() }
+    private func toggleItalic() { formatter.toggleItalic() }
+    private func toggleQuote() { formatter.toggleQuote(); focusedField = .reviewBody }
+}
+
+// MARK: - Rich Text Formatter Protocol
+
+@MainActor
+protocol RichTextFormatterProtocol {
+    var isBold: Bool { get }
+    var isItalic: Bool { get }
+    var isQuote: Bool { get }
+    func toggleBold()
+    func toggleItalic()
+    func toggleQuote()
+    func insertLink()
+}
+
+final class PlainTextFormatter: RichTextFormatterProtocol {
+    var isBold: Bool { false }
+    var isItalic: Bool { false }
+    var isQuote: Bool { false }
+    func toggleBold() {}
+    func toggleItalic() {}
+    func toggleQuote() {}
+    func insertLink() {}
+}
+
+@available(iOS 26, *)
+@Observable
+final class RichTextFormatter: RichTextFormatterProtocol {
+    var richText: AttributedString = ""
+    var selection = AttributedTextSelection()
+    var fontContext: Font.Context?
+
+    /// Tracks whether the current line is in quote mode so new lines extend the quote.
+    private(set) var quoteMode = false
+
+    var isBold: Bool {
+        guard let ctx = fontContext else { return false }
+        let font = selection.typingAttributes(in: richText).font
+        return (font ?? .default).resolve(in: ctx).isBold
     }
 
-    private func toggleItalic() {
-        // Rich text handled in RichTextEditorView on iOS 26+
+    var isItalic: Bool {
+        guard let ctx = fontContext else { return false }
+        let font = selection.typingAttributes(in: richText).font
+        return (font ?? .default).resolve(in: ctx).isItalic
     }
 
-    private func insertQuote() {
-        focusedField = .reviewBody
+    var isQuote: Bool {
+        quoteMode
     }
 
-    private func insertLink() {
-        focusedField = .reviewBody
+    func toggleBold() {
+        let newValue = !isBold
+        richText.transformAttributes(in: &selection) {
+            $0.font = ($0.font ?? .default).bold(newValue)
+        }
+    }
+
+    func toggleItalic() {
+        let newValue = !isItalic
+        richText.transformAttributes(in: &selection) {
+            $0.font = ($0.font ?? .default).italic(newValue)
+        }
+    }
+
+    func toggleQuote() {
+        if isQuote {
+            removeQuoteFromCurrentLine()
+            quoteMode = false
+        } else {
+            addQuoteToCurrentLine()
+            quoteMode = true
+        }
+    }
+
+    func insertLink() {
+        // No-op, removed
+    }
+
+    /// Called when new text is inserted — auto-continues quote on new lines.
+    func handleTextChange(oldText: AttributedString) {
+        guard quoteMode else { return }
+
+        let newChars = String(richText.characters)
+        let oldChars = String(oldText.characters)
+        guard newChars.count > oldChars.count else { return }
+
+        let oldNewlineCount = oldChars.filter { $0 == "\n" }.count
+        let newNewlineCount = newChars.filter { $0 == "\n" }.count
+
+        guard newNewlineCount > oldNewlineCount else {
+            // Regular typing — ensure paragraph style on current line
+            ensureQuoteParagraphStyle()
+            return
+        }
+
+        // A newline was just inserted — check if we should continue or exit quote
+        let lines = newChars.split(separator: "\n", omittingEmptySubsequences: false)
+        guard lines.count >= 2 else { return }
+
+        // Find the newly created empty line after a quote line
+        // Walk lines to find a quote line followed by an empty line
+        var charOffset = 0
+        for i in 0..<lines.count {
+            let line = String(lines[i])
+            if i > 0 {
+                let prevLine = String(lines[i - 1])
+                if prevLine.hasPrefix("▎ ") && line.isEmpty {
+                    let prevContent = String(prevLine.dropFirst(2))
+                    if prevContent.trimmingCharacters(in: CharacterSet.whitespaces).isEmpty {
+                        // Empty quote line (just "▎ ") + Enter → remove it and exit quote
+                        let removeStart = charOffset - prevLine.count - 1
+                        if removeStart >= 0 {
+                            let attrStart = richText.index(richText.startIndex, offsetByCharacters: removeStart)
+                            let attrEnd = richText.index(richText.startIndex, offsetByCharacters: charOffset)
+                            if attrStart < attrEnd, attrEnd <= richText.endIndex {
+                                richText.removeSubrange(attrStart..<attrEnd)
+                            }
+                        }
+                        quoteMode = false
+                        return
+                    }
+
+                    // Has content — insert quote prefix + paragraph style on new line
+                    let attrIdx = richText.index(richText.startIndex, offsetByCharacters: charOffset)
+                    var quotePrefix = AttributedString("▎ ")
+                    quotePrefix.foregroundColor = Color.nook.detailMeta
+                    quotePrefix.paragraphStyle = Self.quoteParagraphStyle
+                    richText.insert(quotePrefix, at: attrIdx)
+                    return
+                }
+            }
+            charOffset += line.count + 1
+        }
+    }
+
+    // MARK: - Private Quote Helpers
+
+    static let quoteIndent: CGFloat = 16
+
+    private static var quoteParagraphStyle: NSParagraphStyle {
+        let style = NSMutableParagraphStyle()
+        style.firstLineHeadIndent = 0
+        style.headIndent = quoteIndent
+        return style
+    }
+
+    private func addQuoteToCurrentLine() {
+        let plainString = String(richText.characters)
+
+        if plainString.isEmpty {
+            var quotePrefix = AttributedString("▎ ")
+            quotePrefix.foregroundColor = Color.nook.detailMeta
+            quotePrefix.paragraphStyle = Self.quoteParagraphStyle
+            richText = quotePrefix
+            return
+        }
+
+        // Add quote prefix to the last line
+        let lineStartCharOffset: Int
+        if let lastNL = plainString.lastIndex(of: "\n") {
+            lineStartCharOffset = plainString.distance(from: plainString.startIndex, to: plainString.index(after: lastNL))
+        } else {
+            lineStartCharOffset = 0
+        }
+
+        let lineFromStart = plainString.dropFirst(lineStartCharOffset)
+        guard !lineFromStart.hasPrefix("▎ ") else { return }
+
+        let attrStartIdx = richText.index(richText.startIndex, offsetByCharacters: lineStartCharOffset)
+
+        var quotePrefix = AttributedString("▎ ")
+        quotePrefix.foregroundColor = Color.nook.detailMeta
+        quotePrefix.paragraphStyle = Self.quoteParagraphStyle
+        richText.insert(quotePrefix, at: attrStartIdx)
+
+        // Apply paragraph style to the rest of the line too
+        applyParagraphStyleToLine(from: lineStartCharOffset)
+    }
+
+    private func removeQuoteFromCurrentLine() {
+        let plainString = String(richText.characters)
+        guard !plainString.isEmpty else { return }
+
+        let lineStartCharOffset: Int
+        if let lastNL = plainString.lastIndex(of: "\n") {
+            lineStartCharOffset = plainString.distance(from: plainString.startIndex, to: plainString.index(after: lastNL))
+        } else {
+            lineStartCharOffset = 0
+        }
+
+        let lineFromStart = plainString.dropFirst(lineStartCharOffset)
+        guard lineFromStart.hasPrefix("▎ ") else { return }
+
+        // Remove "▎ " (2 characters)
+        let attrStartIdx = richText.index(richText.startIndex, offsetByCharacters: lineStartCharOffset)
+        let attrEndIdx = richText.index(richText.startIndex, offsetByCharacters: lineStartCharOffset + 2)
+        richText.removeSubrange(attrStartIdx..<attrEndIdx)
+
+        // Reset paragraph style
+        removeParagraphStyleFromLine(from: lineStartCharOffset)
+    }
+
+    private func ensureQuoteParagraphStyle() {
+        let plainString = String(richText.characters)
+        guard !plainString.isEmpty else { return }
+        let lineStartCharOffset: Int
+        if let lastNL = plainString.lastIndex(of: "\n") {
+            lineStartCharOffset = plainString.distance(from: plainString.startIndex, to: plainString.index(after: lastNL))
+        } else {
+            lineStartCharOffset = 0
+        }
+        applyParagraphStyleToLine(from: lineStartCharOffset)
+    }
+
+    private func applyParagraphStyleToLine(from charOffset: Int) {
+        let startIdx = richText.index(richText.startIndex, offsetByCharacters: charOffset)
+        let plainString = String(richText.characters)
+        let lineEnd = plainString.dropFirst(charOffset)
+        let lineLength: Int
+        if let nlIdx = lineEnd.firstIndex(of: "\n") {
+            lineLength = plainString.distance(from: lineEnd.startIndex, to: nlIdx)
+        } else {
+            lineLength = lineEnd.count
+        }
+        guard lineLength > 0 else { return }
+        let endIdx = richText.index(richText.startIndex, offsetByCharacters: charOffset + lineLength)
+        if startIdx < endIdx, endIdx <= richText.endIndex {
+            richText[startIdx..<endIdx].paragraphStyle = Self.quoteParagraphStyle
+        }
+    }
+
+    private func removeParagraphStyleFromLine(from charOffset: Int) {
+        let startIdx = richText.index(richText.startIndex, offsetByCharacters: charOffset)
+        let plainString = String(richText.characters)
+        let lineEnd = plainString.dropFirst(charOffset)
+        let lineLength: Int
+        if let nlIdx = lineEnd.firstIndex(of: "\n") {
+            lineLength = plainString.distance(from: lineEnd.startIndex, to: nlIdx)
+        } else {
+            lineLength = lineEnd.count
+        }
+        guard lineLength > 0 else { return }
+        let endIdx = richText.index(richText.startIndex, offsetByCharacters: charOffset + lineLength)
+        if startIdx < endIdx, endIdx <= richText.endIndex {
+            richText[startIdx..<endIdx].paragraphStyle = NSParagraphStyle.default
+        }
     }
 }
 
@@ -1814,16 +2044,17 @@ struct ReviewSheetView: View {
 
 @available(iOS 26, *)
 private struct RichTextEditorView: View {
-    @Binding var richText: AttributedString
+    @Bindable var formatter: RichTextFormatter
     @Binding var reviewText: String
     var focusedField: FocusState<ReviewSheetView.ReviewField?>.Binding
-    @State private var selection = AttributedTextSelection()
+
+    @Environment(\.fontResolutionContext) private var fontResolutionContext
 
     var body: some View {
         ZStack(alignment: .topLeading) {
-            if richText.characters.isEmpty {
-                Text("Write your thoughts about this masterpiece...")
-                    .font(NookFont.bodyMedium)
+            if formatter.richText.characters.isEmpty {
+                Text("Share your thoughts...")
+                    .font(NookFont.label)
                     .foregroundStyle(Color.nook.detailMeta)
                     .padding(.top, 16)
                     .onTapGesture {
@@ -1831,8 +2062,8 @@ private struct RichTextEditorView: View {
                     }
             }
 
-            TextEditor(text: $richText, selection: $selection)
-                .font(NookFont.bodyMedium)
+            TextEditor(text: $formatter.richText, selection: $formatter.selection)
+                .font(NookFont.label)
                 .foregroundStyle(Color.nook.detailTitle)
                 .lineSpacing(5)
                 .scrollContentBackground(.hidden)
@@ -1840,8 +2071,15 @@ private struct RichTextEditorView: View {
                 .frame(minHeight: 200)
                 .padding(.top, 8)
                 .padding(.leading, -5)
-                .onChange(of: richText) {
-                    reviewText = String(richText.characters)
+                .onChange(of: formatter.richText) { oldValue, newValue in
+                    reviewText = String(newValue.characters)
+                    formatter.handleTextChange(oldText: oldValue)
+                }
+                .onAppear {
+                    formatter.fontContext = fontResolutionContext
+                }
+                .onChange(of: fontResolutionContext) {
+                    formatter.fontContext = fontResolutionContext
                 }
         }
     }
