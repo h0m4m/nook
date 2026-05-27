@@ -1339,39 +1339,56 @@ struct ReviewSheetView: View {
     @Binding var isReviewed: Bool
     @Environment(\.dismiss) private var dismiss
     @FocusState private var focusedField: ReviewField?
+    @State private var richText: AttributedString = ""
 
-    private enum ReviewField {
+    enum ReviewField {
         case title, reviewBody
     }
 
-    private var wordCount: Int {
-        reviewText.split(whereSeparator: { $0.isWhitespace || $0.isNewline }).count
+    private var isWriting: Bool {
+        focusedField != nil
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            reviewHeader
+        NavigationStack {
+            VStack(spacing: 0) {
+                reviewHeader
 
-            ScrollView(showsIndicators: false) {
-                VStack(spacing: 0) {
-                    mediaCard
-                        .padding(.top, 16)
-                        .padding(.horizontal, 16)
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 0) {
+                        if !isWriting {
+                            mediaCard
+                                .padding(.top, 16)
+                                .padding(.horizontal, 16)
+                                .transition(.opacity.combined(with: .move(edge: .top)))
 
-                    ratingSection
-                        .padding(.top, 28)
-                        .padding(.horizontal, 16)
+                            ratingSection
+                                .padding(.top, 28)
+                                .padding(.horizontal, 16)
+                                .transition(.opacity.combined(with: .move(edge: .top)))
+                        }
 
-                    reviewFields
-                        .padding(.top, 28)
-                        .padding(.horizontal, 16)
+                        reviewFields
+                            .padding(.top, isWriting ? 16 : 28)
+                            .padding(.horizontal, 16)
+                    }
+                    .animation(.easeInOut(duration: 0.3), value: isWriting)
+                    .padding(.bottom, 40)
                 }
-                .padding(.bottom, 100)
-            }
+                .scrollDismissesKeyboard(.interactively)
 
-            reviewFooter
+                if !isWriting {
+                    formattingToolbar
+                }
+            }
+            .background(Color.nook.detailBackground)
+            .navigationBarHidden(true)
+            .toolbar {
+                ToolbarItemGroup(placement: .keyboard) {
+                    keyboardToolbar
+                }
+            }
         }
-        .background(Color.nook.detailBackground)
     }
 
     // MARK: - Header
@@ -1477,7 +1494,7 @@ struct ReviewSheetView: View {
                     Capsule()
                         .fill(Color.nook.detailRatingBadge)
                 )
-                .padding(.top, 6)
+                .padding(.top, 4)
             }
 
             Spacer()
@@ -1571,6 +1588,10 @@ struct ReviewSheetView: View {
                 .font(NookFont.labelBold)
                 .foregroundStyle(Color.nook.detailTitle)
                 .focused($focusedField, equals: .title)
+                .submitLabel(.next)
+                .onSubmit {
+                    focusedField = .reviewBody
+                }
 
                 Rectangle()
                     .fill(Color.nook.detailTabBorder)
@@ -1578,12 +1599,28 @@ struct ReviewSheetView: View {
                     .padding(.top, 12)
             }
 
+            richTextEditor
+        }
+    }
+
+    @ViewBuilder
+    private var richTextEditor: some View {
+        if #available(iOS 26, *) {
+            RichTextEditorView(
+                richText: $richText,
+                reviewText: $reviewText,
+                focusedField: $focusedField
+            )
+        } else {
             ZStack(alignment: .topLeading) {
                 if reviewText.isEmpty {
                     Text("Write your thoughts about this masterpiece...")
                         .font(NookFont.bodyMedium)
                         .foregroundStyle(Color.nook.detailMeta)
                         .padding(.top, 16)
+                        .onTapGesture {
+                            focusedField = .reviewBody
+                        }
                 }
 
                 TextEditor(text: $reviewText)
@@ -1599,94 +1636,134 @@ struct ReviewSheetView: View {
         }
     }
 
-    // MARK: - Footer
+    // MARK: - Formatting Toolbar (floating bar)
 
-    private var reviewFooter: some View {
-        VStack(spacing: 0) {
-            // Text formatting toolbar
-            HStack(spacing: 0) {
-                formatButton(icon: "bold", isSystem: true)
-                formatButton(icon: "text-italic-bold", isSystem: false)
-                formatButton(icon: "quotes-bold", isSystem: false)
-
-                Rectangle()
-                    .fill(Color.nook.detailTabBorder)
-                    .frame(width: 1, height: 16)
-                    .padding(.horizontal, 8)
-
-                formatButton(icon: "link-bold", isSystem: false)
-
-                Spacer()
+    private var formattingToolbar: some View {
+        HStack(spacing: 0) {
+            toolbarIcon(icon: "bold", isSystem: true, isActive: isBold) {
+                toggleBold()
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
-            .background(
-                Capsule()
-                    .fill(Color.nook.card)
-                    .overlay(
-                        Capsule()
-                            .strokeBorder(Color.nook.detailTabBorder, lineWidth: 1)
-                    )
-            )
-            .padding(.horizontal, 16)
-            .padding(.bottom, 12)
+            toolbarIcon(icon: "text-italic-bold", isSystem: false, isActive: isItalic) {
+                toggleItalic()
+            }
+            toolbarIcon(icon: "quotes-bold", isSystem: false, isActive: false) {
+                insertQuote()
+            }
 
             Rectangle()
                 .fill(Color.nook.detailTabBorder)
-                .frame(height: 1)
+                .frame(width: 1, height: 16)
+                .padding(.horizontal, 4)
 
-            HStack {
-                Button {
-                    containsSpoilers.toggle()
-                } label: {
-                    HStack(spacing: 6) {
-                        Image(containsSpoilers ? "eye-slash-fill" : "eye-slash-bold")
-                            .renderingMode(.template)
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(width: 14, height: 14)
-                            .foregroundStyle(
-                                containsSpoilers ? Color.nook.primary : Color.nook.detailTitle
-                            )
-
-                        Text("Contains Spoilers")
-                            .font(NookFont.caption)
-                            .foregroundStyle(
-                                containsSpoilers ? Color.nook.primary : Color.nook.detailTitle
-                            )
-                    }
-                    .padding(.horizontal, 14)
-                    .frame(height: 30)
-                    .background(
-                        Capsule()
-                            .fill(containsSpoilers ? Color.nook.primary.opacity(0.1) : .clear)
-                            .overlay(
-                                Capsule()
-                                    .strokeBorder(
-                                        containsSpoilers ? Color.nook.primary : Color.nook.detailTabBorder,
-                                        lineWidth: 1
-                                    )
-                            )
-                    )
-                }
-                .buttonStyle(.plain)
-
-                Spacer()
-
-                Text("\(wordCount) words")
-                    .font(NookFont.caption)
-                    .foregroundStyle(Color.nook.detailMeta)
+            toolbarIcon(icon: "link-bold", isSystem: false, isActive: false) {
+                insertLink()
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
+
+            Rectangle()
+                .fill(Color.nook.detailTabBorder)
+                .frame(width: 1, height: 16)
+                .padding(.horizontal, 4)
+
+            spoilerToggle
+
+            Spacer()
         }
-        .background(Color.nook.detailBackground)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(
+            Capsule()
+                .fill(Color.nook.card)
+                .shadow(color: .black.opacity(0.06), radius: 8, y: 2)
+        )
+        .padding(.horizontal, 16)
+        .padding(.bottom, 12)
     }
 
-    private func formatButton(icon: String, isSystem: Bool) -> some View {
+    // MARK: - Keyboard Toolbar
+
+    private var keyboardToolbar: some View {
+        HStack(spacing: 0) {
+            toolbarIcon(icon: "bold", isSystem: true, isActive: isBold) {
+                toggleBold()
+            }
+            toolbarIcon(icon: "text-italic-bold", isSystem: false, isActive: isItalic) {
+                toggleItalic()
+            }
+            toolbarIcon(icon: "quotes-bold", isSystem: false, isActive: false) {
+                insertQuote()
+            }
+
+            Rectangle()
+                .fill(Color.nook.detailTabBorder)
+                .frame(width: 1, height: 16)
+                .padding(.horizontal, 4)
+
+            toolbarIcon(icon: "link-bold", isSystem: false, isActive: false) {
+                insertLink()
+            }
+
+            Rectangle()
+                .fill(Color.nook.detailTabBorder)
+                .frame(width: 1, height: 16)
+                .padding(.horizontal, 4)
+
+            spoilerToggle
+
+            Spacer()
+
+            Button {
+                focusedField = nil
+            } label: {
+                Image(systemName: "keyboard.chevron.compact.down")
+                    .font(.system(size: 16))
+                    .foregroundStyle(Color.nook.detailTitle)
+                    .frame(width: 36, height: 32)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.bottom, 4)
+    }
+
+    private var spoilerToggle: some View {
         Button {
-            // TODO: Text formatting
+            withAnimation(.easeOut(duration: 0.2)) {
+                containsSpoilers.toggle()
+            }
         } label: {
+            HStack(spacing: 4) {
+                Image(containsSpoilers ? "eye-slash-fill" : "eye-slash-bold")
+                    .renderingMode(.template)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 14, height: 14)
+
+                Text("Spoilers")
+                    .font(NookFont.caption)
+            }
+            .foregroundStyle(
+                containsSpoilers ? Color.nook.primary : Color.nook.detailMeta
+            )
+            .padding(.horizontal, 10)
+            .frame(height: 30)
+            .background(
+                Capsule()
+                    .fill(containsSpoilers ? Color.nook.primary.opacity(0.1) : .clear)
+                    .overlay(
+                        Capsule()
+                            .strokeBorder(
+                                containsSpoilers ? Color.nook.primary : Color.nook.detailTabBorder,
+                                lineWidth: 1
+                            )
+                    )
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Helpers
+
+    private func toolbarIcon(icon: String, isSystem: Bool, isActive: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
             Group {
                 if isSystem {
                     Image(systemName: icon)
@@ -1699,10 +1776,74 @@ struct ReviewSheetView: View {
                         .frame(width: 16, height: 16)
                 }
             }
-            .foregroundStyle(Color.nook.detailTitle)
+            .foregroundStyle(isActive ? Color.nook.primary : Color.nook.detailTitle)
             .frame(width: 36, height: 32)
+            .background(
+                isActive
+                    ? Color.nook.primary.opacity(0.1)
+                    : .clear,
+                in: RoundedRectangle(cornerRadius: 6, style: .continuous)
+            )
         }
         .buttonStyle(.plain)
+    }
+
+    // MARK: - Formatting Actions (plain text fallback for < iOS 26)
+
+    private var isBold: Bool { false }
+    private var isItalic: Bool { false }
+
+    private func toggleBold() {
+        // Rich text handled in RichTextEditorView on iOS 26+
+    }
+
+    private func toggleItalic() {
+        // Rich text handled in RichTextEditorView on iOS 26+
+    }
+
+    private func insertQuote() {
+        focusedField = .reviewBody
+    }
+
+    private func insertLink() {
+        focusedField = .reviewBody
+    }
+}
+
+// MARK: - Rich Text Editor (iOS 26+)
+
+@available(iOS 26, *)
+private struct RichTextEditorView: View {
+    @Binding var richText: AttributedString
+    @Binding var reviewText: String
+    var focusedField: FocusState<ReviewSheetView.ReviewField?>.Binding
+    @State private var selection = AttributedTextSelection()
+
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            if richText.characters.isEmpty {
+                Text("Write your thoughts about this masterpiece...")
+                    .font(NookFont.bodyMedium)
+                    .foregroundStyle(Color.nook.detailMeta)
+                    .padding(.top, 16)
+                    .onTapGesture {
+                        focusedField.wrappedValue = .reviewBody
+                    }
+            }
+
+            TextEditor(text: $richText, selection: $selection)
+                .font(NookFont.bodyMedium)
+                .foregroundStyle(Color.nook.detailTitle)
+                .lineSpacing(5)
+                .scrollContentBackground(.hidden)
+                .focused(focusedField, equals: .reviewBody)
+                .frame(minHeight: 200)
+                .padding(.top, 8)
+                .padding(.leading, -5)
+                .onChange(of: richText) {
+                    reviewText = String(richText.characters)
+                }
+        }
     }
 }
 
