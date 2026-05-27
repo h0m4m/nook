@@ -69,6 +69,8 @@ struct ClubDetailView: View {
     @State private var isJoined: Bool
     @State private var dominantColor: Color?
     @State private var isDescriptionExpanded = false
+    @State private var showComposeFAB = false
+    @State private var showHeaderBar = false
 
     init(club: ClubItem) {
         self.club = club
@@ -83,9 +85,23 @@ struct ClubDetailView: View {
                     contentCard
                 }
             }
-            .ignoresSafeArea(edges: [.top, .bottom])
+            .ignoresSafeArea(edges: .top)
+            .modifier(ClubDetailSoftScrollEdge())
 
-            navigationButtons
+            headerOverlay
+
+            if showComposeFAB {
+                VStack {
+                    Spacer()
+                    HStack {
+                        Spacer()
+                        composeFAB
+                            .padding(.trailing, 20)
+                            .padding(.bottom, 100)
+                    }
+                }
+                .transition(.scale(scale: 0.5).combined(with: .opacity))
+            }
         }
         .background(Color.nook.clubDetailBackground.ignoresSafeArea())
         .background(
@@ -98,7 +114,6 @@ struct ClubDetailView: View {
         )
         .navigationBarBackButtonHidden()
         .toolbar(.hidden, for: .navigationBar)
-        .modifier(ClubDetailSoftScrollEdge())
     }
 
     private var overscrollColor: Color {
@@ -139,26 +154,53 @@ private extension ClubDetailView {
         }
         .padding(.leading, 16)
     }
+}
 
-    var navigationButtons: some View {
-        HStack {
+// MARK: - Header Overlay (floats over banner, gains background on scroll)
+
+private extension ClubDetailView {
+    var headerOverlay: some View {
+        VStack(spacing: 0) {
+            headerBar
+                .background(
+                    Group {
+                        if showHeaderBar {
+                            Color.nook.clubDetailBackground
+                                .shadow(color: .black.opacity(0.06), radius: 8, y: 4)
+                        } else {
+                            Color.clear
+                        }
+                    }
+                    .ignoresSafeArea(edges: .top)
+                )
+            Spacer()
+        }
+    }
+
+    var headerBar: some View {
+        HStack(spacing: 12) {
             navButton(icon: "caret-left-bold") {
                 dismiss()
+            }
+
+            if showHeaderBar {
+                Text(club.name)
+                    .font(NookFont.labelBold)
+                    .foregroundStyle(Color.nook.clubDetailTitle)
+                    .lineLimit(1)
+                    .transition(.opacity.combined(with: .move(edge: .leading)))
             }
 
             Spacer()
 
             HStack(spacing: 8) {
-                navButton(icon: "magnifying-glass-bold") {
-                    // TODO: Search within club
-                }
-
-                navButton(icon: "dots-three-bold") {
-                    // TODO: More options
-                }
+                navButton(icon: "magnifying-glass-bold") {}
+                navButton(icon: "dots-three-bold") {}
             }
         }
         .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .animation(.easeOut(duration: 0.2), value: showHeaderBar)
     }
 
     @ViewBuilder
@@ -170,9 +212,13 @@ private extension ClubDetailView {
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .frame(width: 20, height: 20)
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(showHeaderBar ? Color.nook.clubDetailTitle : .white)
                     .frame(width: 40, height: 40)
-                    .glassEffect(.regular, in: .circle)
+                    .background(
+                        showHeaderBar ? .clear : Color.black.opacity(0.15),
+                        in: Circle()
+                    )
+                    .glassEffect(showHeaderBar ? .regular.interactive() : .regular, in: .circle)
             }
             .buttonStyle(.plain)
         } else {
@@ -182,13 +228,39 @@ private extension ClubDetailView {
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .frame(width: 20, height: 20)
-                    .foregroundStyle(Color.nook.clubDetailTitle)
+                    .foregroundStyle(showHeaderBar ? Color.nook.clubDetailTitle : .white)
                     .frame(width: 40, height: 40)
-                    .background(.white, in: Circle())
-                    .shadow(color: .black.opacity(0.1), radius: 3, y: 1)
+                    .background(
+                        showHeaderBar
+                            ? Color.nook.searchBarBackground
+                            : Color.black.opacity(0.2),
+                        in: Circle()
+                    )
             }
             .buttonStyle(.plain)
         }
+    }
+}
+
+// MARK: - Compose FAB
+
+private extension ClubDetailView {
+    var composeFAB: some View {
+        Button {
+            // TODO: Open compose
+        } label: {
+            Image("chat-circle")
+                .renderingMode(.template)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 22, height: 22)
+                .foregroundStyle(.white)
+                .frame(width: 56, height: 56)
+                .background(Color.nook.clubDetailJoinedButton, in: Circle())
+                .shadow(color: .black.opacity(0.1), radius: 7.5, y: 5)
+                .shadow(color: .black.opacity(0.1), radius: 3, y: -2)
+        }
+        .buttonStyle(.plain)
     }
 }
 
@@ -223,6 +295,11 @@ private extension ClubDetailView {
                 Text(club.name)
                     .font(NookFont.outfitHeadingMedium)
                     .foregroundStyle(Color.nook.clubDetailTitle)
+                    .onGeometryChange(for: Bool.self) { proxy in
+                        proxy.frame(in: .global).maxY < 0
+                    } action: { scrolledPast in
+                        showHeaderBar = scrolledPast
+                    }
 
                 Text(club.memberCount)
                     .font(NookFont.labelMediumSmall)
@@ -381,6 +458,13 @@ private extension ClubDetailView {
         VStack(spacing: 16) {
             composeBar
                 .padding(.top, 16)
+                .onGeometryChange(for: Bool.self) { proxy in
+                    proxy.frame(in: .global).maxY < 0
+                } action: { scrolledPast in
+                    withAnimation(.easeOut(duration: 0.2)) {
+                        showComposeFAB = scrolledPast
+                    }
+                }
 
             if let pinned = Self.mockPinnedDiscussion {
                 pinnedCard(pinned)
