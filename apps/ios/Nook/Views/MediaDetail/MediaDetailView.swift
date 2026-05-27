@@ -1091,7 +1091,7 @@ struct TrackingSheetView: View {
             Spacer()
 
             Button("Save") {
-                isTracking = selectedStatus != nil
+                isTracking = selectedStatus != nil || currentEpisode > 0
                 isRated = userScore != nil
                 dismiss()
             }
