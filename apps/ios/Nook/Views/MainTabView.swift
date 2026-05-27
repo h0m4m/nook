@@ -62,6 +62,9 @@ struct MainTabView: View {
                 .navigationDestination(for: MediaDetail.self) { media in
                     MediaDetailView(media: media)
                 }
+                .navigationDestination(for: ClubPost.self) { post in
+                    PostDetailView(post: post)
+                }
             }
 
             if navPath.isEmpty {

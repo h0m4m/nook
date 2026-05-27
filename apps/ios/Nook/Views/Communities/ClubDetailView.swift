@@ -20,7 +20,7 @@ enum ClubDetailTab: String, CaseIterable, Identifiable {
     }
 }
 
-struct ClubPost: Identifiable {
+struct ClubPost: Identifiable, Hashable {
     let id = UUID()
     let authorName: String
     let timeAgo: String
@@ -30,6 +30,9 @@ struct ClubPost: Identifiable {
     let placeholderColor: Color?
     let likes: String
     let comments: String
+
+    static func == (lhs: ClubPost, rhs: ClubPost) -> Bool { lhs.id == rhs.id }
+    func hash(into hasher: inout Hasher) { hasher.combine(id) }
 
     init(
         authorName: String,
@@ -70,6 +73,7 @@ struct ClubDetailView: View {
     @State private var dominantColor: Color?
     @State private var isDescriptionExpanded = false
     @State private var showHeaderBar = false
+    @State private var showComposeSheet = false
 
     init(club: ClubItem) {
         self.club = club
@@ -103,6 +107,12 @@ struct ClubDetailView: View {
         .navigationBarBackButtonHidden()
         .toolbar(.hidden, for: .navigationBar)
         .modifier(InteractivePopGesture())
+        .sheet(isPresented: $showComposeSheet) {
+            ComposePostView(clubName: club.name)
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+                .presentationBackground(Color.nook.clubDetailBackground)
+        }
     }
 
     private var overscrollColor: Color {
@@ -229,7 +239,7 @@ private extension ClubDetailView {
     var composeFAB: some View {
         if #available(iOS 26, *) {
             Button {
-                // TODO: Open compose
+                showComposeSheet = true
             } label: {
                 Image("chat-circle-text-fill")
                     .renderingMode(.template)
@@ -243,7 +253,7 @@ private extension ClubDetailView {
             .glassEffect(.regular.interactive(), in: .circle)
         } else {
             Button {
-                // TODO: Open compose
+                showComposeSheet = true
             } label: {
                 Image("chat-circle-text-fill")
                     .renderingMode(.template)
@@ -461,7 +471,10 @@ private extension ClubDetailView {
             }
 
             ForEach(Self.mockPosts) { post in
-                postCard(post)
+                NavigationLink(value: post) {
+                    postCard(post)
+                }
+                .buttonStyle(.plain)
             }
         }
         .padding(.horizontal, 16)
@@ -473,6 +486,15 @@ private extension ClubDetailView {
 
 private extension ClubDetailView {
     var composeBar: some View {
+        Button {
+            showComposeSheet = true
+        } label: {
+            composeBarContent
+        }
+        .buttonStyle(.plain)
+    }
+
+    var composeBarContent: some View {
         HStack(spacing: 12) {
             Circle()
                 .fill(Color.nook.secondary)
