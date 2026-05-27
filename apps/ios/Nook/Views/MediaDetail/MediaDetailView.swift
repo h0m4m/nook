@@ -150,7 +150,11 @@ struct MediaDetailView: View {
         .toolbar(.hidden, for: .navigationBar)
         .modifier(SoftDetailScrollEdge())
         .task {
-            dominantColor = Self.extractDominantColor(from: media.imageName)
+            let name = media.imageName
+            let color = await Task.detached {
+                Self.extractDominantColor(from: name)
+            }.value
+            dominantColor = color
         }
     }
 
@@ -158,7 +162,7 @@ struct MediaDetailView: View {
         dominantColor ?? media.placeholderColor ?? Color.nook.foreground
     }
 
-    static func extractDominantColor(from imageName: String) -> Color? {
+    nonisolated static func extractDominantColor(from imageName: String) -> Color? {
         guard let uiImage = UIImage(named: imageName),
               let cgImage = uiImage.cgImage else { return nil }
 
@@ -301,14 +305,16 @@ private extension MediaDetailView {
 
             tabContent
         }
-        .background(Color.nook.detailBackground)
-        .clipShape(
-            UnevenRoundedRectangle(
-                topLeadingRadius: NookRadii.lg,
-                topTrailingRadius: NookRadii.lg
-            )
+        .background(
+            Color.nook.detailBackground
+                .clipShape(
+                    UnevenRoundedRectangle(
+                        topLeadingRadius: NookRadii.lg,
+                        topTrailingRadius: NookRadii.lg
+                    )
+                )
+                .shadow(color: .black.opacity(0.05), radius: 15, y: -8)
         )
-        .shadow(color: .black.opacity(0.05), radius: 15, y: -8)
         .offset(y: -32)
     }
 }
