@@ -7,6 +7,7 @@ struct ReviewItem: Identifiable {
     let reviewerName: String
     let mediaTitle: String
     let rating: Double
+    let title: String
     let body: String
     let likes: String
     let comments: String
@@ -57,33 +58,45 @@ private struct ReviewCard: View {
     let item: ReviewItem
 
     var body: some View {
-        VStack(spacing: 0) {
+        VStack(alignment: .leading, spacing: 0) {
             cardHeader
                 .padding(.top, 21)
                 .padding(.horizontal, 21)
 
-            cardBody
+            // Title
+            Text(item.title)
+                .font(NookFont.labelBoldSmall)
+                .foregroundStyle(Color.nook.cardTitle)
+                .lineLimit(1)
                 .padding(.top, 12)
                 .padding(.horizontal, 21)
+
+            // Body
+            Text("\"\(item.body)\"")
+                .font(NookFont.labelMediumSmall)
+                .foregroundStyle(Color.nook.reviewBody)
+                .lineSpacing(6)
+                .lineLimit(3)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.top, 6)
+                .padding(.horizontal, 21)
+
+            Spacer(minLength: 0)
 
             cardFooter
-                .padding(.top, 12)
                 .padding(.horizontal, 21)
-                .padding(.bottom, 16)
+                .padding(.bottom, 21)
         }
-        .frame(width: 280, height: 200)
+        .frame(width: 280, height: 230)
         .background(Color.nook.card)
         .clipShape(RoundedRectangle(cornerRadius: NookRadii.lg, style: .continuous))
-        .shadow(color: .black.opacity(0.04), radius: 8, x: 0, y: 2)
-        .shadow(color: .black.opacity(0.02), radius: 2, x: 0, y: 1)
     }
 
-    // MARK: - Header (avatar, name, rating)
+    // MARK: - Header (avatar, name, rating badge)
 
     private var cardHeader: some View {
         HStack(alignment: .top, spacing: 0) {
             HStack(spacing: 8) {
-                // Avatar
                 Circle()
                     .fill(Color.nook.secondary)
                     .frame(width: 32, height: 32)
@@ -93,7 +106,6 @@ private struct ReviewCard: View {
                             .foregroundStyle(Color.nook.mutedForeground)
                     )
 
-                // Name & media
                 VStack(alignment: .leading, spacing: 0) {
                     Text(item.reviewerName)
                         .font(NookFont.captionBold)
@@ -106,7 +118,7 @@ private struct ReviewCard: View {
                             .foregroundStyle(Color.nook.cardSubtitle)
 
                         Text(item.mediaTitle)
-                            .font(.custom("PlusJakartaSans-Regular", size: 10))
+                            .font(.custom("PlusJakartaSans-SemiBold", size: 10))
                             .foregroundStyle(Color.nook.cardTitle)
                     }
                 }
@@ -114,67 +126,56 @@ private struct ReviewCard: View {
 
             Spacer()
 
-            // Rating
-            HStack(spacing: 4) {
+            // Rating badge
+            HStack(spacing: 2) {
                 Image("star-fill")
                     .renderingMode(.template)
                     .resizable()
-                    .frame(width: 12, height: 12)
-                    .foregroundStyle(Color.nook.reviewRating)
+                    .frame(width: 10, height: 10)
+                    .foregroundStyle(Color.nook.detailRatingText)
 
                 Text(String(format: "%.1f", item.rating))
                     .font(NookFont.captionBold)
-                    .foregroundStyle(Color.nook.reviewRating)
+                    .foregroundStyle(Color.nook.detailRatingText)
             }
+            .padding(.horizontal, 6.5)
+            .padding(.vertical, 5)
+            .background(
+                RoundedRectangle(cornerRadius: 6.39, style: .continuous)
+                    .fill(Color.nook.detailRatingBadge)
+            )
         }
-    }
-
-    // MARK: - Body (review text)
-
-    private var cardBody: some View {
-        Text("\"\(item.body)\"")
-            .font(.custom("PlusJakartaSans-Italic", size: 14))
-            .foregroundStyle(Color.nook.reviewBody)
-            .lineSpacing(6)
-            .lineLimit(3)
-            .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     // MARK: - Footer (likes, comments)
 
     private var cardFooter: some View {
-        VStack(spacing: 0) {
-            Divider()
-                .background(Color.nook.reviewBorder)
+        HStack(spacing: 15) {
+            HStack(spacing: 4) {
+                Image("heart")
+                    .renderingMode(.template)
+                    .resizable()
+                    .frame(width: 16, height: 16)
+                    .foregroundStyle(Color.nook.cardSubtitle)
 
-            HStack(spacing: 15) {
-                HStack(spacing: 4) {
-                    Image("heart")
-                        .renderingMode(.template)
-                        .resizable()
-                        .frame(width: 16, height: 16)
-                        .foregroundStyle(Color.nook.cardSubtitle)
-
-                    Text(item.likes)
-                        .font(NookFont.caption)
-                        .foregroundStyle(Color.nook.cardSubtitle)
-                }
-
-                HStack(spacing: 4) {
-                    Image("chat-circle")
-                        .renderingMode(.template)
-                        .resizable()
-                        .frame(width: 16, height: 16)
-                        .foregroundStyle(Color.nook.cardSubtitle)
-
-                    Text(item.comments)
-                        .font(NookFont.caption)
-                        .foregroundStyle(Color.nook.cardSubtitle)
-                }
-
-                Spacer()
+                Text(item.likes)
+                    .font(NookFont.caption)
+                    .foregroundStyle(Color.nook.cardSubtitle)
             }
-            .padding(.top, 10)
+
+            HStack(spacing: 4) {
+                Image("chat-circle")
+                    .renderingMode(.template)
+                    .resizable()
+                    .frame(width: 16, height: 16)
+                    .foregroundStyle(Color.nook.cardSubtitle)
+
+                Text(item.comments)
+                    .font(NookFont.caption)
+                    .foregroundStyle(Color.nook.cardSubtitle)
+            }
+
+            Spacer()
         }
     }
 }
@@ -187,6 +188,7 @@ extension TrendingReviewsSection {
             reviewerName: "Elena Vance",
             mediaTitle: "Astris",
             rating: 9.5,
+            title: "An absolute masterpiece.",
             body: "An absolute masterclass in visual storytelling. The third act left me completely speechless. Must watch on...",
             likes: "1.2k",
             comments: "48"
@@ -195,6 +197,7 @@ extension TrendingReviewsSection {
             reviewerName: "Marcus",
             mediaTitle: "Solaris",
             rating: 8.7,
+            title: "Beautiful but slow pacing",
             body: "A slow burn that rewards patience. The cinematography alone makes it worth every minute.",
             likes: "842",
             comments: "31"
@@ -203,6 +206,7 @@ extension TrendingReviewsSection {
             reviewerName: "Aria Chen",
             mediaTitle: "Neon Drift",
             rating: 9.1,
+            title: "A new standard for anime",
             body: "This redefines what anime can be. Every frame is a painting, every scene hits differently.",
             likes: "2.1k",
             comments: "96"

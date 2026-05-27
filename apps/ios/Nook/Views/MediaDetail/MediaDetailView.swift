@@ -119,10 +119,16 @@ struct MediaDetailView: View {
     @State private var isRated = false
     @State private var isReviewed = false
     @State private var isInNook = false
+    @State private var showTrackingSheet = false
+    @State private var selectedStatus: TrackingStatus?
+    @State private var currentEpisode: Int
+    @State private var userScore: Int?
 
     init(media: MediaDetail) {
         self.media = media
         self._isTracking = State(initialValue: media.trackingStatus != nil)
+        self._selectedStatus = State(initialValue: media.trackingStatus)
+        self._currentEpisode = State(initialValue: media.currentEpisode)
     }
 
     var body: some View {
@@ -155,6 +161,19 @@ struct MediaDetailView: View {
                 Self.extractDominantColor(from: name)
             }.value
             dominantColor = color
+        }
+        .sheet(isPresented: $showTrackingSheet) {
+            TrackingSheetView(
+                mediaTitle: media.title,
+                totalEpisodes: media.totalEpisodes,
+                selectedStatus: $selectedStatus,
+                currentEpisode: $currentEpisode,
+                userScore: $userScore,
+                isTracking: $isTracking,
+                isRated: $isRated
+            )
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
         }
     }
 
@@ -216,7 +235,7 @@ private extension MediaDetailView {
             heroImage
             heroGradient
         }
-        .frame(height: 320)
+        .frame(height: 321)
     }
 
     var heroImage: some View {
@@ -230,7 +249,7 @@ private extension MediaDetailView {
             }
         }
         .frame(maxWidth: .infinity)
-        .frame(height: 320)
+        .frame(height: 321)
         .clipped()
     }
 
@@ -246,7 +265,7 @@ private extension MediaDetailView {
 
             Spacer()
 
-            navButton(icon: "dots-three-bold") {
+            navButton(icon: "export-bold") {
                 // TODO: More options
             }
         }
@@ -500,20 +519,20 @@ private extension MediaDetailView {
 private extension MediaDetailView {
     var actionButtons: some View {
         HStack(spacing: 0) {
-            actionButton(
+            sheetActionButton(
                 activeIcon: "bookmark-simple-fill",
                 inactiveIcon: "bookmark-simple",
                 activeLabel: "Tracking",
                 inactiveLabel: "Track",
-                isActive: $isTracking
+                isActive: isTracking
             )
 
-            actionButton(
+            sheetActionButton(
                 activeIcon: "star-fill",
                 inactiveIcon: "star",
                 activeLabel: "Rated",
                 inactiveLabel: "Rate",
-                isActive: $isRated
+                isActive: isRated
             )
 
             actionButton(
@@ -533,6 +552,28 @@ private extension MediaDetailView {
             )
         }
         .padding(.vertical, 8)
+    }
+
+    @ViewBuilder
+    func sheetActionButton(activeIcon: String, inactiveIcon: String, activeLabel: String, inactiveLabel: String, isActive: Bool) -> some View {
+        let resolvedIcon = isActive ? activeIcon : inactiveIcon
+        let resolvedLabel = isActive ? activeLabel : inactiveLabel
+        let fgColor = isActive ? Color.nook.detailActionActiveLabel : Color.nook.detailTitle
+        let labelColor = isActive ? Color.nook.detailActionActiveLabel : Color.nook.detailActionLabel
+
+        Button {
+            showTrackingSheet = true
+        } label: {
+            VStack(spacing: 6) {
+                actionIcon(icon: resolvedIcon, isActive: isActive, fgColor: fgColor)
+
+                Text(resolvedLabel)
+                    .font(.custom("PlusJakartaSans-SemiBold", size: 11))
+                    .foregroundStyle(labelColor)
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.plain)
     }
 
     @ViewBuilder
@@ -722,20 +763,20 @@ private extension MediaDetailView {
                 HStack(spacing: 12) {
                     Circle()
                         .fill(Color.nook.secondary)
-                        .frame(width: 40, height: 40)
+                        .frame(width: 32, height: 32)
                         .overlay(
                             Image(systemName: "person.fill")
-                                .font(.system(size: 16))
+                                .font(.system(size: 14))
                                 .foregroundStyle(Color.nook.mutedForeground)
                         )
 
-                    VStack(alignment: .leading, spacing: 2) {
+                    VStack(alignment: .leading, spacing: 0) {
                         Text(review.reviewerName)
-                            .font(NookFont.labelBoldSmall)
+                            .font(NookFont.captionBold)
                             .foregroundStyle(Color.nook.detailReviewTitle)
 
                         Text(review.timeAgo)
-                            .font(NookFont.caption)
+                            .font(.custom("PlusJakartaSans-Regular", size: 10))
                             .foregroundStyle(Color.nook.detailMeta)
                     }
                 }
@@ -747,17 +788,17 @@ private extension MediaDetailView {
                     Image("star-fill")
                         .renderingMode(.template)
                         .resizable()
-                        .frame(width: 14, height: 14)
+                        .frame(width: 10, height: 10)
                         .foregroundStyle(Color.nook.detailRatingText)
 
                     Text(String(format: "%.1f", review.rating))
-                        .font(NookFont.labelBoldSmall)
+                        .font(NookFont.captionBold)
                         .foregroundStyle(Color.nook.detailRatingText)
                 }
-                .padding(.horizontal, 8)
-                .padding(.vertical, 7)
+                .padding(.horizontal, 6.5)
+                .padding(.vertical, 5)
                 .background(
-                    RoundedRectangle(cornerRadius: 7.78, style: .continuous)
+                    RoundedRectangle(cornerRadius: 6.39, style: .continuous)
                         .fill(Color.nook.detailRatingBadge)
                 )
             }
@@ -766,7 +807,7 @@ private extension MediaDetailView {
 
             // Review title
             Text(review.title)
-                .font(NookFont.labelBold)
+                .font(NookFont.labelBoldSmall)
                 .foregroundStyle(Color.nook.detailReviewTitle)
                 .padding(.top, 12)
                 .padding(.horizontal, 21)
@@ -775,17 +816,17 @@ private extension MediaDetailView {
             Text("\"\(review.body)\"")
                 .font(NookFont.labelMediumSmall)
                 .foregroundStyle(Color.nook.detailReviewBody)
-                .lineSpacing(9)
-                .padding(.top, 8)
+                .lineSpacing(6)
+                .padding(.top, 6)
                 .padding(.horizontal, 21)
 
             // Footer: likes + comments
             HStack(spacing: 15) {
-                HStack(spacing: 5) {
+                HStack(spacing: 4) {
                     Image("heart")
                         .renderingMode(.template)
                         .resizable()
-                        .frame(width: 18, height: 18)
+                        .frame(width: 16, height: 16)
                         .foregroundStyle(Color.nook.detailMeta)
 
                     Text(review.likes)
@@ -793,11 +834,11 @@ private extension MediaDetailView {
                         .foregroundStyle(Color.nook.detailMeta)
                 }
 
-                HStack(spacing: 5) {
+                HStack(spacing: 4) {
                     Image("chat-circle")
                         .renderingMode(.template)
                         .resizable()
-                        .frame(width: 18, height: 18)
+                        .frame(width: 16, height: 16)
                         .foregroundStyle(Color.nook.detailMeta)
 
                     Text(review.comments)
@@ -812,14 +853,9 @@ private extension MediaDetailView {
             .padding(.bottom, 21)
         }
         .background(
-            RoundedRectangle(cornerRadius: NookRadii.md, style: .continuous)
+            RoundedRectangle(cornerRadius: NookRadii.lg, style: .continuous)
                 .fill(Color.nook.detailReviewCard)
-                .overlay(
-                    RoundedRectangle(cornerRadius: NookRadii.md, style: .continuous)
-                        .strokeBorder(Color.nook.detailReviewCardBorder, lineWidth: 1)
-                )
-                .shadow(color: .black.opacity(0.1), radius: 1.5, y: 0.5)
-                .shadow(color: .black.opacity(0.1), radius: 1, y: 0.5)
+                .shadow(color: .black.opacity(0.04), radius: 8, y: 2)
         )
     }
 
@@ -856,18 +892,454 @@ private extension MediaDetailView {
     }
 }
 
-// MARK: - Similar Tab (Placeholder)
+// MARK: - Similar Tab
 
 private extension MediaDetailView {
     var similarTab: some View {
-        VStack(spacing: 16) {
-            Text("Similar titles")
-                .font(NookFont.label)
-                .foregroundStyle(Color.nook.detailMeta)
-                .frame(maxWidth: .infinity, minHeight: 200)
+        LazyVGrid(
+            columns: [
+                GridItem(.flexible(), spacing: 16),
+                GridItem(.flexible(), spacing: 16),
+            ],
+            spacing: 24
+        ) {
+            ForEach(Self.mockSimilarItems) { item in
+                similarCard(item)
+            }
         }
         .padding(24)
         .padding(.bottom, 100)
+    }
+
+    func similarCard(_ item: SimilarItem) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ZStack(alignment: .topLeading) {
+                Group {
+                    if let color = item.placeholderColor {
+                        color
+                    } else {
+                        Image(item.imageName)
+                            .resizable()
+                            .scaledToFill()
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .aspectRatio(3 / 4, contentMode: .fill)
+                .clipShape(RoundedRectangle(cornerRadius: NookRadii.md, style: .continuous))
+
+                // Category badge
+                Text(item.category.label)
+                    .font(NookFont.tabLabel)
+                    .tracking(0.5)
+                    .textCase(.uppercase)
+                    .foregroundStyle(item.category.textColor)
+                    .padding(.horizontal, 6.5)
+                    .padding(.vertical, 5)
+                    .background(
+                        Capsule()
+                            .fill(item.category.backgroundColor)
+                            .background(.ultraThinMaterial, in: Capsule())
+                    )
+                    .padding(10)
+            }
+
+            Text(item.title)
+                .font(NookFont.labelBoldSmall)
+                .foregroundStyle(Color.nook.detailTitle)
+                .lineLimit(1)
+                .padding(.top, 10)
+
+            HStack(spacing: 4) {
+                Image("star-fill")
+                    .renderingMode(.template)
+                    .resizable()
+                    .frame(width: 10, height: 10)
+                    .foregroundStyle(Color.nook.detailRatingText)
+
+                Text(String(format: "%.1f", item.rating))
+                    .font(NookFont.captionBold)
+                    .foregroundStyle(Color.nook.detailRatingText)
+
+                Text(item.year)
+                    .font(NookFont.caption)
+                    .foregroundStyle(Color.nook.detailMeta)
+            }
+            .padding(.top, 4)
+        }
+    }
+}
+
+// MARK: - Similar Item Model
+
+struct SimilarItem: Identifiable {
+    let id = UUID()
+    let title: String
+    let category: LibraryMediaCategory
+    let rating: Double
+    let year: String
+    let imageName: String
+    let placeholderColor: Color?
+}
+
+extension MediaDetailView {
+    static let mockSimilarItems: [SimilarItem] = [
+        SimilarItem(
+            title: "Whisper of the Wind",
+            category: .anime,
+            rating: 8.9,
+            year: "2023",
+            imageName: "mock-similar-1",
+            placeholderColor: Color(hex: 0xB8D4E3)
+        ),
+        SimilarItem(
+            title: "Starfall Chronicles",
+            category: .anime,
+            rating: 8.2,
+            year: "2024",
+            imageName: "mock-similar-2",
+            placeholderColor: Color(hex: 0xE3C4A8)
+        ),
+        SimilarItem(
+            title: "The Last Garden",
+            category: .anime,
+            rating: 9.1,
+            year: "2023",
+            imageName: "mock-similar-3",
+            placeholderColor: Color(hex: 0xA8D5BA)
+        ),
+        SimilarItem(
+            title: "Iron Bloom",
+            category: .anime,
+            rating: 7.8,
+            year: "2024",
+            imageName: "mock-similar-4",
+            placeholderColor: Color(hex: 0xD4A8C4)
+        ),
+        SimilarItem(
+            title: "Echoes of Silence",
+            category: .anime,
+            rating: 8.6,
+            year: "2022",
+            imageName: "mock-similar-5",
+            placeholderColor: Color(hex: 0xC4C8E3)
+        ),
+        SimilarItem(
+            title: "Dawnbreak",
+            category: .anime,
+            rating: 8.4,
+            year: "2024",
+            imageName: "mock-similar-6",
+            placeholderColor: Color(hex: 0xE3D4A8)
+        ),
+    ]
+}
+
+// MARK: - Tracking Sheet
+
+struct TrackingSheetView: View {
+    let mediaTitle: String
+    let totalEpisodes: Int
+    @Binding var selectedStatus: TrackingStatus?
+    @Binding var currentEpisode: Int
+    @Binding var userScore: Int?
+    @Binding var isTracking: Bool
+    @Binding var isRated: Bool
+    @Environment(\.dismiss) private var dismiss
+    @State private var startDate: Date = .now
+    @State private var endDate: Date = .now
+
+    private let statuses: [TrackingStatus] = [
+        .inProgress, .completed, .planned, .onHold, .dropped,
+    ]
+
+    var body: some View {
+        VStack(spacing: 0) {
+            sheetHeader
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 0) {
+                    statusSection
+                    sectionDivider
+                    progressSection
+                    sectionDivider
+                    scoreSection
+                    sectionDivider
+                    dateSection
+                }
+                .padding(.bottom, 40)
+            }
+        }
+        .background(Color.nook.detailBackground)
+    }
+
+    // MARK: - Header
+
+    private var sheetHeader: some View {
+        HStack {
+            Button("Cancel") {
+                dismiss()
+            }
+            .font(NookFont.labelMediumSmall)
+            .foregroundStyle(Color.nook.detailMeta)
+
+            Spacer()
+
+            Text(mediaTitle)
+                .font(NookFont.labelBoldSmall)
+                .foregroundStyle(Color.nook.detailTitle)
+                .lineLimit(1)
+
+            Spacer()
+
+            Button("Save") {
+                isTracking = selectedStatus != nil
+                isRated = userScore != nil
+                dismiss()
+            }
+            .font(NookFont.labelBoldSmall)
+            .foregroundStyle(Color.nook.detailTabActive)
+        }
+        .padding(.horizontal, 24)
+        .padding(.top, 20)
+        .padding(.bottom, 16)
+    }
+
+    // MARK: - Divider
+
+    private var sectionDivider: some View {
+        Rectangle()
+            .fill(Color.nook.detailTabBorder)
+            .frame(height: 1)
+            .padding(.horizontal, 24)
+    }
+
+    // MARK: - Status Section
+
+    private var statusSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Text("Status")
+                    .font(NookFont.labelBold)
+                    .foregroundStyle(Color.nook.detailTitle)
+
+                Spacer()
+
+                if let status = selectedStatus {
+                    Text(status.label)
+                        .font(NookFont.labelMediumSmall)
+                        .foregroundStyle(Color.nook.detailMeta)
+                }
+            }
+
+            FlowLayout(spacing: 10) {
+                ForEach(statuses, id: \.self) { status in
+                    statusChip(status)
+                }
+            }
+        }
+        .padding(24)
+    }
+
+    @ViewBuilder
+    private func statusChip(_ status: TrackingStatus) -> some View {
+        let isSelected = selectedStatus == status
+
+        Button {
+            withAnimation(.easeOut(duration: 0.2)) {
+                selectedStatus = selectedStatus == status ? nil : status
+            }
+        } label: {
+            Text(status.label)
+                .font(NookFont.labelBoldSmall)
+                .foregroundStyle(isSelected ? .white : Color.nook.detailTitle)
+                .padding(.horizontal, 20)
+                .frame(height: 38)
+                .background(
+                    Capsule()
+                        .fill(isSelected ? Color.nook.detailTabActive : .clear)
+                )
+                .overlay(
+                    Capsule()
+                        .strokeBorder(
+                            isSelected ? .clear : Color.nook.detailTabBorder,
+                            lineWidth: 1
+                        )
+                )
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Progress Section
+
+    private var progressSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Text("Progress")
+                    .font(NookFont.labelBold)
+                    .foregroundStyle(Color.nook.detailTitle)
+
+                Spacer()
+
+                Text("Ep \(currentEpisode) / \(totalEpisodes)")
+                    .font(NookFont.labelMediumSmall)
+                    .foregroundStyle(Color.nook.detailMeta)
+            }
+
+            Picker("Episode", selection: $currentEpisode) {
+                ForEach(0...totalEpisodes, id: \.self) { ep in
+                    Text("\(ep)").tag(ep)
+                }
+            }
+            .pickerStyle(.wheel)
+            .frame(height: 120)
+        }
+        .padding(24)
+    }
+
+    // MARK: - Score Section
+
+    private var scoreSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Text("Score")
+                    .font(NookFont.labelBold)
+                    .foregroundStyle(Color.nook.detailTitle)
+
+                Spacer()
+
+                Text(scoreSummary)
+                    .font(NookFont.labelMediumSmall)
+                    .foregroundStyle(Color.nook.detailMeta)
+            }
+
+            Picker("Score", selection: scoreBinding) {
+                Text("–").tag(0)
+                ForEach((1...10).reversed(), id: \.self) { score in
+                    Text("\(score)").tag(score)
+                }
+            }
+            .pickerStyle(.wheel)
+            .frame(height: 120)
+        }
+        .padding(24)
+    }
+
+    private var scoreSummary: String {
+        guard let score = userScore else { return "Not Yet Scored" }
+        return "\(score) – \(scoreLabel(for: score))"
+    }
+
+    private func scoreLabel(for score: Int) -> String {
+        switch score {
+        case 10: "Masterpiece"
+        case 9: "Excellent"
+        case 8: "Great"
+        case 7: "Good"
+        case 6: "Decent"
+        case 5: "Average"
+        case 4: "Below Average"
+        case 3: "Poor"
+        case 2: "Terrible"
+        case 1: "Appalling"
+        default: "Not Yet Scored"
+        }
+    }
+
+    private var scoreBinding: Binding<Int> {
+        Binding(
+            get: { userScore ?? 0 },
+            set: { userScore = $0 == 0 ? nil : $0 }
+        )
+    }
+
+    // MARK: - Date Section
+
+    private var dateSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Text("Date")
+                    .font(NookFont.labelBold)
+                    .foregroundStyle(Color.nook.detailTitle)
+
+                Spacer()
+
+                Text(dateSummary)
+                    .font(NookFont.labelMediumSmall)
+                    .foregroundStyle(Color.nook.detailMeta)
+            }
+
+            VStack(spacing: 12) {
+                dateRow(label: "Start Date", date: $startDate)
+                dateRow(label: "Finish Date", date: $endDate)
+            }
+        }
+        .padding(24)
+    }
+
+    private func dateRow(label: String, date: Binding<Date>) -> some View {
+        DatePicker(
+            label,
+            selection: date,
+            displayedComponents: .date
+        )
+        .font(NookFont.labelMediumSmall)
+        .foregroundStyle(Color.nook.detailTitle)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .strokeBorder(Color.nook.detailTabBorder, lineWidth: 1)
+        )
+    }
+
+    private var dateSummary: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM d, yyyy"
+        return "\(formatter.string(from: startDate)) – \(formatter.string(from: endDate))"
+    }
+}
+
+// MARK: - Flow Layout
+
+private struct FlowLayout: Layout {
+    var spacing: CGFloat = 10
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let result = arrange(proposal: proposal, subviews: subviews)
+        return result.size
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let result = arrange(proposal: proposal, subviews: subviews)
+        for (index, position) in result.positions.enumerated() {
+            subviews[index].place(
+                at: CGPoint(x: bounds.minX + position.x, y: bounds.minY + position.y),
+                proposal: .unspecified
+            )
+        }
+    }
+
+    private func arrange(proposal: ProposedViewSize, subviews: Subviews) -> (positions: [CGPoint], size: CGSize) {
+        let maxWidth = proposal.width ?? .infinity
+        var positions: [CGPoint] = []
+        var x: CGFloat = 0
+        var y: CGFloat = 0
+        var rowHeight: CGFloat = 0
+        var maxX: CGFloat = 0
+
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if x + size.width > maxWidth, x > 0 {
+                x = 0
+                y += rowHeight + spacing
+                rowHeight = 0
+            }
+            positions.append(CGPoint(x: x, y: y))
+            rowHeight = max(rowHeight, size.height)
+            x += size.width + spacing
+            maxX = max(maxX, x - spacing)
+        }
+
+        return (positions, CGSize(width: maxX, height: y + rowHeight))
     }
 }
 
