@@ -36,12 +36,12 @@ enum SearchMediaCategory: String, CaseIterable, Identifiable {
 
     var dotColor: Color {
         switch self {
-        case .movies: Color.nook.categoryMovie
-        case .tvShows: Color.nook.categoryTvShow
-        case .anime: Color.nook.categoryAnime
-        case .manga: Color.nook.categoryManga
-        case .books: Color.nook.categoryBook
-        case .games: Color.nook.categoryGame
+        case .movies: Color.nook.badgeMovieText
+        case .tvShows: Color.nook.badgeTvShowText
+        case .anime: Color.nook.badgeAnimeText
+        case .manga: Color.nook.badgeMangaText
+        case .books: Color.nook.badgeBookText
+        case .games: Color.nook.badgeGameText
         }
     }
 }

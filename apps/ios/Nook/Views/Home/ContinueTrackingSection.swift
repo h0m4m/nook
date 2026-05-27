@@ -89,7 +89,10 @@ struct ContinueTrackingSection: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 16) {
                 ForEach(items) { item in
-                    TrackingCard(item: item)
+                    NavigationLink(value: MediaDetailView.mockMedia) {
+                        TrackingCard(item: item)
+                    }
+                    .buttonStyle(.plain)
                 }
             }
             .padding(.horizontal, 24)

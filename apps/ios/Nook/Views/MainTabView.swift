@@ -41,19 +41,24 @@ struct MainTabView: View {
 
     var body: some View {
         ZStack(alignment: .bottom) {
-            Group {
-                switch selectedTab {
-                case .home:
-                    HomeView()
-                case .search:
-                    SearchView()
-                case .library:
-                    LibraryView()
-                case .groups:
-                    ClubsView()
+            NavigationStack {
+                Group {
+                    switch selectedTab {
+                    case .home:
+                        HomeView()
+                    case .search:
+                        SearchView()
+                    case .library:
+                        LibraryView()
+                    case .groups:
+                        ClubsView()
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .navigationDestination(for: MediaDetail.self) { (media: MediaDetail) in
+                    MediaDetailView(media: media)
                 }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
 
             NookTabBar(selectedTab: $selectedTab)
         }

@@ -81,16 +81,25 @@ enum LibraryMediaCategory: String, CaseIterable, Identifiable {
         }
     }
 
-    var textColor: Color { .white }
-
-    var backgroundColor: Color {
+    var textColor: Color {
         switch self {
         case .anime: Color.nook.badgeAnimeText
         case .tvShow: Color.nook.badgeTvShowText
         case .book: Color.nook.badgeBookText
-        case .game: Color.nook.categoryGame
-        case .movie: Color.nook.categoryMovie
-        case .manga: Color.nook.categoryManga
+        case .game: Color.nook.badgeGameText
+        case .movie: Color.nook.badgeMovieText
+        case .manga: Color.nook.badgeMangaText
+        }
+    }
+
+    var backgroundColor: Color {
+        switch self {
+        case .anime: Color.nook.badgeAnimeBg
+        case .tvShow: Color.nook.badgeTvShowBg
+        case .book: Color.nook.badgeBookBg
+        case .game: Color.nook.badgeGameBg
+        case .movie: Color.nook.badgeMovieBg
+        case .manga: Color.nook.badgeMangaBg
         }
     }
 }
