@@ -86,6 +86,19 @@ struct MediaReview: Identifiable {
     let body: String
     let likes: String
     let comments: String
+
+    /// Convert to a `ReviewItem` for navigating to the review detail page.
+    func toReviewItem(mediaTitle: String) -> ReviewItem {
+        ReviewItem(
+            reviewerName: reviewerName,
+            mediaTitle: mediaTitle,
+            rating: rating,
+            title: title,
+            body: body,
+            likes: likes,
+            comments: comments
+        )
+    }
 }
 
 // MARK: - Detail Tab
@@ -788,7 +801,10 @@ private extension MediaDetailView {
     var reviewsTab: some View {
         VStack(spacing: 16) {
             ForEach(media.reviews) { review in
-                reviewCard(review)
+                NavigationLink(value: review.toReviewItem(mediaTitle: media.title)) {
+                    reviewCard(review)
+                }
+                .buttonStyle(.plain)
             }
 
             viewAllReviewsButton

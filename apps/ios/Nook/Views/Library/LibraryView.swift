@@ -110,12 +110,15 @@ struct LibraryItem: Identifiable {
     let id = UUID()
     let title: String
     let category: LibraryMediaCategory
-    let status: TrackingStatus
+    var status: TrackingStatus
     let progressDetail: String
     let progress: Double // 0.0 to 1.0
-    let rating: Double?
+    var rating: Double?
     let imageName: String
     let placeholderColor: Color?
+    let totalEpisodes: Int
+    var currentEpisode: Int
+    var userScore: Int?
 
     init(
         title: String,
@@ -125,7 +128,10 @@ struct LibraryItem: Identifiable {
         progress: Double,
         rating: Double? = nil,
         imageName: String,
-        placeholderColor: Color? = nil
+        placeholderColor: Color? = nil,
+        totalEpisodes: Int = 0,
+        currentEpisode: Int = 0,
+        userScore: Int? = nil
     ) {
         self.title = title
         self.category = category
@@ -135,6 +141,9 @@ struct LibraryItem: Identifiable {
         self.rating = rating
         self.imageName = imageName
         self.placeholderColor = placeholderColor
+        self.totalEpisodes = totalEpisodes
+        self.currentEpisode = currentEpisode
+        self.userScore = userScore
     }
 }
 
@@ -212,6 +221,12 @@ struct LibraryView: View {
     @State private var isSearchActive = false
     @State private var searchText = ""
     @State private var items: [LibraryItem] = LibraryView.mockItems
+    @State private var trackingItemID: UUID?
+    @State private var sheetStatus: TrackingStatus?
+    @State private var sheetEpisode: Int = 0
+    @State private var sheetScore: Int?
+    @State private var sheetIsTracking = false
+    @State private var sheetIsRated = false
     @FocusState private var isSearchFocused: Bool
 
     private var filteredItems: [LibraryItem] {
@@ -252,6 +267,25 @@ struct LibraryView: View {
                     selectedSort: $selectedSort
                 )
             )
+            .sheet(isPresented: Binding(
+                get: { trackingItemID != nil },
+                set: { if !$0 { syncTrackingState(); trackingItemID = nil } }
+            )) {
+                if let item = items.first(where: { $0.id == trackingItemID }) {
+                    TrackingSheetView(
+                        mediaTitle: item.title,
+                        totalEpisodes: item.totalEpisodes,
+                        selectedStatus: $sheetStatus,
+                        currentEpisode: $sheetEpisode,
+                        userScore: $sheetScore,
+                        isTracking: $sheetIsTracking,
+                        isRated: $sheetIsRated
+                    )
+                    .presentationDetents([.large])
+                    .presentationDragIndicator(.visible)
+                    .presentationBackground(Color.nook.detailBackground)
+                }
+            }
     }
 
     private var scrollContent: some View {
@@ -267,8 +301,10 @@ struct LibraryView: View {
                     .padding(.bottom, 24)
 
                 ForEach(Array(filteredItems.enumerated()), id: \.element.id) { index, item in
-                    LibraryItemRow(item: item)
-                        .padding(.horizontal, 24)
+                    LibraryItemRow(item: item) {
+                        openTrackingSheet(for: item)
+                    }
+                    .padding(.horizontal, 24)
 
                     if index < filteredItems.count - 1 {
                         Spacer().frame(height: 24)
@@ -344,6 +380,35 @@ struct LibraryView: View {
         }
     }
 
+    // MARK: - Tracking Sheet
+
+    private func openTrackingSheet(for item: LibraryItem) {
+        let generator = UIImpactFeedbackGenerator(style: .light)
+        generator.prepare()
+
+        sheetStatus = item.status
+        sheetEpisode = item.currentEpisode
+        sheetScore = item.userScore
+        sheetIsTracking = true
+        sheetIsRated = item.userScore != nil
+        trackingItemID = item.id
+
+        generator.impactOccurred()
+    }
+
+    private func syncTrackingState() {
+        guard let id = trackingItemID else { return }
+
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
+            if let index = items.firstIndex(where: { $0.id == id }) {
+                if let status = sheetStatus {
+                    items[index].status = status
+                }
+                items[index].currentEpisode = sheetEpisode
+                items[index].userScore = sheetScore
+            }
+        }
+    }
 }
 
 // MARK: - Top Bar (safeAreaBar on iOS 26, safeAreaInset fallback)
@@ -594,6 +659,7 @@ private struct LibrarySoftScrollEdge: ViewModifier {
 
 private struct LibraryItemRow: View {
     let item: LibraryItem
+    let onTapAction: () -> Void
 
     var body: some View {
         HStack(spacing: 16) {
@@ -692,53 +758,37 @@ private struct LibraryItemRow: View {
         }
     }
 
+    private var editIcon: some View {
+        Image("pencil-simple-line-fill")
+            .renderingMode(.template)
+            .resizable()
+            .aspectRatio(contentMode: .fit)
+            .frame(width: 18, height: 18)
+    }
+
     @available(iOS 26, *)
     private var glassActionButton: some View {
-        Button {
-            // TODO: action
-        } label: {
-            Group {
-                if item.status == .completed {
-                    Image(systemName: "checkmark")
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundStyle(.white)
-                } else {
-                    Image(systemName: item.status.actionIcon)
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundStyle(.primary)
-                }
-            }
-            .frame(width: 40, height: 40)
-            .background(
-                item.status == .completed ? Color.nook.searchAddedButton : .white,
-                in: Circle()
-            )
-            .glassEffect(
-                item.status == .completed ? .regular : .regular.interactive(),
-                in: .circle
-            )
+        Button(action: onTapAction) {
+            editIcon
+                .foregroundStyle(.white)
+                .frame(width: 40, height: 40)
+                .background(Color.nook.searchAddedButton, in: Circle())
+                .glassEffect(.regular, in: .circle)
         }
         .buttonStyle(.plain)
     }
 
     private var classicActionButton: some View {
-        Button {
-            // TODO: action
-        } label: {
+        Button(action: onTapAction) {
             Circle()
-                .fill(item.status == .completed ? Color.nook.searchAddedButton : Color.nook.searchAddButton)
+                .fill(Color.nook.searchAddedButton)
                 .frame(width: 40, height: 40)
                 .overlay {
-                    if item.status == .completed {
-                        Image(systemName: "checkmark")
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundStyle(.white)
-                    } else {
-                        Image(systemName: item.status.actionIcon)
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundStyle(Color.nook.searchAddedButton)
-                    }
+                    editIcon
+                        .foregroundStyle(.white)
                 }
+                .shadow(color: .black.opacity(0.1), radius: 3, x: 0, y: 2)
+                .shadow(color: .black.opacity(0.1), radius: 1.5, x: 0, y: -1)
         }
         .buttonStyle(.plain)
     }
@@ -756,7 +806,10 @@ extension LibraryView {
             progress: 0.5,
             rating: 8.5,
             imageName: "mock-cloud-weaver",
-            placeholderColor: Color(hex: 0x87CEEB)
+            placeholderColor: Color(hex: 0x87CEEB),
+            totalEpisodes: 24,
+            currentEpisode: 12,
+            userScore: 9
         ),
         LibraryItem(
             title: "Foundation's Edge",
@@ -775,7 +828,8 @@ extension LibraryView {
             progress: 1.0,
             rating: 9.0,
             imageName: "mock-iron-ember",
-            placeholderColor: Color(hex: 0xE67E22)
+            placeholderColor: Color(hex: 0xE67E22),
+            userScore: 9
         ),
     ]
 }

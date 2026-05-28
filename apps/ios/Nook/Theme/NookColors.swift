@@ -108,6 +108,19 @@ struct NookColors {
     let detailOverlayButton = Color(hex: 0x000000, alpha: 0.2)
     let detailHeroGradient = Color(hex: 0x000000, alpha: 0.5)
 
+    // Review detail tokens
+    let reviewDetailBackground = Color(hex: 0xFDFBF9)
+    let reviewDetailTitle = Color(hex: 0x2C2826)
+    let reviewDetailMeta = Color(hex: 0x827C77)
+    let reviewDetailBody = Color(hex: 0x3D3835)
+    let reviewDetailQuote = Color(hex: 0x6B6460)
+    let reviewDetailDivider = Color(hex: 0xE8E5E1)
+    let reviewDetailLikeActive = Color(hex: 0xE5484D)
+    let reviewDetailMediaCard = Color(hex: 0xF4F1EE, alpha: 0.7)
+    let reviewDetailMediaCardBorder = Color(hex: 0xE8E5E1, alpha: 0.5)
+    let reviewDetailSpoilerBg = Color(hex: 0x462D3E, alpha: 0.06)
+    let reviewDetailSpoilerText = Color(hex: 0x462D3E)
+
     // Club detail tokens
     let clubDetailBackground = Color(hex: 0xFDFCF9)
     let clubDetailTitle = Color(hex: 0x1C1917)

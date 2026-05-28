@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		03B16B4355BCB873356D3B7E /* NookTextField.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD7EDC639242E213297A4E3B /* NookTextField.swift */; };
 		1NTERACT1VEPOP123456AB01 /* InteractivePopGesture.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1NTERACT1VEPOP123456AB02 /* InteractivePopGesture.swift */; };
+		R3V13WD3TA1L123456789AB01 /* ReviewDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = R3V13WD3TA1L123456789AB02 /* ReviewDetailView.swift */; };
 		0C7A7928EDF8261A60C69B7B /* PlusJakartaSans-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 0434AC2CEBC0E104ADA7C5E9 /* PlusJakartaSans-Medium.ttf */; };
 		14027C35E1B179163E7D7A72 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19FAF1FC5B046085F9880E74 /* ContentView.swift */; };
 		2D8A14360C20E0E7E22153DE /* PlusJakartaSans-SemiBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 05F9C84C24F6EFFF4A6F80EA /* PlusJakartaSans-SemiBold.ttf */; };
@@ -49,6 +50,7 @@
 
 /* Begin PBXFileReference section */
 		022144C0BA47F49B651F7CB0 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		R3V13WD3TA1L123456789AB02 /* ReviewDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReviewDetailView.swift; sourceTree = "<group>"; };
 		0434AC2CEBC0E104ADA7C5E9 /* PlusJakartaSans-Medium.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "PlusJakartaSans-Medium.ttf"; sourceTree = "<group>"; };
 		05F9C84C24F6EFFF4A6F80EA /* PlusJakartaSans-SemiBold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "PlusJakartaSans-SemiBold.ttf"; sourceTree = "<group>"; };
 		19FAF1FC5B046085F9880E74 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -135,6 +137,7 @@
 				E19059905881406DA047C1BF /* Library */,
 				C0MMUN1T1ESGRP123456AB01 /* Communities */,
 				MED1AD3TA1LGRP123456AB01 /* MediaDetail */,
+				R3V13WSGRP1234567890AB01 /* Reviews */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -250,6 +253,14 @@
 			path = MediaDetail;
 			sourceTree = "<group>";
 		};
+		R3V13WSGRP1234567890AB01 /* Reviews */ = {
+			isa = PBXGroup;
+			children = (
+				R3V13WD3TA1L123456789AB02 /* ReviewDetailView.swift */,
+			);
+			path = Reviews;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -362,6 +373,7 @@
 				C0MP0SEP0ST123456789AB01 /* ComposePostView.swift in Sources */,
 				1NV1T3MMBR123456789AB01 /* InviteMemberView.swift in Sources */,
 				MED1AD3TA1L123456789AB01 /* MediaDetailView.swift in Sources */,
+				R3V13WD3TA1L123456789AB01 /* ReviewDetailView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

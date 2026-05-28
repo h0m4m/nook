@@ -1,15 +1,15 @@
 import SwiftUI
 
-// MARK: - Comment Model
+// MARK: - Review Comment Model
 
-struct PostComment: Identifiable {
+struct ReviewComment: Identifiable {
     let id = UUID()
     let authorName: String
     let timeAgo: String
     let body: String
     var likes: Int
     var isLiked: Bool
-    var replies: [PostComment]
+    var replies: [ReviewComment]
 
     init(
         authorName: String,
@@ -17,7 +17,7 @@ struct PostComment: Identifiable {
         body: String,
         likes: Int = 0,
         isLiked: Bool = false,
-        replies: [PostComment] = []
+        replies: [ReviewComment] = []
     ) {
         self.authorName = authorName
         self.timeAgo = timeAgo
@@ -28,36 +28,20 @@ struct PostComment: Identifiable {
     }
 }
 
-// MARK: - Comment Sort
+// MARK: - Review Detail View
 
-enum CommentSort: String, CaseIterable {
-    case top, newest, oldest
-
-    var label: String {
-        switch self {
-        case .top: "Top"
-        case .newest: "Newest"
-        case .oldest: "Oldest"
-        }
-    }
-}
-
-// MARK: - Post Detail View
-
-struct PostDetailView: View {
-    let post: ClubPost
+struct ReviewDetailView: View {
+    let review: ReviewItem
     @Environment(\.dismiss) private var dismiss
     @State private var isLiked = false
-    @State private var likeCount: String
     @State private var commentText = ""
-    @State private var comments: [PostComment]
+    @State private var comments: [ReviewComment]
     @FocusState private var isCommentFocused: Bool
     @State private var replyingTo: String?
     @State private var sortOrder: CommentSort = .top
 
-    init(post: ClubPost) {
-        self.post = post
-        self._likeCount = State(initialValue: post.likes)
+    init(review: ReviewItem) {
+        self.review = review
         self._comments = State(initialValue: Self.mockComments)
     }
 
@@ -65,18 +49,18 @@ struct PostDetailView: View {
         VStack(spacing: 0) {
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 0) {
-                    postContent
+                    reviewContent
                     commentDivider
                     commentsSection
                 }
             }
-            .modifier(PostDetailSoftScrollEdge())
+            .modifier(ReviewDetailSoftScrollEdge())
 
             replyBar
         }
-        .background(Color.nook.clubDetailBackground)
+        .background(Color.nook.reviewDetailBackground)
         .modifier(
-            PostDetailTopBar(onBack: { dismiss() })
+            ReviewDetailTopBar(onBack: { dismiss() })
         )
         .navigationBarBackButtonHidden()
         .toolbar(.hidden, for: .navigationBar)
@@ -87,112 +71,134 @@ struct PostDetailView: View {
     }
 }
 
-// MARK: - Post Content (full post displayed at top)
+// MARK: - Review Content
 
-private extension PostDetailView {
-    var postContent: some View {
+private extension ReviewDetailView {
+    var reviewContent: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Author header
-            HStack(spacing: 12) {
-                Circle()
-                    .fill(Color.nook.secondary)
-                    .frame(width: 44, height: 44)
-                    .overlay(
-                        Image(systemName: "person.fill")
-                            .font(.system(size: 18))
-                            .foregroundStyle(Color.nook.mutedForeground)
-                    )
+            // Author header with rating
+            reviewHeader
+                .padding(.top, 20)
+                .padding(.horizontal, 24)
 
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(post.authorName)
-                        .font(NookFont.labelSmall)
-                        .foregroundStyle(Color.nook.clubDetailTitle)
+            // Media context card
+            mediaContextCard
+                .padding(.top, 16)
+                .padding(.horizontal, 24)
 
-                    Text(post.timeAgo)
-                        .font(NookFont.caption)
-                        .foregroundStyle(Color.nook.clubDetailMeta)
-                }
+            // Review title
+            Text(review.title)
+                .font(NookFont.labelLarge)
+                .foregroundStyle(Color.nook.reviewDetailTitle)
+                .padding(.top, 20)
+                .padding(.horizontal, 24)
 
-                Spacer()
-            }
-            .padding(.top, 20)
-            .padding(.horizontal, 20)
-
-            // Post body
-            postBodyText
-                .padding(.top, 14)
-                .padding(.horizontal, 20)
-
-            // Post image
-            if post.imageName != nil || post.placeholderColor != nil {
-                postImage
-                    .padding(.top, 14)
-                    .padding(.horizontal, 20)
-            }
+            // Review body
+            Text(review.body)
+                .font(NookFont.label)
+                .foregroundStyle(Color.nook.reviewDetailBody)
+                .lineSpacing(6)
+                .padding(.top, 10)
+                .padding(.horizontal, 24)
 
             // Interaction bar
             interactionBar
-                .padding(.top, 16)
-                .padding(.horizontal, 20)
+                .padding(.top, 20)
+                .padding(.horizontal, 24)
                 .padding(.bottom, 20)
         }
     }
 
-    var postBodyText: some View {
-        Group {
-            if post.boldRanges.isEmpty {
-                Text(post.body)
-                    .font(NookFont.labelMediumSmall)
-                    .foregroundStyle(Color.nook.clubDetailTitle)
-                    .lineSpacing(5)
-            } else {
-                styledPostText(post.body, boldRanges: post.boldRanges)
-                    .lineSpacing(5)
+    var reviewHeader: some View {
+        HStack(alignment: .top, spacing: 12) {
+            // Avatar
+            Circle()
+                .fill(Color.nook.secondary)
+                .frame(width: 44, height: 44)
+                .overlay(
+                    Image(systemName: "person.fill")
+                        .font(.system(size: 18))
+                        .foregroundStyle(Color.nook.mutedForeground)
+                )
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(review.reviewerName)
+                    .font(NookFont.labelSmall)
+                    .foregroundStyle(Color.nook.reviewDetailTitle)
+
+                Text("reviewed \(review.mediaTitle)")
+                    .font(NookFont.caption)
+                    .foregroundStyle(Color.nook.reviewDetailMeta)
             }
-        }
-    }
 
-    func styledPostText(_ text: String, boldRanges: [String]) -> Text {
-        var result = Text("")
-        var remaining = text
+            Spacer()
 
-        for boldText in boldRanges {
-            if let range = remaining.range(of: boldText) {
-                let before = String(remaining[remaining.startIndex..<range.lowerBound])
-                if !before.isEmpty {
-                    result = result + Text(before)
-                        .font(NookFont.labelMediumSmall)
-                        .foregroundColor(Color.nook.clubDetailTitle)
-                }
-                result = result + Text(boldText)
-                    .font(NookFont.labelBoldSmall)
-                    .foregroundColor(Color.nook.clubDetailJoinedButton)
-                remaining = String(remaining[range.upperBound...])
-            }
-        }
-
-        if !remaining.isEmpty {
-            result = result + Text(remaining)
-                .font(NookFont.labelMediumSmall)
-                .foregroundColor(Color.nook.clubDetailTitle)
-        }
-
-        return result
-    }
-
-    var postImage: some View {
-        Group {
-            if let color = post.placeholderColor {
-                color
-            } else if let imageName = post.imageName {
-                Image(imageName)
+            // Rating badge
+            HStack(spacing: 3) {
+                Image("star-fill")
+                    .renderingMode(.template)
                     .resizable()
-                    .scaledToFill()
+                    .frame(width: 12, height: 12)
+                    .foregroundStyle(Color.nook.detailRatingText)
+
+                Text(String(format: "%.1f", review.rating))
+                    .font(NookFont.labelBoldSmall)
+                    .foregroundStyle(Color.nook.detailRatingText)
             }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(Color.nook.detailRatingBadge)
+            )
         }
-        .frame(maxWidth: .infinity)
-        .frame(height: 220)
-        .clipShape(RoundedRectangle(cornerRadius: NookRadii.sm, style: .continuous))
+    }
+
+    var mediaContextCard: some View {
+        HStack(spacing: 12) {
+            // Media poster placeholder
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(Color.nook.secondary)
+                .frame(width: 48, height: 68)
+                .overlay(
+                    Image("reel")
+                        .renderingMode(.template)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 20, height: 20)
+                        .foregroundStyle(Color.nook.mutedForeground)
+                )
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(review.mediaTitle)
+                    .font(NookFont.labelBoldSmall)
+                    .foregroundStyle(Color.nook.reviewDetailTitle)
+                    .lineLimit(1)
+
+                Text("View details")
+                    .font(NookFont.caption)
+                    .foregroundStyle(Color.nook.reviewDetailMeta)
+            }
+
+            Spacer()
+
+            Image("caret-left-bold")
+                .renderingMode(.template)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 14, height: 14)
+                .foregroundStyle(Color.nook.reviewDetailMeta)
+                .rotationEffect(.degrees(180))
+        }
+        .padding(14)
+        .background(
+            RoundedRectangle(cornerRadius: NookRadii.sm, style: .continuous)
+                .fill(Color.nook.reviewDetailMediaCard)
+                .overlay(
+                    RoundedRectangle(cornerRadius: NookRadii.sm, style: .continuous)
+                        .strokeBorder(Color.nook.reviewDetailMediaCardBorder, lineWidth: 1)
+                )
+        )
     }
 
     var interactionBar: some View {
@@ -211,12 +217,12 @@ private extension PostDetailView {
                         .renderingMode(.template)
                         .resizable()
                         .frame(width: 20, height: 20)
-                        .foregroundStyle(isLiked ? Color.nook.clubDetailLikeActive : Color.nook.clubDetailMeta)
+                        .foregroundStyle(isLiked ? Color.nook.reviewDetailLikeActive : Color.nook.reviewDetailMeta)
                         .scaleEffect(isLiked ? 1.15 : 1.0)
 
-                    Text(likeCount)
+                    Text(review.likes)
                         .font(NookFont.labelBoldSmall)
-                        .foregroundStyle(isLiked ? Color.nook.clubDetailLikeActive : Color.nook.clubDetailMeta)
+                        .foregroundStyle(isLiked ? Color.nook.reviewDetailLikeActive : Color.nook.reviewDetailMeta)
                 }
             }
             .buttonStyle(.plain)
@@ -230,11 +236,11 @@ private extension PostDetailView {
                     .renderingMode(.template)
                     .resizable()
                     .frame(width: 20, height: 20)
-                    .foregroundStyle(Color.nook.clubDetailMeta)
+                    .foregroundStyle(Color.nook.reviewDetailMeta)
 
-                Text(post.comments)
+                Text(review.comments)
                     .font(NookFont.labelBoldSmall)
-                    .foregroundStyle(Color.nook.clubDetailMeta)
+                    .foregroundStyle(Color.nook.reviewDetailMeta)
             }
 
             Spacer()
@@ -248,7 +254,7 @@ private extension PostDetailView {
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .frame(width: 20, height: 20)
-                    .foregroundStyle(Color.nook.clubDetailMeta)
+                    .foregroundStyle(Color.nook.reviewDetailMeta)
             }
             .buttonStyle(.plain)
         }
@@ -257,17 +263,17 @@ private extension PostDetailView {
 
 // MARK: - Comment Divider
 
-private extension PostDetailView {
+private extension ReviewDetailView {
     var commentDivider: some View {
         VStack(spacing: 0) {
             Rectangle()
-                .fill(Color.nook.detailTabBorder)
+                .fill(Color.nook.reviewDetailDivider)
                 .frame(height: 1)
 
             HStack {
                 Text("\(comments.count) Comments")
                     .font(NookFont.labelBoldSmall)
-                    .foregroundStyle(Color.nook.clubDetailTitle)
+                    .foregroundStyle(Color.nook.reviewDetailTitle)
 
                 Spacer()
 
@@ -298,10 +304,10 @@ private extension PostDetailView {
                         Text(sortOrder.label)
                             .font(NookFont.captionBold)
                     }
-                    .foregroundStyle(Color.nook.clubDetailMeta)
+                    .foregroundStyle(Color.nook.reviewDetailMeta)
                 }
             }
-            .padding(.horizontal, 20)
+            .padding(.horizontal, 24)
             .padding(.vertical, 14)
         }
     }
@@ -309,7 +315,7 @@ private extension PostDetailView {
 
 // MARK: - Comments Section
 
-private extension PostDetailView {
+private extension ReviewDetailView {
     var commentsSection: some View {
         LazyVStack(spacing: 0) {
             ForEach(Array(comments.enumerated()), id: \.element.id) { index, comment in
@@ -325,11 +331,11 @@ private extension PostDetailView {
         .padding(.bottom, 40)
     }
 
-    func commentRow(_ comment: PostComment, depth: Int, index: Int, replyIndex: Int? = nil) -> some View {
+    func commentRow(_ comment: ReviewComment, depth: Int, index: Int, replyIndex: Int? = nil) -> some View {
         HStack(alignment: .top, spacing: 10) {
             if depth > 0 {
                 Rectangle()
-                    .fill(Color.nook.detailTabBorder)
+                    .fill(Color.nook.reviewDetailDivider)
                     .frame(width: 2)
                     .padding(.leading, 36)
             }
@@ -348,17 +354,17 @@ private extension PostDetailView {
                 HStack(spacing: 6) {
                     Text(comment.authorName)
                         .font(NookFont.captionBold)
-                        .foregroundStyle(Color.nook.clubDetailTitle)
+                        .foregroundStyle(Color.nook.reviewDetailTitle)
 
                     Text(comment.timeAgo)
                         .font(NookFont.caption)
-                        .foregroundStyle(Color.nook.clubDetailMeta)
+                        .foregroundStyle(Color.nook.reviewDetailMeta)
                 }
 
                 // Body
                 Text(comment.body)
                     .font(NookFont.labelMediumSmall)
-                    .foregroundStyle(Color.nook.clubDetailTitle)
+                    .foregroundStyle(Color.nook.reviewDetailTitle)
                     .lineSpacing(4)
 
                 // Actions
@@ -389,7 +395,7 @@ private extension PostDetailView {
                                     .font(NookFont.caption)
                             }
                         }
-                        .foregroundStyle(comment.isLiked ? Color.nook.clubDetailLikeActive : Color.nook.clubDetailMeta)
+                        .foregroundStyle(comment.isLiked ? Color.nook.reviewDetailLikeActive : Color.nook.reviewDetailMeta)
                     }
                     .buttonStyle(.plain)
 
@@ -402,7 +408,7 @@ private extension PostDetailView {
                     } label: {
                         Text("Reply")
                             .font(NookFont.captionBold)
-                            .foregroundStyle(Color.nook.clubDetailMeta)
+                            .foregroundStyle(Color.nook.reviewDetailMeta)
                     }
                     .buttonStyle(.plain)
                 }
@@ -410,25 +416,25 @@ private extension PostDetailView {
 
             Spacer(minLength: 0)
         }
-        .padding(.horizontal, 20)
+        .padding(.horizontal, 24)
         .padding(.vertical, 12)
     }
 }
 
 // MARK: - Reply Bar
 
-private extension PostDetailView {
+private extension ReviewDetailView {
     var replyBar: some View {
         VStack(spacing: 0) {
             Rectangle()
-                .fill(Color.nook.detailTabBorder)
+                .fill(Color.nook.reviewDetailDivider)
                 .frame(height: 1)
 
             if let replyTo = replyingTo {
                 HStack {
                     Text("Replying to \(replyTo)")
                         .font(NookFont.caption)
-                        .foregroundStyle(Color.nook.clubDetailMeta)
+                        .foregroundStyle(Color.nook.reviewDetailMeta)
 
                     Spacer()
 
@@ -442,11 +448,11 @@ private extension PostDetailView {
                             .resizable()
                             .aspectRatio(contentMode: .fit)
                             .frame(width: 12, height: 12)
-                            .foregroundStyle(Color.nook.clubDetailMeta)
+                            .foregroundStyle(Color.nook.reviewDetailMeta)
                     }
                     .buttonStyle(.plain)
                 }
-                .padding(.horizontal, 20)
+                .padding(.horizontal, 24)
                 .padding(.top, 8)
                 .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
@@ -467,7 +473,7 @@ private extension PostDetailView {
                     axis: .vertical
                 )
                 .font(NookFont.labelMediumSmall)
-                .foregroundStyle(Color.nook.clubDetailTitle)
+                .foregroundStyle(Color.nook.reviewDetailTitle)
                 .lineLimit(1...5)
                 .focused($isCommentFocused)
                 .submitLabel(.send)
@@ -486,24 +492,24 @@ private extension PostDetailView {
                             .frame(width: 16, height: 16)
                             .foregroundStyle(.white)
                             .frame(width: 32, height: 32)
-                            .background(Color.nook.clubDetailJoinedButton, in: Circle())
+                            .background(Color.nook.primary, in: Circle())
                     }
                     .buttonStyle(.plain)
                     .transition(.scale(scale: 0.5).combined(with: .opacity))
                 }
             }
-            .padding(.horizontal, 16)
+            .padding(.horizontal, 20)
             .padding(.vertical, 10)
             .animation(.easeOut(duration: 0.2), value: commentText.isEmpty)
         }
-        .background(Color.nook.clubDetailBackground)
+        .background(Color.nook.reviewDetailBackground)
     }
 
     private func sendComment() {
         let text = commentText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
 
-        let newComment = PostComment(
+        let newComment = ReviewComment(
             authorName: "You",
             timeAgo: "now",
             body: text
@@ -511,7 +517,6 @@ private extension PostDetailView {
 
         withAnimation(.easeOut(duration: 0.25)) {
             if replyingTo != nil {
-                // Add as reply to the first comment (simplified — in production you'd target the specific comment)
                 if !comments.isEmpty {
                     comments[0].replies.append(newComment)
                 }
@@ -558,7 +563,7 @@ private extension PostDetailView {
 
 // MARK: - Top Bar
 
-private struct PostDetailTopBar: ViewModifier {
+private struct ReviewDetailTopBar: ViewModifier {
     let onBack: () -> Void
 
     func body(content: Content) -> some View {
@@ -571,7 +576,7 @@ private struct PostDetailTopBar: ViewModifier {
         } else {
             content.safeAreaInset(edge: .top, spacing: 0) {
                 topBarContent
-                    .background(Color.nook.clubDetailBackground)
+                    .background(Color.nook.reviewDetailBackground)
                     .padding(.top, 4)
                     .padding(.bottom, 4)
             }
@@ -586,7 +591,7 @@ private struct PostDetailTopBar: ViewModifier {
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .frame(width: 20, height: 20)
-                    .foregroundStyle(Color.nook.clubDetailTitle)
+                    .foregroundStyle(Color.nook.reviewDetailTitle)
                     .frame(width: 40, height: 40)
                     .contentShape(Circle())
             }
@@ -594,15 +599,15 @@ private struct PostDetailTopBar: ViewModifier {
             .frame(width: 48, height: 48)
             .contentShape(Rectangle())
 
-            Text("Post")
+            Text("Review")
                 .font(NookFont.labelBold)
-                .foregroundStyle(Color.nook.clubDetailTitle)
+                .foregroundStyle(Color.nook.reviewDetailTitle)
 
             Spacer()
 
             Menu {
                 Button(role: .destructive) {
-                    // TODO: Report post
+                    // TODO: Report review
                 } label: {
                     Label {
                         Text("Report")
@@ -642,7 +647,7 @@ private struct PostDetailTopBar: ViewModifier {
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .frame(width: 20, height: 20)
-                    .foregroundStyle(Color.nook.clubDetailMeta)
+                    .foregroundStyle(Color.nook.reviewDetailMeta)
                     .frame(width: 40, height: 40)
                     .contentShape(Rectangle())
             }
@@ -654,7 +659,7 @@ private struct PostDetailTopBar: ViewModifier {
 
 // MARK: - Scroll Edge
 
-private struct PostDetailSoftScrollEdge: ViewModifier {
+private struct ReviewDetailSoftScrollEdge: ViewModifier {
     func body(content: Content) -> some View {
         if #available(iOS 26, *) {
             content.scrollEdgeEffectStyle(.soft, for: .top)
@@ -666,59 +671,53 @@ private struct PostDetailSoftScrollEdge: ViewModifier {
 
 // MARK: - Mock Comments
 
-extension PostDetailView {
-    static let mockComments: [PostComment] = [
-        PostComment(
+extension ReviewDetailView {
+    static let mockComments: [ReviewComment] = [
+        ReviewComment(
             authorName: "Kai Tanaka",
-            timeAgo: "1h",
-            body: "The sky kingdom arc is incredible. Episode 10 had me in tears. The manga goes way beyond this arc and it only gets better.",
-            likes: 42,
+            timeAgo: "3h",
+            body: "Couldn't agree more about the third act. The way they tied everything together with the cloud weaving motif was brilliant. Easily my anime of the year.",
+            likes: 34,
             replies: [
-                PostComment(
-                    authorName: "Maya Lin",
-                    timeAgo: "45m",
-                    body: "That's great to hear! I'll definitely pick up the manga after the season ends.",
+                ReviewComment(
+                    authorName: "Nadia Petrova",
+                    timeAgo: "2h",
+                    body: "Same here. I went in with low expectations and was completely blown away.",
+                    likes: 12
+                ),
+                ReviewComment(
+                    authorName: "Jin Park",
+                    timeAgo: "1h",
+                    body: "The foreshadowing from episode 3 that pays off in the finale is just *chef's kiss*",
                     likes: 8
                 ),
-                PostComment(
-                    authorName: "Riku Ota",
-                    timeAgo: "30m",
-                    body: "Start from chapter 48 if you want to continue from where the anime is right now.",
-                    likes: 15
-                ),
             ]
         ),
-        PostComment(
+        ReviewComment(
             authorName: "Sophia Chen",
-            timeAgo: "1h",
-            body: "The art direction team deserves all the awards this year. Every single frame in the sky kingdom is wallpaper material.",
-            likes: 67
+            timeAgo: "2h",
+            body: "Great review! I'd love to hear your thoughts on the soundtrack too. I think it really elevated the emotional beats in ways that don't get enough credit.",
+            likes: 28
         ),
-        PostComment(
+        ReviewComment(
             authorName: "Liam Brooks",
-            timeAgo: "58m",
-            body: "Am I the only one who thinks the pacing in the last two episodes was a bit rushed? Still loved it but felt like they crammed a lot in.",
-            likes: 12,
+            timeAgo: "1h",
+            body: "Interesting take on the world-building. I thought the magic system could have been explained a bit more clearly, but the visual storytelling made up for it.",
+            likes: 15,
             replies: [
-                PostComment(
+                ReviewComment(
                     authorName: "Ava Kim",
-                    timeAgo: "40m",
-                    body: "Agreed. They could have easily split episode 12 into two. But the emotional beats still landed for me.",
-                    likes: 5
+                    timeAgo: "45m",
+                    body: "I actually prefer when they show rather than tell with magic systems. Felt more immersive that way.",
+                    likes: 9
                 ),
             ]
         ),
-        PostComment(
-            authorName: "Nadia Petrova",
+        ReviewComment(
+            authorName: "Marcus Rivera",
             timeAgo: "45m",
-            body: "Just here to say the soundtrack in the cloud weaving scenes is on another level. Anyone know the composer?",
-            likes: 23
-        ),
-        PostComment(
-            authorName: "Jin Park",
-            timeAgo: "30m",
-            body: "Yuki Kajiura. She's done some legendary work. Check out her discography if you haven't already.",
-            likes: 31
+            body: "9.5 is a bold rating but honestly it's deserved. This show set a new bar for the genre.",
+            likes: 41
         ),
     ]
 }
@@ -727,15 +726,15 @@ extension PostDetailView {
 
 #Preview {
     NavigationStack {
-        PostDetailView(
-            post: ClubPost(
-                authorName: "Maya Lin",
-                timeAgo: "2h",
-                body: "Just finished episode 12 of The Cloud Weaver and I'm completely blown away. The art direction in the sky kingdom scenes is some of the best I've seen in years. Does anyone know if the manga covers past this arc?",
-                boldRanges: ["The Cloud Weaver"],
-                placeholderColor: Color(hex: 0x87CEEB).opacity(0.6),
+        ReviewDetailView(
+            review: ReviewItem(
+                reviewerName: "Elena Vance",
+                mediaTitle: "The Cloud Weaver",
+                rating: 9.5,
+                title: "An absolute masterpiece.",
+                body: "An absolute masterclass in visual storytelling. The third act left me completely speechless. The world-building is unparalleled and the emotional payoff is entirely earned. Every frame feels deliberate, every scene builds on the last, and by the time the credits roll you're left wanting more.\n\nThe character development across 24 episodes is some of the most nuanced I've seen in anime. The protagonist's growth from an uncertain apprentice to a confident weaver mirrors the show's own evolution from a seemingly simple fantasy into something far more profound.\n\nMust watch for any fantasy fan.",
                 likes: "1.2k",
-                comments: "84"
+                comments: "48"
             )
         )
     }

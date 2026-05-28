@@ -58,7 +58,16 @@ struct SearchResultItem: Identifiable {
     let genres: String
     let imageName: String
     let placeholderColor: Color?
-    var isAdded: Bool
+    let totalEpisodes: Int
+
+    // Tracking state — populated when user interacts with tracking sheet
+    var selectedStatus: TrackingStatus?
+    var currentEpisode: Int = 0
+    var userScore: Int?
+
+    var isTracked: Bool {
+        selectedStatus != nil || currentEpisode > 0 || userScore != nil
+    }
 
     init(
         title: String,
@@ -68,7 +77,10 @@ struct SearchResultItem: Identifiable {
         genres: String,
         imageName: String,
         placeholderColor: Color? = nil,
-        isAdded: Bool = false
+        totalEpisodes: Int = 0,
+        selectedStatus: TrackingStatus? = nil,
+        currentEpisode: Int = 0,
+        userScore: Int? = nil
     ) {
         self.title = title
         self.category = category
@@ -77,7 +89,10 @@ struct SearchResultItem: Identifiable {
         self.genres = genres
         self.imageName = imageName
         self.placeholderColor = placeholderColor
-        self.isAdded = isAdded
+        self.totalEpisodes = totalEpisodes
+        self.selectedStatus = selectedStatus
+        self.currentEpisode = currentEpisode
+        self.userScore = userScore
     }
 }
 
@@ -100,6 +115,12 @@ struct SearchView: View {
     @State private var userInterests: [SearchMediaCategory] = []
     @State private var searchState: SearchState = .idle
     @State private var searchTask: Task<Void, Never>?
+    @State private var trackingItemID: UUID?
+    @State private var sheetStatus: TrackingStatus?
+    @State private var sheetEpisode: Int = 0
+    @State private var sheetScore: Int?
+    @State private var sheetIsTracking = false
+    @State private var sheetIsRated = false
     @FocusState private var isSearchFocused: Bool
 
     private var displayedResults: [SearchResultItem] {
@@ -144,6 +165,25 @@ struct SearchView: View {
             .task {
                 await loadUserInterests()
             }
+            .sheet(isPresented: Binding(
+                get: { trackingItemID != nil },
+                set: { if !$0 { syncTrackingState(); trackingItemID = nil } }
+            )) {
+                if let item = findTrackingItem() {
+                    TrackingSheetView(
+                        mediaTitle: item.title,
+                        totalEpisodes: item.totalEpisodes,
+                        selectedStatus: $sheetStatus,
+                        currentEpisode: $sheetEpisode,
+                        userScore: $sheetScore,
+                        isTracking: $sheetIsTracking,
+                        isRated: $sheetIsRated
+                    )
+                    .presentationDetents([.large])
+                    .presentationDragIndicator(.visible)
+                    .presentationBackground(Color.nook.detailBackground)
+                }
+            }
     }
 
     // MARK: - Scroll Content
@@ -178,7 +218,7 @@ struct SearchView: View {
 
                 ForEach(Array(displayedResults.enumerated()), id: \.element.id) { index, item in
                     SearchResultRow(item: item) {
-                        toggleAdded(for: item, in: &recentSearches)
+                        openTrackingSheet(for: item)
                     }
                     .padding(.horizontal, 24)
 
@@ -221,7 +261,7 @@ struct SearchView: View {
 
             ForEach(Array(results.enumerated()), id: \.element.id) { index, item in
                 SearchResultRow(item: item) {
-                    toggleAdded(for: item, in: &searchResults)
+                    openTrackingSheet(for: item)
                 }
                 .padding(.horizontal, 24)
                 .transition(.opacity.combined(with: .move(edge: .bottom)))
@@ -396,17 +436,44 @@ struct SearchView: View {
         }
     }
 
-    // MARK: - Actions
+    // MARK: - Tracking Sheet
 
-    private func toggleAdded(for item: SearchResultItem, in list: inout [SearchResultItem]) {
-        guard let index = list.firstIndex(where: { $0.id == item.id }) else { return }
+    private func openTrackingSheet(for item: SearchResultItem) {
         let generator = UIImpactFeedbackGenerator(style: .light)
         generator.prepare()
 
-        withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
-            list[index].isAdded.toggle()
-        }
+        // Load current tracking state into sheet bindings
+        sheetStatus = item.selectedStatus
+        sheetEpisode = item.currentEpisode
+        sheetScore = item.userScore
+        sheetIsTracking = item.isTracked
+        sheetIsRated = item.userScore != nil
+        trackingItemID = item.id
+
         generator.impactOccurred()
+    }
+
+    private func findTrackingItem() -> SearchResultItem? {
+        guard let id = trackingItemID else { return nil }
+        return recentSearches.first { $0.id == id }
+            ?? searchResults.first { $0.id == id }
+    }
+
+    private func syncTrackingState() {
+        guard let id = trackingItemID else { return }
+
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
+            if let index = recentSearches.firstIndex(where: { $0.id == id }) {
+                recentSearches[index].selectedStatus = sheetStatus
+                recentSearches[index].currentEpisode = sheetEpisode
+                recentSearches[index].userScore = sheetScore
+            }
+            if let index = searchResults.firstIndex(where: { $0.id == id }) {
+                searchResults[index].selectedStatus = sheetStatus
+                searchResults[index].currentEpisode = sheetEpisode
+                searchResults[index].userScore = sheetScore
+            }
+        }
     }
 
     private func loadUserInterests() async {
@@ -617,7 +684,7 @@ private struct SoftScrollEdge: ViewModifier {
 
 private struct SearchResultRow: View {
     let item: SearchResultItem
-    let onToggleAdded: () -> Void
+    let onTapAction: () -> Void
 
     var body: some View {
         HStack(spacing: 16) {
@@ -631,7 +698,7 @@ private struct SearchResultRow: View {
 
             Spacer(minLength: 8)
 
-            addButton
+            actionButton
         }
         .frame(height: 80)
     }
@@ -698,68 +765,67 @@ private struct SearchResultRow: View {
     }
 
     @ViewBuilder
-    private var addButton: some View {
+    private var actionButton: some View {
         if #available(iOS 26, *) {
-            glassAddButton
+            glassActionButton
         } else {
-            classicAddButton
+            classicActionButton
+        }
+    }
+
+    private var actionIcon: some View {
+        Group {
+            if item.isTracked {
+                Image("pencil-simple-line-fill")
+                    .renderingMode(.template)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 18, height: 18)
+            } else {
+                Image("plus-bold")
+                    .renderingMode(.template)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 18, height: 18)
+            }
         }
     }
 
     @available(iOS 26, *)
-    private var glassAddButton: some View {
-        Button(action: onToggleAdded) {
-            Group {
-                if item.isAdded {
-                    Image(systemName: "checkmark")
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundStyle(.white)
-                } else {
-                    Image("plus-bold")
-                        .renderingMode(.template)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: 18, height: 18)
-                        .foregroundStyle(.primary)
-                }
-            }
-            .frame(width: 40, height: 40)
-            .background(item.isAdded ? Color.nook.searchAddedButton : .white, in: Circle())
-            .glassEffect(
-                item.isAdded ? .regular : .regular.interactive(),
-                in: .circle
-            )
+    private var glassActionButton: some View {
+        Button(action: onTapAction) {
+            actionIcon
+                .foregroundStyle(item.isTracked ? .white : .primary)
+                .frame(width: 40, height: 40)
+                .background(
+                    item.isTracked ? Color.nook.searchAddedButton : .white,
+                    in: Circle()
+                )
+                .glassEffect(
+                    item.isTracked ? .regular : .regular.interactive(),
+                    in: .circle
+                )
         }
         .buttonStyle(.plain)
     }
 
-    private var classicAddButton: some View {
-        Button(action: onToggleAdded) {
+    private var classicActionButton: some View {
+        Button(action: onTapAction) {
             Circle()
-                .fill(item.isAdded ? Color.nook.searchAddedButton : Color.nook.searchAddButton)
+                .fill(item.isTracked ? Color.nook.searchAddedButton : Color.nook.searchAddButton)
                 .frame(width: 40, height: 40)
                 .overlay {
-                    if item.isAdded {
-                        Image(systemName: "checkmark")
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundStyle(.white)
-                    } else {
-                        Image("plus-bold")
-                            .renderingMode(.template)
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(width: 18, height: 18)
-                            .foregroundStyle(Color.nook.searchAddedButton)
-                    }
+                    actionIcon
+                        .foregroundStyle(item.isTracked ? .white : Color.nook.searchAddedButton)
                 }
                 .shadow(
-                    color: item.isAdded ? .black.opacity(0.1) : .clear,
+                    color: item.isTracked ? .black.opacity(0.1) : .clear,
                     radius: 3,
                     x: 0,
                     y: 2
                 )
                 .shadow(
-                    color: item.isAdded ? .black.opacity(0.1) : .clear,
+                    color: item.isTracked ? .black.opacity(0.1) : .clear,
                     radius: 1.5,
                     x: 0,
                     y: -1
@@ -790,7 +856,8 @@ extension SearchView {
             genres: "Action RPG, Open World",
             imageName: "mock-iron-ember",
             placeholderColor: Color(hex: 0xE67E22),
-            isAdded: true
+            selectedStatus: .inProgress,
+            userScore: 9
         ),
         SearchResultItem(
             title: "The Cloud Weaver",
@@ -799,7 +866,8 @@ extension SearchView {
             rating: 8.5,
             genres: "Fantasy, Adventure",
             imageName: "mock-cloud-weaver",
-            placeholderColor: Color(hex: 0x87CEEB)
+            placeholderColor: Color(hex: 0x87CEEB),
+            totalEpisodes: 24
         ),
     ]
 
@@ -841,7 +909,8 @@ extension SearchView {
             rating: 8.7,
             genres: "Thriller, Drama, Sci-fi",
             imageName: "mock-severance",
-            placeholderColor: Color(hex: 0x3B5998)
+            placeholderColor: Color(hex: 0x3B5998),
+            totalEpisodes: 19
         ),
         SearchResultItem(
             title: "The Bear",
@@ -850,7 +919,8 @@ extension SearchView {
             rating: 8.9,
             genres: "Drama, Comedy",
             imageName: "mock-the-bear",
-            placeholderColor: Color(hex: 0x8B4513)
+            placeholderColor: Color(hex: 0x8B4513),
+            totalEpisodes: 28
         ),
 
         // Anime
@@ -861,7 +931,8 @@ extension SearchView {
             rating: 8.5,
             genres: "Fantasy, Adventure",
             imageName: "mock-cloud-weaver",
-            placeholderColor: Color(hex: 0x87CEEB)
+            placeholderColor: Color(hex: 0x87CEEB),
+            totalEpisodes: 24
         ),
         SearchResultItem(
             title: "Frieren: Beyond Journey's End",
@@ -870,7 +941,8 @@ extension SearchView {
             rating: 9.1,
             genres: "Fantasy, Adventure, Drama",
             imageName: "mock-frieren",
-            placeholderColor: Color(hex: 0x9B8EC4)
+            placeholderColor: Color(hex: 0x9B8EC4),
+            totalEpisodes: 28
         ),
         SearchResultItem(
             title: "Dandadan",
@@ -879,7 +951,8 @@ extension SearchView {
             rating: 8.6,
             genres: "Action, Comedy, Supernatural",
             imageName: "mock-dandadan",
-            placeholderColor: Color(hex: 0xE84393)
+            placeholderColor: Color(hex: 0xE84393),
+            totalEpisodes: 12
         ),
 
         // Manga

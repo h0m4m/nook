@@ -2,7 +2,7 @@ import SwiftUI
 
 // MARK: - Data Model
 
-struct ReviewItem: Identifiable {
+struct ReviewItem: Identifiable, Hashable {
     let id = UUID()
     let reviewerName: String
     let mediaTitle: String
@@ -44,7 +44,10 @@ struct TrendingReviewsSection: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 16) {
                 ForEach(items) { item in
-                    ReviewCard(item: item)
+                    NavigationLink(value: item) {
+                        ReviewCard(item: item)
+                    }
+                    .buttonStyle(.plain)
                 }
             }
             .padding(.horizontal, 24)

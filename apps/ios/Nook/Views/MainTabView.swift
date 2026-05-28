@@ -65,6 +65,9 @@ struct MainTabView: View {
                 .navigationDestination(for: ClubPost.self) { post in
                     PostDetailView(post: post)
                 }
+                .navigationDestination(for: ReviewItem.self) { review in
+                    ReviewDetailView(review: review)
+                }
             }
 
             if navPath.isEmpty {
