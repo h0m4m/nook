@@ -15,11 +15,64 @@ struct CreateNookSheet: View {
     @State private var showAddMedia = false
     @State private var editingNoteItem: SearchResultItem?
     @State private var editingNoteText = ""
+    @State private var privacy: NookPrivacy = .publicVisible
+    @State private var layout: NookLayout = .grid
+    @State private var showPrivacyPicker = false
+    @State private var showLayoutPicker = false
     @State private var isPublishing = false
     @FocusState private var focusedField: Field?
 
     private enum Field {
         case name, description
+    }
+
+    enum NookPrivacy: CaseIterable {
+        case publicVisible
+        case friendsOnly
+        case privateOnly
+
+        var label: String {
+            switch self {
+            case .publicVisible: "Public"
+            case .friendsOnly: "Friends Only"
+            case .privateOnly: "Only Me"
+            }
+        }
+
+        var subtitle: String {
+            switch self {
+            case .publicVisible: "Visible to everyone"
+            case .friendsOnly: "Only friends can see"
+            case .privateOnly: "Only you can see"
+            }
+        }
+
+        var icon: String {
+            switch self {
+            case .publicVisible: "lock-simple-open"
+            case .friendsOnly: "users-bold"
+            case .privateOnly: "eye-slash-bold"
+            }
+        }
+    }
+
+    enum NookLayout: CaseIterable {
+        case grid
+        case list
+
+        var label: String {
+            switch self {
+            case .grid: "Grid View"
+            case .list: "List View"
+            }
+        }
+
+        var subtitle: String {
+            switch self {
+            case .grid: "Show items as a poster grid"
+            case .list: "Show items as a detailed list"
+            }
+        }
     }
 
     private var canPublish: Bool {
@@ -291,17 +344,20 @@ struct CreateNookSheet: View {
             }
             .padding(.horizontal, 24)
 
-            let columns = [
-                GridItem(.flexible(), spacing: 12),
-                GridItem(.flexible(), spacing: 12),
-            ]
-
             if mediaItems.isEmpty {
+                let columns = [
+                    GridItem(.flexible(), spacing: 12),
+                    GridItem(.flexible(), spacing: 12),
+                ]
                 LazyVGrid(columns: columns, spacing: 16) {
                     addMediaGridCard
                 }
                 .padding(.horizontal, 24)
-            } else {
+            } else if layout == .grid {
+                let columns = [
+                    GridItem(.flexible(), spacing: 12),
+                    GridItem(.flexible(), spacing: 12),
+                ]
                 LazyVGrid(columns: columns, spacing: 16) {
                     ForEach(Array(mediaItems.enumerated()), id: \.element.id) { index, item in
                         mediaCard(item, at: index)
@@ -313,6 +369,26 @@ struct CreateNookSheet: View {
                     addMediaInlineButton
                         .padding(.horizontal, 24)
                         .padding(.top, 4)
+                }
+            } else {
+                VStack(spacing: 0) {
+                    ForEach(Array(mediaItems.enumerated()), id: \.element.id) { index, item in
+                        mediaListRow(item, at: index)
+
+                        if index < mediaItems.count - 1 {
+                            Rectangle()
+                                .fill(Color(hex: 0xE6E2E0))
+                                .frame(height: 1)
+                                .padding(.leading, 88)
+                                .padding(.trailing, 24)
+                        }
+                    }
+                }
+
+                if mediaItems.count < 10 {
+                    addMediaInlineButton
+                        .padding(.horizontal, 24)
+                        .padding(.top, 8)
                 }
             }
         }
@@ -452,26 +528,113 @@ struct CreateNookSheet: View {
         }
     }
 
+    private func mediaListRow(_ item: SearchResultItem, at index: Int) -> some View {
+        HStack(spacing: 14) {
+            // Poster
+            Group {
+                if let color = item.placeholderColor {
+                    color
+                } else {
+                    Image(item.imageName)
+                        .resizable()
+                        .scaledToFill()
+                }
+            }
+            .frame(width: 48, height: 64)
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .shadow(color: .black.opacity(0.08), radius: 1.5, x: 0, y: 1)
+
+            // Info
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 4) {
+                    Text(item.category.uppercaseLabel)
+                        .font(NookFont.tabLabel)
+                        .tracking(0.5)
+                        .foregroundStyle(item.category.dotColor)
+
+                    Circle()
+                        .fill(Color(hex: 0x78716C))
+                        .frame(width: 3, height: 3)
+
+                    Text(item.year)
+                        .font(NookFont.tabLabel)
+                        .tracking(0.5)
+                        .foregroundStyle(Color(hex: 0x78716C))
+                }
+
+                Text(item.title)
+                    .font(NookFont.labelSmall)
+                    .foregroundStyle(Color(hex: 0x1C1918))
+                    .lineLimit(1)
+
+                if let note = mediaNotes[item.id] {
+                    Text(note)
+                        .font(NookFont.caption)
+                        .foregroundStyle(Color(hex: 0x78716C))
+                        .lineLimit(1)
+                } else {
+                    Text("Add a note")
+                        .font(NookFont.caption)
+                        .foregroundStyle(Color(hex: 0x78716C).opacity(0.6))
+                        .italic()
+                }
+            }
+
+            Spacer(minLength: 8)
+
+            // Remove
+            Button {
+                withAnimation(.easeOut(duration: 0.2)) {
+                    _ = mediaItems.remove(at: index)
+                    mediaNotes.removeValue(forKey: item.id)
+                }
+            } label: {
+                Image("x-bold")
+                    .renderingMode(.template)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 12, height: 12)
+                    .foregroundStyle(Color(hex: 0x78716C))
+                    .frame(width: 28, height: 28)
+                    .background(Color(hex: 0xF2EFEE), in: Circle())
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 24)
+        .padding(.vertical, 12)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            editingNoteText = mediaNotes[item.id] ?? ""
+            editingNoteItem = item
+        }
+    }
+
     // MARK: - Settings Card
 
     private var settingsCard: some View {
         VStack(spacing: 0) {
-            settingsRow(
-                icon: "lock-simple-open",
-                title: "Privacy",
-                subtitle: "Publicly visible to everyone"
-            )
+            Button { showPrivacyPicker = true } label: {
+                settingsRow(
+                    icon: privacy.icon,
+                    title: "Privacy",
+                    subtitle: privacy.subtitle
+                )
+            }
+            .buttonStyle(.plain)
 
             Rectangle()
                 .fill(Color(hex: 0xE6E2E0).opacity(0.5))
                 .frame(height: 1)
                 .padding(.horizontal, 20)
 
-            settingsRow(
-                icon: "layout",
-                title: "Layout",
-                subtitle: "Grid View (Default)"
-            )
+            Button { showLayoutPicker = true } label: {
+                settingsRow(
+                    icon: "layout",
+                    title: "Layout",
+                    subtitle: layout.label
+                )
+            }
+            .buttonStyle(.plain)
         }
         .background(Color.white)
         .clipShape(RoundedRectangle(cornerRadius: settingsRadius, style: .continuous))
@@ -479,6 +642,26 @@ struct CreateNookSheet: View {
             RoundedRectangle(cornerRadius: settingsRadius, style: .continuous)
                 .strokeBorder(Color(hex: 0xE6E2E0), lineWidth: 1)
         )
+        .sheet(isPresented: $showPrivacyPicker) {
+            SettingsPickerSheet(
+                title: "Privacy",
+                options: NookPrivacy.allCases.map { ($0, $0.icon, $0.label, $0.subtitle) },
+                selected: privacy
+            ) { privacy = $0 }
+            .presentationDetents([.height(320)])
+            .presentationDragIndicator(.visible)
+            .presentationBackground(Color(hex: 0xFDFBF9))
+        }
+        .sheet(isPresented: $showLayoutPicker) {
+            SettingsPickerSheet(
+                title: "Layout",
+                options: NookLayout.allCases.map { ($0, "layout", $0.label, $0.subtitle) },
+                selected: layout
+            ) { layout = $0 }
+            .presentationDetents([.height(280)])
+            .presentationDragIndicator(.visible)
+            .presentationBackground(Color(hex: 0xFDFBF9))
+        }
     }
 
     private func settingsRow(icon: String, title: String, subtitle: String) -> some View {
@@ -514,6 +697,7 @@ struct CreateNookSheet: View {
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 20)
+        .contentShape(Rectangle())
     }
 
     // MARK: - Publish
@@ -523,6 +707,92 @@ struct CreateNookSheet: View {
         isPublishing = true
         // TODO: Persist nook to Supabase
         dismiss()
+    }
+}
+
+// MARK: - Settings Picker Sheet
+
+private struct SettingsPickerSheet<T: Equatable>: View {
+    let title: String
+    let options: [(value: T, icon: String, label: String, subtitle: String)]
+    let selected: T
+    var onSelect: (T) -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Header
+            Text(title)
+                .font(NookFont.labelBoldSmall)
+                .foregroundStyle(Color(hex: 0x1C1918))
+                .padding(.top, 20)
+                .padding(.bottom, 20)
+
+            // Options
+            VStack(spacing: 0) {
+                ForEach(Array(options.enumerated()), id: \.offset) { index, option in
+                    Button {
+                        onSelect(option.value)
+                        dismiss()
+                    } label: {
+                        HStack(spacing: 12) {
+                            Image(option.icon)
+                                .renderingMode(.template)
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(width: 18, height: 18)
+                                .foregroundStyle(Color(hex: 0x43313D))
+                                .frame(width: 36, height: 36)
+                                .background(
+                                    Color(hex: 0xF2EFEE),
+                                    in: RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                )
+
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(option.label)
+                                    .font(NookFont.labelBoldSmall)
+                                    .foregroundStyle(Color(hex: 0x1C1918))
+
+                                Text(option.subtitle)
+                                    .font(NookFont.caption)
+                                    .foregroundStyle(Color(hex: 0x78716C))
+                            }
+
+                            Spacer()
+
+                            if option.value == selected {
+                                Image("check-bold")
+                                    .renderingMode(.template)
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit)
+                                    .frame(width: 16, height: 16)
+                                    .foregroundStyle(Color(hex: 0x43313D))
+                            }
+                        }
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 16)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+
+                    if index < options.count - 1 {
+                        Rectangle()
+                            .fill(Color(hex: 0xE6E2E0).opacity(0.5))
+                            .frame(height: 1)
+                            .padding(.horizontal, 20)
+                    }
+                }
+            }
+            .background(Color.white)
+            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .strokeBorder(Color(hex: 0xE6E2E0), lineWidth: 1)
+            )
+            .padding(.horizontal, 20)
+
+            Spacer()
+        }
     }
 }
 
@@ -541,28 +811,39 @@ private struct CoverCropView: View {
 
     private let cropAspect: CGFloat = 16.0 / 9.0
 
-    private var cropWidth: CGFloat { viewSize.width - 48 }
+    private var cropWidth: CGFloat { max(1, viewSize.width - 48) }
     private var cropHeight: CGFloat { cropWidth / cropAspect }
 
-    // The image is displayed with scaledToFill in a frame of viewSize.
-    // This computes the base display size before user scaling.
-    private var baseDisplaySize: CGSize {
-        guard image.size.width > 0, image.size.height > 0, viewSize.width > 0 else {
-            return .zero
-        }
-        let imageAspect = image.size.width / image.size.height
-        let viewAspect = viewSize.width / viewSize.height
-        if imageAspect > viewAspect {
-            // Image is wider — height fills, width overflows
-            let h = viewSize.height
-            let w = h * imageAspect
+    // Base size: image scaled to just fill the crop rect (scaledToFill the crop window)
+    private var baseFitSize: CGSize {
+        let imgAspect = image.size.width / image.size.height
+        let cropAsp = cropWidth / cropHeight
+        if imgAspect > cropAsp {
+            // Image wider than crop — match heights
+            let h = cropHeight
+            let w = h * imgAspect
             return CGSize(width: w, height: h)
         } else {
-            // Image is taller — width fills, height overflows
-            let w = viewSize.width
-            let h = w / imageAspect
+            // Image taller than crop — match widths
+            let w = cropWidth
+            let h = w / imgAspect
             return CGSize(width: w, height: h)
         }
+    }
+
+    private func clampedOffset(for currentScale: CGFloat) -> CGSize {
+        let fit = baseFitSize
+        let displayW = fit.width * currentScale
+        let displayH = fit.height * currentScale
+
+        // Max offset so image edge doesn't go past crop edge
+        let maxX = max(0, (displayW - cropWidth) / 2)
+        let maxY = max(0, (displayH - cropHeight) / 2)
+
+        return CGSize(
+            width: min(maxX, max(-maxX, offset.width)),
+            height: min(maxY, max(-maxY, offset.height))
+        )
     }
 
     var body: some View {
@@ -570,13 +851,14 @@ private struct CoverCropView: View {
             Color.black.ignoresSafeArea()
 
             GeometryReader { geo in
+                let fit = baseFitSize
+
                 ZStack {
                     Image(uiImage: image)
                         .resizable()
-                        .scaledToFill()
-                        .frame(width: geo.size.width, height: geo.size.height)
+                        .frame(width: fit.width, height: fit.height)
                         .scaleEffect(scale)
-                        .offset(offset)
+                        .offset(clampedOffset(for: scale))
                         .gesture(
                             DragGesture()
                                 .onChanged { value in
@@ -586,7 +868,10 @@ private struct CoverCropView: View {
                                     )
                                 }
                                 .onEnded { _ in
-                                    lastOffset = offset
+                                    withAnimation(.easeOut(duration: 0.2)) {
+                                        offset = clampedOffset(for: scale)
+                                    }
+                                    lastOffset = clampedOffset(for: scale)
                                 }
                         )
                         .gesture(
@@ -595,7 +880,12 @@ private struct CoverCropView: View {
                                     scale = max(1.0, lastScale * value.magnification)
                                 }
                                 .onEnded { _ in
+                                    withAnimation(.easeOut(duration: 0.2)) {
+                                        scale = max(1.0, scale)
+                                        offset = clampedOffset(for: scale)
+                                    }
                                     lastScale = scale
+                                    lastOffset = clampedOffset(for: scale)
                                 }
                         )
 
@@ -613,6 +903,8 @@ private struct CoverCropView: View {
                         .frame(width: cropWidth, height: cropHeight)
                         .allowsHitTesting(false)
                 }
+                .frame(width: geo.size.width, height: geo.size.height)
+                .clipped()
                 .onAppear { viewSize = geo.size }
                 .onChange(of: geo.size) { _, newSize in viewSize = newSize }
             }
@@ -646,52 +938,37 @@ private struct CoverCropView: View {
     }
 
     private func performCrop() {
-        guard let cgImage = image.cgImage else {
+        let fit = baseFitSize
+        let clamped = clampedOffset(for: scale)
+
+        guard fit.width > 0, fit.height > 0 else {
             onCrop(image)
             dismiss()
             return
         }
 
-        let display = baseDisplaySize
-        guard display.width > 0, display.height > 0 else {
-            onCrop(image)
-            dismiss()
-            return
-        }
+        // Pixels per point at base fit size
+        let pppX = image.size.width / fit.width
+        let pppY = image.size.height / fit.height
 
-        // Points-per-pixel: how many image pixels per screen point
-        let pppX = image.size.width / display.width
-        let pppY = image.size.height / display.height
+        // Crop center in image pixels
+        let centerX = (image.size.width / 2) - (clamped.width / scale) * pppX
+        let centerY = (image.size.height / 2) - (clamped.height / scale) * pppY
 
-        // The displayed image center is at the view center + offset.
-        // The crop rect center is at the view center.
-        // So the crop rect center relative to the displayed image center is (-offset).
-        // In displayed-image coordinates (before user scale), that's (-offset / scale).
-        // Then convert to image-pixel coordinates.
+        // Crop size in image pixels
+        let w = (cropWidth / scale) * pppX
+        let h = (cropHeight / scale) * pppY
 
-        let cropCenterInImageX = (image.size.width / 2) - (offset.width / scale) * pppX
-        let cropCenterInImageY = (image.size.height / 2) - (offset.height / scale) * pppY
-
-        let cropWidthInImage = (cropWidth / scale) * pppX
-        let cropHeightInImage = (cropHeight / scale) * pppY
-
-        var rect = CGRect(
-            x: cropCenterInImageX - cropWidthInImage / 2,
-            y: cropCenterInImageY - cropHeightInImage / 2,
-            width: cropWidthInImage,
-            height: cropHeightInImage
-        )
-
-        // Clamp to image bounds
+        var rect = CGRect(x: centerX - w / 2, y: centerY - h / 2, width: w, height: h)
         rect = rect.intersection(CGRect(origin: .zero, size: image.size))
 
-        guard !rect.isEmpty, let cropped = cgImage.cropping(to: rect) else {
+        guard !rect.isEmpty, let cgImage = image.cgImage?.cropping(to: rect) else {
             onCrop(image)
             dismiss()
             return
         }
 
-        onCrop(UIImage(cgImage: cropped, scale: image.scale, orientation: image.imageOrientation))
+        onCrop(UIImage(cgImage: cgImage, scale: image.scale, orientation: image.imageOrientation))
         dismiss()
     }
 }
