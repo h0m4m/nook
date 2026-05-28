@@ -39,6 +39,7 @@ struct MainTabView: View {
 
     @State private var selectedTab: Tab = .home
     @State private var navPath = NavigationPath()
+    @State private var isFabMenuOpen = false
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -71,53 +72,137 @@ struct MainTabView: View {
             }
 
             if navPath.isEmpty {
-                NookTabBar(selectedTab: $selectedTab)
+                if isFabMenuOpen {
+                    Color.black.opacity(0.2)
+                        .ignoresSafeArea()
+                        .onTapGesture { closeFabMenu() }
+                        .transition(.opacity)
+                }
+
+                NookBottomBar(
+                    selectedTab: $selectedTab,
+                    isFabMenuOpen: $isFabMenuOpen
+                )
             }
         }
         .ignoresSafeArea(.keyboard)
     }
-}
 
-// MARK: - Tab Bar
-
-private struct NookTabBar: View {
-    @Binding var selectedTab: Tab
-
-    var body: some View {
-        if #available(iOS 26, *) {
-            LiquidGlassTabBar(selectedTab: $selectedTab)
-        } else {
-            ClassicTabBar(selectedTab: $selectedTab)
+    private func closeFabMenu() {
+        withAnimation(.spring(duration: 0.35, bounce: 0.15)) {
+            isFabMenuOpen = false
         }
     }
 }
 
-// MARK: - Liquid Glass Tab Bar (iOS 26+)
+// MARK: - Bottom Bar
+
+private struct NookBottomBar: View {
+    @Binding var selectedTab: Tab
+    @Binding var isFabMenuOpen: Bool
+
+    var body: some View {
+        if #available(iOS 26, *) {
+            LiquidGlassBottomBar(
+                selectedTab: $selectedTab,
+                isFabMenuOpen: $isFabMenuOpen
+            )
+        } else {
+            ClassicBottomBar(
+                selectedTab: $selectedTab,
+                isFabMenuOpen: $isFabMenuOpen
+            )
+        }
+    }
+}
+
+// MARK: - Liquid Glass Bottom Bar (iOS 26+)
 
 @available(iOS 26, *)
-private struct LiquidGlassTabBar: View {
+private struct LiquidGlassBottomBar: View {
     @Binding var selectedTab: Tab
+    @Binding var isFabMenuOpen: Bool
     @Namespace private var tabHighlight
 
     var body: some View {
         GlassEffectContainer(spacing: 12) {
-            HStack(spacing: 12) {
-                // Main tab bar pill — single glass surface
-                HStack(spacing: 0) {
-                    ForEach(Tab.allCases, id: \.self) { tab in
-                        tabButton(tab)
-                    }
-                }
-                .padding(.horizontal, 4)
-                .padding(.vertical, 4)
-                .glassEffect(.regular, in: .capsule)
-
-                // FAB button — separate glass circle
-                fabButton
+            if isFabMenuOpen {
+                fabMenuContent
+                    .transition(.blurReplace)
+            } else {
+                tabBarContent
+                    .transition(.blurReplace)
             }
-            .padding(.horizontal, 20)
-            .padding(.bottom, -8)
         }
+    }
+
+    private var tabBarContent: some View {
+        HStack(spacing: 12) {
+            HStack(spacing: 0) {
+                ForEach(Tab.allCases, id: \.self) { tab in
+                    tabButton(tab)
+                }
+            }
+            .padding(.horizontal, 4)
+            .padding(.vertical, 4)
+            .glassEffect(.regular, in: .capsule)
+
+            fabButton
+        }
+        .padding(.horizontal, 20)
+        .padding(.bottom, -8)
+    }
+
+    private var fabMenuContent: some View {
+        HStack(spacing: 10) {
+            fabMenuItem(icon: "users-three-bold", label: "Create Nook") {
+                // TODO: Create Nook action
+                closeFabMenu()
+            }
+
+            fabMenuItem(icon: "bookmark-simple", label: "Track Media") {
+                // TODO: Track Media action
+                closeFabMenu()
+            }
+
+            Button { closeFabMenu() } label: {
+                Image("x-bold")
+                    .renderingMode(.template)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 18, height: 18)
+                    .foregroundStyle(.secondary)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Circle())
+            }
+            .glassEffect(.regular.interactive(), in: .circle)
+        }
+        .padding(.horizontal, 20)
+        .padding(.bottom, -8)
+    }
+
+    private func fabMenuItem(
+        icon: String,
+        label: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                Image(icon)
+                    .renderingMode(.template)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 18, height: 18)
+
+                Text(label)
+                    .font(NookFont.labelSmall)
+            }
+            .foregroundStyle(.primary)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 14)
+            .contentShape(Capsule())
+        }
+        .glassEffect(.regular.interactive(), in: .capsule)
     }
 
     private func tabButton(_ tab: Tab) -> some View {
@@ -148,9 +233,7 @@ private struct LiquidGlassTabBar: View {
     }
 
     private var fabButton: some View {
-        Button {
-            // TODO: Create action
-        } label: {
+        Button { openFabMenu() } label: {
             Image("plus-bold")
                 .renderingMode(.template)
                 .resizable()
@@ -158,18 +241,43 @@ private struct LiquidGlassTabBar: View {
                 .frame(width: 22, height: 22)
                 .foregroundStyle(.primary)
                 .frame(width: 52, height: 52)
+                .contentShape(Circle())
         }
-        .buttonStyle(.plain)
         .glassEffect(.regular.interactive(), in: .circle)
+    }
+
+    private func openFabMenu() {
+        withAnimation(.spring(duration: 0.35, bounce: 0.15)) {
+            isFabMenuOpen = true
+        }
+    }
+
+    private func closeFabMenu() {
+        withAnimation(.spring(duration: 0.35, bounce: 0.15)) {
+            isFabMenuOpen = false
+        }
     }
 }
 
-// MARK: - Classic Tab Bar (iOS < 26)
+// MARK: - Classic Bottom Bar (iOS < 26)
 
-private struct ClassicTabBar: View {
+private struct ClassicBottomBar: View {
     @Binding var selectedTab: Tab
+    @Binding var isFabMenuOpen: Bool
 
     var body: some View {
+        Group {
+            if isFabMenuOpen {
+                fabMenuContent
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            } else {
+                tabBarContent
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+    }
+
+    private var tabBarContent: some View {
         HStack(spacing: 0) {
             tabButton(.home)
             tabButton(.search)
@@ -188,6 +296,69 @@ private struct ClassicTabBar: View {
                 }
                 .ignoresSafeArea(.container, edges: .bottom)
         }
+    }
+
+    private var fabMenuContent: some View {
+        HStack(spacing: 10) {
+            fabMenuItem(icon: "users-three-bold", label: "Create Nook") {
+                // TODO: Create Nook action
+                closeFabMenu()
+            }
+
+            fabMenuItem(icon: "bookmark-simple", label: "Track Media") {
+                // TODO: Track Media action
+                closeFabMenu()
+            }
+
+            Button { closeFabMenu() } label: {
+                Image("x-bold")
+                    .renderingMode(.template)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 16, height: 16)
+                    .foregroundStyle(Color.nook.tabBarInactive)
+                    .frame(width: 44, height: 44)
+                    .background(Color.nook.segmentBackground)
+                    .clipShape(Circle())
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 12)
+        .padding(.bottom, -8)
+        .background {
+            Color.nook.background
+                .overlay(alignment: .top) {
+                    Color.nook.tabBarBorder
+                        .frame(height: 1)
+                }
+                .ignoresSafeArea(.container, edges: .bottom)
+        }
+    }
+
+    private func fabMenuItem(
+        icon: String,
+        label: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                Image(icon)
+                    .renderingMode(.template)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 18, height: 18)
+
+                Text(label)
+                    .font(NookFont.labelSmall)
+            }
+            .foregroundStyle(.white)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 14)
+            .background(Color.nook.tabBarFab)
+            .clipShape(Capsule())
+        }
+        .buttonStyle(.plain)
     }
 
     private func tabButton(_ tab: Tab) -> some View {
@@ -212,9 +383,7 @@ private struct ClassicTabBar: View {
     }
 
     private var fabButton: some View {
-        Button {
-            // TODO: Create action
-        } label: {
+        Button { openFabMenu() } label: {
             Circle()
                 .fill(Color.nook.tabBarFab)
                 .frame(width: 56, height: 56)
@@ -236,6 +405,18 @@ private struct ClassicTabBar: View {
         .buttonStyle(.plain)
         .offset(y: -14)
         .frame(maxWidth: .infinity)
+    }
+
+    private func openFabMenu() {
+        withAnimation(.spring(duration: 0.35, bounce: 0.15)) {
+            isFabMenuOpen = true
+        }
+    }
+
+    private func closeFabMenu() {
+        withAnimation(.spring(duration: 0.35, bounce: 0.15)) {
+            isFabMenuOpen = false
+        }
     }
 }
 
