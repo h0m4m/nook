@@ -41,6 +41,7 @@ struct MainTabView: View {
     @State private var navPath = NavigationPath()
     @State private var isFabMenuOpen = false
     @State private var showTrackMediaSheet = false
+    @State private var showCreateNookSheet = false
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -83,6 +84,9 @@ struct MainTabView: View {
                 NookBottomBar(
                     selectedTab: $selectedTab,
                     isFabMenuOpen: $isFabMenuOpen,
+                    onCreateNook: {
+                        showCreateNookSheet = true
+                    },
                     onTrackMedia: {
                         showTrackMediaSheet = true
                     }
@@ -90,6 +94,13 @@ struct MainTabView: View {
             }
         }
         .ignoresSafeArea(.keyboard)
+        .sheet(isPresented: $showCreateNookSheet) {
+            CreateNookSheet()
+                .presentationDetents([.large])
+                .presentationDragIndicator(.hidden)
+                .presentationBackground(Color.nook.detailBackground)
+                .interactiveDismissDisabled()
+        }
         .sheet(isPresented: $showTrackMediaSheet) {
             TrackMediaSheet()
                 .presentationDetents([.large])
@@ -110,6 +121,7 @@ struct MainTabView: View {
 private struct NookBottomBar: View {
     @Binding var selectedTab: Tab
     @Binding var isFabMenuOpen: Bool
+    var onCreateNook: () -> Void
     var onTrackMedia: () -> Void
 
     var body: some View {
@@ -117,12 +129,14 @@ private struct NookBottomBar: View {
             LiquidGlassBottomBar(
                 selectedTab: $selectedTab,
                 isFabMenuOpen: $isFabMenuOpen,
+                onCreateNook: onCreateNook,
                 onTrackMedia: onTrackMedia
             )
         } else {
             ClassicBottomBar(
                 selectedTab: $selectedTab,
                 isFabMenuOpen: $isFabMenuOpen,
+                onCreateNook: onCreateNook,
                 onTrackMedia: onTrackMedia
             )
         }
@@ -135,6 +149,7 @@ private struct NookBottomBar: View {
 private struct LiquidGlassBottomBar: View {
     @Binding var selectedTab: Tab
     @Binding var isFabMenuOpen: Bool
+    var onCreateNook: () -> Void
     var onTrackMedia: () -> Void
     @Namespace private var tabHighlight
 
@@ -169,9 +184,9 @@ private struct LiquidGlassBottomBar: View {
 
     private var fabMenuContent: some View {
         HStack(spacing: 10) {
-            fabMenuItem(icon: "users-three-bold", label: "Create Nook") {
-                // TODO: Create Nook action
+            fabMenuItem(icon: "star-fall", label: "Create Nook") {
                 closeFabMenu()
+                onCreateNook()
             }
 
             fabMenuItem(icon: "bookmark-simple", label: "Track Media") {
@@ -281,6 +296,7 @@ private struct LiquidGlassBottomBar: View {
 private struct ClassicBottomBar: View {
     @Binding var selectedTab: Tab
     @Binding var isFabMenuOpen: Bool
+    var onCreateNook: () -> Void
     var onTrackMedia: () -> Void
 
     var body: some View {
@@ -318,9 +334,9 @@ private struct ClassicBottomBar: View {
 
     private var fabMenuContent: some View {
         HStack(spacing: 10) {
-            fabMenuItem(icon: "users-three-bold", label: "Create Nook") {
-                // TODO: Create Nook action
+            fabMenuItem(icon: "star-fall", label: "Create Nook") {
                 closeFabMenu()
+                onCreateNook()
             }
 
             fabMenuItem(icon: "bookmark-simple", label: "Track Media") {
