@@ -1,5 +1,34 @@
 import SwiftUI
 
+// MARK: - Detail Depth Environment
+
+private struct DetailDepthKey: EnvironmentKey {
+    nonisolated static let defaultValue: Binding<Int> = .constant(0)
+}
+
+extension EnvironmentValues {
+    var detailDepth: Binding<Int> {
+        get { self[DetailDepthKey.self] }
+        set { self[DetailDepthKey.self] = newValue }
+    }
+}
+
+extension View {
+    func tracksDetailDepth() -> some View {
+        modifier(DetailDepthTracker())
+    }
+}
+
+private struct DetailDepthTracker: ViewModifier {
+    @Environment(\.detailDepth) private var detailDepth
+
+    func body(content: Content) -> some View {
+        content
+            .onAppear { detailDepth.wrappedValue += 1 }
+            .onDisappear { detailDepth.wrappedValue = max(0, detailDepth.wrappedValue - 1) }
+    }
+}
+
 enum Tab: CaseIterable {
     case home
     case search
@@ -39,6 +68,11 @@ struct MainTabView: View {
 
     @State private var selectedTab: Tab = .home
     @State private var navPath = NavigationPath()
+    @State private var detailDepth = 0
+
+    private var isInDetailView: Bool {
+        !navPath.isEmpty || detailDepth > 0
+    }
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -66,8 +100,9 @@ struct MainTabView: View {
                     PostDetailView(post: post)
                 }
             }
+            .environment(\.detailDepth, $detailDepth)
 
-            if navPath.isEmpty {
+            if !isInDetailView {
                 NookTabBar(selectedTab: $selectedTab)
             }
         }

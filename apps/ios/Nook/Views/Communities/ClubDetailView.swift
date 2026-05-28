@@ -4,21 +4,37 @@ import SwiftUI
 
 enum ClubDetailTab: String, CaseIterable, Identifiable {
     case posts
+    case polls
     case mentions
     case members
-    case events
 
     var id: String { rawValue }
 
     var label: String {
         switch self {
         case .posts: "Posts"
+        case .polls: "Polls"
         case .mentions: "Mentions"
         case .members: "Members"
-        case .events: "Events"
         }
     }
 }
+
+// MARK: - Poll Model
+
+struct PollOption: Identifiable {
+    let id = UUID()
+    let text: String
+    var votes: Int
+}
+
+struct PostPoll {
+    var options: [PollOption]
+    let totalVotes: Int
+    let duration: String
+}
+
+// MARK: - Club Post Model
 
 struct ClubPost: Identifiable, Hashable {
     let id = UUID()
@@ -30,6 +46,7 @@ struct ClubPost: Identifiable, Hashable {
     let placeholderColor: Color?
     let likes: String
     let comments: String
+    let poll: PostPoll?
 
     static func == (lhs: ClubPost, rhs: ClubPost) -> Bool { lhs.id == rhs.id }
     func hash(into hasher: inout Hasher) { hasher.combine(id) }
@@ -42,7 +59,8 @@ struct ClubPost: Identifiable, Hashable {
         imageName: String? = nil,
         placeholderColor: Color? = nil,
         likes: String = "0",
-        comments: String = "0"
+        comments: String = "0",
+        poll: PostPoll? = nil
     ) {
         self.authorName = authorName
         self.timeAgo = timeAgo
@@ -52,6 +70,7 @@ struct ClubPost: Identifiable, Hashable {
         self.placeholderColor = placeholderColor
         self.likes = likes
         self.comments = comments
+        self.poll = poll
     }
 }
 
@@ -61,6 +80,28 @@ struct PinnedDiscussion: Identifiable {
     let description: String
     let commentCount: String
     let timeAgo: String
+}
+
+// MARK: - Club Member Models
+
+enum ClubMemberRole: String {
+    case admin
+    case supervisor
+    case member
+
+    var label: String {
+        switch self {
+        case .admin: "Admin"
+        case .supervisor: "Supervisor"
+        case .member: "Member"
+        }
+    }
+}
+
+struct ClubMember: Identifiable {
+    let id = UUID()
+    let name: String
+    let role: ClubMemberRole
 }
 
 // MARK: - Club Detail View
@@ -74,6 +115,11 @@ struct ClubDetailView: View {
     @State private var isDescriptionExpanded = false
     @State private var showHeaderBar = false
     @State private var showComposeSheet = false
+    @State private var showInviteSheet = false
+    @State private var isSearchActive = false
+    @State private var searchText = ""
+    @State private var isMuted = false
+    @FocusState private var isSearchFocused: Bool
 
     init(club: ClubItem) {
         self.club = club
@@ -109,6 +155,12 @@ struct ClubDetailView: View {
         .modifier(InteractivePopGesture())
         .sheet(isPresented: $showComposeSheet) {
             ComposePostView(clubName: club.name)
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+                .presentationBackground(Color.nook.clubDetailBackground)
+        }
+        .sheet(isPresented: $showInviteSheet) {
+            InviteMemberView(clubName: club.name)
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
                 .presentationBackground(Color.nook.clubDetailBackground)
@@ -158,7 +210,16 @@ private extension ClubDetailView {
 // MARK: - Floating Header Bar
 
 private extension ClubDetailView {
+    @ViewBuilder
     var headerBar: some View {
+        if isSearchActive {
+            expandedSearchBar
+        } else {
+            collapsedHeaderBar
+        }
+    }
+
+    var collapsedHeaderBar: some View {
         HStack(spacing: 12) {
             navButton(icon: "caret-left-bold") { dismiss() }
 
@@ -173,8 +234,16 @@ private extension ClubDetailView {
             Spacer()
 
             HStack(spacing: 8) {
-                navButton(icon: "magnifying-glass-bold") {}
-                navButton(icon: "dots-three-bold") {}
+                navButton(icon: "magnifying-glass-bold") {
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
+                        isSearchActive = true
+                    }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                        isSearchFocused = true
+                    }
+                }
+
+                moreMenu
             }
         }
         .padding(.horizontal, 16)
@@ -194,6 +263,124 @@ private extension ClubDetailView {
             .shadow(color: showHeaderBar ? .black.opacity(0.06) : .clear, radius: 8, y: 4)
         )
         .animation(.easeOut(duration: 0.2), value: showHeaderBar)
+    }
+
+    var expandedSearchBar: some View {
+        HStack(spacing: 10) {
+            HStack(spacing: 12) {
+                Image("magnifying-glass-bold")
+                    .renderingMode(.template)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 18, height: 18)
+                    .foregroundStyle(Color.nook.searchBarPlaceholder)
+
+                TextField(
+                    "Search posts",
+                    text: $searchText,
+                    prompt: Text("Search posts")
+                        .font(NookFont.labelMediumSmall)
+                        .foregroundStyle(Color.nook.searchBarPlaceholder)
+                )
+                .font(NookFont.labelMediumSmall)
+                .foregroundStyle(Color.nook.searchBarText)
+                .focused($isSearchFocused)
+            }
+            .padding(.horizontal, 18)
+            .frame(height: 40)
+            .modifier(ClubDetailSearchBarBackground())
+
+            Button {
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
+                    searchText = ""
+                    isSearchActive = false
+                    isSearchFocused = false
+                }
+            } label: {
+                searchDismissButton
+            }
+            .buttonStyle(.plain)
+            .transition(.scale(scale: 0.5).combined(with: .opacity))
+        }
+        .padding(.horizontal, 16)
+        .padding(.bottom, 8)
+        .background(
+            Group {
+                if showHeaderBar {
+                    if #available(iOS 26, *) {
+                        Color.nook.clubDetailBackground.opacity(0.8)
+                            .background(.ultraThinMaterial)
+                    } else {
+                        Color.nook.clubDetailBackground
+                    }
+                }
+            }
+            .ignoresSafeArea(edges: .top)
+            .shadow(color: showHeaderBar ? .black.opacity(0.06) : .clear, radius: 8, y: 4)
+        )
+    }
+
+    @ViewBuilder
+    var searchDismissButton: some View {
+        if #available(iOS 26, *) {
+            Image(systemName: "xmark")
+                .font(.system(size: 13, weight: .bold))
+                .foregroundStyle(Color.nook.clubDetailTitle)
+                .frame(width: 36, height: 36)
+                .background(.white, in: Circle())
+                .glassEffect(.regular.interactive(), in: .circle)
+        } else {
+            Circle()
+                .fill(Color.nook.searchBarBackground)
+                .frame(width: 36, height: 36)
+                .overlay {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(Color.nook.clubDetailTitle)
+                }
+        }
+    }
+
+    // MARK: - More Menu
+
+    var moreMenu: some View {
+        Menu {
+            Button {
+                // TODO: Share club
+            } label: {
+                Label("Share Club", image: "export")
+            }
+
+            Button {
+                isMuted.toggle()
+            } label: {
+                Label(
+                    isMuted ? "Unmute Notifications" : "Mute Notifications",
+                    image: isMuted ? "bell-fill" : "bell-simple-slash"
+                )
+            }
+
+            Divider()
+
+            Button(role: .destructive) {
+                // TODO: Report club
+            } label: {
+                Label("Report Club", image: "warning-red")
+            }
+
+            if isJoined {
+                Button(role: .destructive) {
+                    withAnimation(.easeOut(duration: 0.2)) {
+                        isJoined = false
+                    }
+                } label: {
+                    Label("Leave Club", image: "sign-out-red")
+                }
+            }
+        } label: {
+            navButtonLabel(icon: "dots-three-bold")
+        }
+        .tint(Color.nook.clubDetailTitle)
     }
 
     @ViewBuilder
@@ -228,6 +415,47 @@ private extension ClubDetailView {
             .buttonStyle(.plain)
             .frame(width: 48, height: 48)
             .contentShape(Rectangle())
+        }
+    }
+
+    @ViewBuilder
+    func navButtonLabel(icon: String) -> some View {
+        if #available(iOS 26, *) {
+            Image(icon)
+                .renderingMode(.template)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 20, height: 20)
+                .foregroundStyle(.primary)
+                .frame(width: 40, height: 40)
+                .contentShape(Circle())
+                .glassEffect(.regular, in: .circle)
+        } else {
+            Image(icon)
+                .renderingMode(.template)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 20, height: 20)
+                .foregroundStyle(Color.nook.clubDetailTitle)
+                .frame(width: 40, height: 40)
+                .background(.white, in: Circle())
+                .shadow(color: .black.opacity(0.1), radius: 3, y: 1)
+        }
+    }
+}
+
+// MARK: - Search Bar Background
+
+private struct ClubDetailSearchBarBackground: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 26, *) {
+            content
+                .background(.white, in: Capsule())
+                .glassEffect(.regular, in: .capsule)
+        } else {
+            content
+                .background(Color.nook.searchBarBackground)
+                .clipShape(Capsule())
         }
     }
 }
@@ -439,12 +667,12 @@ private extension ClubDetailView {
         switch selectedTab {
         case .posts:
             postsTab
+        case .polls:
+            pollsTab
         case .mentions:
-            placeholderTab("Mentions in this club")
+            mentionsTab
         case .members:
-            placeholderTab("Members of this club")
-        case .events:
-            placeholderTab("Upcoming events")
+            membersTab
         }
     }
 
@@ -461,23 +689,41 @@ private extension ClubDetailView {
 // MARK: - Posts Tab
 
 private extension ClubDetailView {
+    var filteredPosts: [ClubPost] {
+        if searchText.isEmpty { return Self.mockPosts }
+        return Self.mockPosts.filter {
+            $0.body.localizedCaseInsensitiveContains(searchText) ||
+            $0.authorName.localizedCaseInsensitiveContains(searchText)
+        }
+    }
+
     var postsTab: some View {
         VStack(spacing: 16) {
-            composeBar
-                .padding(.top, 16)
+            if !isSearchActive {
+                composeBar
+                    .padding(.top, 16)
 
-            if let pinned = Self.mockPinnedDiscussion {
-                pinnedCard(pinned)
+                if let pinned = Self.mockPinnedDiscussion {
+                    pinnedCard(pinned)
+                }
             }
 
-            ForEach(Self.mockPosts) { post in
+            ForEach(filteredPosts) { post in
                 NavigationLink(value: post) {
                     postCard(post)
                 }
                 .buttonStyle(.plain)
             }
+
+            if isSearchActive && filteredPosts.isEmpty {
+                Text("No posts match \"\(searchText)\"")
+                    .font(NookFont.label)
+                    .foregroundStyle(Color.nook.clubDetailMeta)
+                    .frame(maxWidth: .infinity, minHeight: 120)
+            }
         }
         .padding(.horizontal, 16)
+        .padding(.top, isSearchActive ? 16 : 0)
         .padding(.bottom, 100)
     }
 }
@@ -505,7 +751,7 @@ private extension ClubDetailView {
                         .foregroundStyle(Color.nook.mutedForeground)
                 )
 
-            Text("Share something with the community...")
+            Text("Share something with the club...")
                 .font(NookFont.labelMediumSmall)
                 .foregroundStyle(Color.nook.clubDetailMeta)
 
@@ -647,6 +893,13 @@ private extension ClubDetailView {
                 .padding(.top, 12)
                 .padding(.horizontal, 17)
 
+            // Poll (optional)
+            if let poll = post.poll {
+                pollView(poll)
+                    .padding(.top, 12)
+                    .padding(.horizontal, 17)
+            }
+
             // Post image (optional)
             if post.imageName != nil || post.placeholderColor != nil {
                 postImage(post)
@@ -654,7 +907,7 @@ private extension ClubDetailView {
                     .padding(.horizontal, 17)
             }
 
-            // Footer: like + comment + bookmark
+            // Footer: like + comment + share
             postFooter(post)
                 .padding(.top, 12)
                 .padding(.horizontal, 17)
@@ -770,6 +1023,170 @@ private extension ClubDetailView {
                 .foregroundStyle(Color.nook.clubDetailMeta)
         }
     }
+
+    func pollView(_ poll: PostPoll) -> some View {
+        VStack(spacing: 8) {
+            ForEach(poll.options) { option in
+                pollOptionRow(option, totalVotes: poll.totalVotes)
+            }
+
+            HStack {
+                Text("\(poll.totalVotes) votes")
+                    .font(NookFont.caption)
+                    .foregroundStyle(Color.nook.clubDetailMeta)
+
+                Text("·")
+                    .font(NookFont.caption)
+                    .foregroundStyle(Color.nook.clubDetailMeta)
+
+                Text(poll.duration)
+                    .font(NookFont.caption)
+                    .foregroundStyle(Color.nook.clubDetailMeta)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.top, 2)
+        }
+    }
+
+    func pollOptionRow(_ option: PollOption, totalVotes: Int) -> some View {
+        let percentage = totalVotes > 0 ? Double(option.votes) / Double(totalVotes) : 0
+
+        return GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                // Background
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(Color.nook.clubDetailPollBar)
+
+                // Fill bar
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(Color.nook.clubDetailPollBarFill)
+                    .frame(width: max(geo.size.width * percentage, 0))
+
+                // Label + percentage
+                HStack {
+                    Text(option.text)
+                        .font(NookFont.labelMediumSmall)
+                        .foregroundStyle(Color.nook.clubDetailTitle)
+
+                    Spacer()
+
+                    Text("\(Int(percentage * 100))%")
+                        .font(NookFont.captionBold)
+                        .foregroundStyle(Color.nook.clubDetailMeta)
+                }
+                .padding(.horizontal, 14)
+            }
+        }
+        .frame(height: 40)
+    }
+}
+
+// MARK: - Polls Tab
+
+private extension ClubDetailView {
+    var pollsTab: some View {
+        let pollPosts = Self.mockPollPosts
+        return VStack(spacing: 16) {
+            if pollPosts.isEmpty {
+                Text("No polls yet")
+                    .font(NookFont.label)
+                    .foregroundStyle(Color.nook.clubDetailMeta)
+                    .frame(maxWidth: .infinity, minHeight: 200)
+            } else {
+                ForEach(pollPosts) { post in
+                    NavigationLink(value: post) {
+                        postCard(post)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 16)
+        .padding(.bottom, 100)
+    }
+}
+
+// MARK: - Mentions Tab
+
+private extension ClubDetailView {
+    var mentionsTab: some View {
+        VStack(spacing: 16) {
+            ForEach(Self.mockMentionPosts) { post in
+                NavigationLink(value: post) {
+                    postCard(post)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 16)
+        .padding(.bottom, 100)
+    }
+}
+
+// MARK: - Members Tab
+
+private extension ClubDetailView {
+    var membersTab: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Text("\(club.memberCount)")
+                    .font(NookFont.labelMediumSmall)
+                    .foregroundStyle(Color.nook.clubDetailMeta)
+
+                Spacer()
+
+                Button {
+                    showInviteSheet = true
+                } label: {
+                    Text("Invite People")
+                        .font(NookFont.labelBoldSmall)
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 16)
+                        .frame(height: 34)
+                        .background(
+                            Capsule()
+                                .fill(Color.nook.clubDetailJoinedButton)
+                        )
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 16)
+            .padding(.bottom, 4)
+
+            ForEach(Self.mockMembers) { member in
+                memberRow(member)
+            }
+        }
+        .padding(.bottom, 100)
+    }
+
+    func memberRow(_ member: ClubMember) -> some View {
+        HStack(spacing: 12) {
+            Circle()
+                .fill(Color.nook.secondary)
+                .frame(width: 40, height: 40)
+                .overlay(
+                    Image(systemName: "person.fill")
+                        .font(.system(size: 16))
+                        .foregroundStyle(Color.nook.mutedForeground)
+                )
+
+            Text(member.name)
+                .font(NookFont.labelSmall)
+                .foregroundStyle(Color.nook.clubDetailTitle)
+
+            Spacer()
+
+            Text(member.role.label)
+                .font(NookFont.captionSemiBold)
+                .foregroundStyle(Color.nook.clubDetailMeta)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+    }
 }
 
 // MARK: - Scroll Edge
@@ -787,12 +1204,51 @@ private struct ClubDetailSoftScrollEdge: ViewModifier {
 // MARK: - Mock Data
 
 extension ClubDetailView {
+    static let mockMentionPosts: [ClubPost] = [
+        ClubPost(
+            authorName: "Sophia Chen",
+            timeAgo: "3h",
+            body: "Shoutout to @You for recommending The Cloud Weaver last month. Best rec I've gotten in this club.",
+            boldRanges: ["@You"],
+            likes: "45",
+            comments: "8"
+        ),
+        ClubPost(
+            authorName: "Kai Tanaka",
+            timeAgo: "1d",
+            body: "Hey @You have you caught up with the latest episode? The sky kingdom reveal was insane. We need to talk about it.",
+            boldRanges: ["@You"],
+            likes: "23",
+            comments: "12"
+        ),
+        ClubPost(
+            authorName: "Liam Brooks",
+            timeAgo: "2d",
+            body: "Adding @You to the group watch thread since you said you were interested last week. Don't miss it!",
+            boldRanges: ["@You"],
+            likes: "16",
+            comments: "4"
+        ),
+    ]
+
     static let mockPinnedDiscussion: PinnedDiscussion? = PinnedDiscussion(
         title: "Winter 2024 Megathread",
         description: "What is everyone watching this season? Drop your early impressions, theories, and hidden gems below.",
         commentCount: "342 Comments",
         timeAgo: "2 days ago"
     )
+
+    static let mockMembers: [ClubMember] = [
+        ClubMember(name: "Kai Tanaka", role: .admin),
+        ClubMember(name: "Elena Vance", role: .supervisor),
+        ClubMember(name: "Riku Ota", role: .supervisor),
+        ClubMember(name: "Maya Lin", role: .member),
+        ClubMember(name: "Sophia Chen", role: .member),
+        ClubMember(name: "Liam Brooks", role: .member),
+        ClubMember(name: "Nadia Petrova", role: .member),
+        ClubMember(name: "Jin Park", role: .member),
+        ClubMember(name: "Ava Kim", role: .member),
+    ]
 
     static let mockPosts: [ClubPost] = [
         ClubPost(
@@ -804,6 +1260,59 @@ extension ClubDetailView {
             placeholderColor: Color(hex: 0x87CEEB).opacity(0.6),
             likes: "1.2k",
             comments: "84"
+        ),
+        ClubPost(
+            authorName: "Kai Tanaka",
+            timeAgo: "5h",
+            body: "What's the best anime of the season so far? Cast your vote!",
+            likes: "342",
+            comments: "56",
+            poll: PostPoll(
+                options: [
+                    PollOption(text: "The Cloud Weaver", votes: 156),
+                    PollOption(text: "Starfall Chronicles", votes: 89),
+                    PollOption(text: "Iron Bloom", votes: 62),
+                    PollOption(text: "Echoes of Silence", votes: 35),
+                ],
+                totalVotes: 342,
+                duration: "2 days left"
+            )
+        ),
+    ]
+
+    static let mockPollPosts: [ClubPost] = [
+        ClubPost(
+            authorName: "Kai Tanaka",
+            timeAgo: "5h",
+            body: "What's the best anime of the season so far? Cast your vote!",
+            likes: "342",
+            comments: "56",
+            poll: PostPoll(
+                options: [
+                    PollOption(text: "The Cloud Weaver", votes: 156),
+                    PollOption(text: "Starfall Chronicles", votes: 89),
+                    PollOption(text: "Iron Bloom", votes: 62),
+                    PollOption(text: "Echoes of Silence", votes: 35),
+                ],
+                totalVotes: 342,
+                duration: "2 days left"
+            )
+        ),
+        ClubPost(
+            authorName: "Elena Vance",
+            timeAgo: "1d",
+            body: "Next group watch — which day works best for everyone?",
+            likes: "128",
+            comments: "23",
+            poll: PostPoll(
+                options: [
+                    PollOption(text: "Friday evening", votes: 45),
+                    PollOption(text: "Saturday afternoon", votes: 67),
+                    PollOption(text: "Sunday evening", votes: 16),
+                ],
+                totalVotes: 128,
+                duration: "Ended"
+            )
         ),
     ]
 }

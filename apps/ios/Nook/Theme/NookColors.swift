@@ -115,6 +115,8 @@ struct NookColors {
     let clubDetailJoinedButton = Color(hex: 0x362A31)
     let clubDetailAvatarBorder = Color(hex: 0xFDFCF9)
     let clubDetailLikeActive = Color(hex: 0xE5484D)
+    let clubDetailPollBar = Color(hex: 0xF4F1EE)
+    let clubDetailPollBarFill = Color(hex: 0x362A31, alpha: 0.15)
 
     // Tab bar tokens from Figma
     let tabBarBackground = Color(hex: 0xFAF8F6)

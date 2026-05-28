@@ -161,6 +161,7 @@ struct MediaDetailView: View {
         .toolbar(.hidden, for: .navigationBar)
         .modifier(InteractivePopGesture())
         .modifier(SoftDetailScrollEdge())
+        .tracksDetailDepth()
         .task {
             let name = media.imageName
             let color = await Task.detached {
