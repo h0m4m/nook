@@ -70,6 +70,11 @@ struct NookColors {
     let searchSectionLabel = Color(hex: 0x7C7176)
     let searchAddButton = Color(hex: 0xF0EBE8)
     let searchAddedButton = Color(hex: 0x4A3243)
+    let searchEmptyIcon = Color(hex: 0xD5CFC9)
+    let searchEmptyText = Color(hex: 0x7C7176)
+    let searchShimmerBase = Color(hex: 0xEDE8E4)
+    let searchShimmerHighlight = Color(hex: 0xF7F5F2)
+    let searchResultCount = Color(hex: 0x7C7176)
 
     // Library tokens from Figma
     let libraryStatusActive = Color(hex: 0x00C950)

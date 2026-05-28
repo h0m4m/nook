@@ -172,9 +172,9 @@ struct ClubsView: View {
                 }
             }
             .padding(.horizontal, 24)
+            .padding(.top, 14)
+            .padding(.bottom, 8)
         }
-        .padding(.top, 14)
-        .padding(.bottom, 8)
     }
 
     @ViewBuilder

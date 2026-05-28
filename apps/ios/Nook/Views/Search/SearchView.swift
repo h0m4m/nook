@@ -44,6 +44,7 @@ enum SearchMediaCategory: String, CaseIterable, Identifiable {
         case .games: Color.nook.badgeGameText
         }
     }
+
 }
 
 // MARK: - Search Result Model
@@ -80,55 +81,87 @@ struct SearchResultItem: Identifiable {
     }
 }
 
+// MARK: - Search State
+
+private enum SearchState: Equatable {
+    case idle
+    case loading
+    case results
+    case noResults
+}
+
 // MARK: - Search View
 
 struct SearchView: View {
     @State private var searchText = ""
     @State private var selectedFilter: SearchMediaCategory? = nil
     @State private var recentSearches: [SearchResultItem] = SearchView.mockRecentSearches
+    @State private var searchResults: [SearchResultItem] = []
     @State private var userInterests: [SearchMediaCategory] = []
+    @State private var searchState: SearchState = .idle
+    @State private var searchTask: Task<Void, Never>?
+    @FocusState private var isSearchFocused: Bool
 
-    var filteredResults: [SearchResultItem] {
-        var results = recentSearches
-        if let filter = selectedFilter {
-            results = results.filter { $0.category == filter }
+    private var displayedResults: [SearchResultItem] {
+        switch searchState {
+        case .idle:
+            var results = recentSearches
+            if let filter = selectedFilter {
+                results = results.filter { $0.category == filter }
+            }
+            return results
+        case .results:
+            var results = searchResults
+            if let filter = selectedFilter {
+                results = results.filter { $0.category == filter }
+            }
+            return results
+        case .loading, .noResults:
+            return []
         }
-        return results
     }
 
     var body: some View {
         scrollContent
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             .background(Color.nook.searchBackground)
-            .modifier(SearchTopBar(searchText: $searchText, selectedFilter: selectedFilter))
+            .modifier(
+                SearchTopBar(
+                    searchText: $searchText,
+                    selectedFilter: selectedFilter,
+                    isSearchFocused: $isSearchFocused
+                )
+            )
+            .onChange(of: searchText) { _, newValue in
+                handleSearchTextChange(newValue)
+            }
+            .onChange(of: selectedFilter) { _, _ in
+                // Re-trigger search with current text when filter changes
+                if !searchText.isEmpty {
+                    handleSearchTextChange(searchText)
+                }
+            }
             .task {
                 await loadUserInterests()
             }
     }
+
+    // MARK: - Scroll Content
 
     private var scrollContent: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 filterChips
 
-                // Section header
-                Text("RECENT SEARCHES")
-                    .font(NookFont.tabLabel)
-                    .tracking(1)
-                    .foregroundStyle(Color.nook.searchSectionLabel)
-                    .padding(.horizontal, 24)
-                    .padding(.bottom, 24)
-
-                // Result rows
-                ForEach(Array(filteredResults.enumerated()), id: \.element.id) { index, item in
-                    SearchResultRow(item: item) {
-                        toggleAdded(item)
-                    }
-                    .padding(.horizontal, 24)
-
-                    if index < filteredResults.count - 1 {
-                        Spacer().frame(height: 24)
-                    }
+                switch searchState {
+                case .idle:
+                    idleContent
+                case .loading:
+                    loadingContent
+                case .results:
+                    resultsContent
+                case .noResults:
+                    noResultsContent
                 }
             }
             .padding(.bottom, 100)
@@ -136,30 +169,119 @@ struct SearchView: View {
         .modifier(SoftScrollEdge())
     }
 
+    // MARK: - Idle (Recent Searches)
+
+    private var idleContent: some View {
+        Group {
+            if !recentSearches.isEmpty {
+                sectionHeader("RECENT SEARCHES")
+
+                ForEach(Array(displayedResults.enumerated()), id: \.element.id) { index, item in
+                    SearchResultRow(item: item) {
+                        toggleAdded(for: item, in: &recentSearches)
+                    }
+                    .padding(.horizontal, 24)
+
+                    if index < displayedResults.count - 1 {
+                        Spacer().frame(height: 24)
+                    }
+                }
+            } else {
+                SearchEmptyState(
+                    icon: "magnifying-glass-bold",
+                    title: "Search for anything",
+                    subtitle: "Find movies, shows, anime, books, manga, and games"
+                )
+            }
+        }
+    }
+
+    // MARK: - Loading
+
+    private var loadingContent: some View {
+        VStack(spacing: 24) {
+            ForEach(0..<4, id: \.self) { _ in
+                SearchShimmerRow()
+                    .padding(.horizontal, 24)
+            }
+        }
+        .padding(.top, 8)
+    }
+
+    // MARK: - Results
+
+    private var resultsContent: some View {
+        Group {
+            let results = displayedResults
+
+            HStack(spacing: 0) {
+                sectionHeader("\(results.count) RESULT\(results.count == 1 ? "" : "S")")
+                Spacer()
+            }
+
+            ForEach(Array(results.enumerated()), id: \.element.id) { index, item in
+                SearchResultRow(item: item) {
+                    toggleAdded(for: item, in: &searchResults)
+                }
+                .padding(.horizontal, 24)
+                .transition(.opacity.combined(with: .move(edge: .bottom)))
+
+                if index < results.count - 1 {
+                    Spacer().frame(height: 24)
+                }
+            }
+        }
+    }
+
+    // MARK: - No Results
+
+    private var noResultsContent: some View {
+        SearchEmptyState(
+            icon: "magnifying-glass-bold",
+            title: "No results found",
+            subtitle: selectedFilter != nil
+                ? "Try removing the \(selectedFilter!.label) filter or searching for something else"
+                : "Try a different search term"
+        )
+    }
+
+    // MARK: - Shared Components
+
+    private func sectionHeader(_ text: String) -> some View {
+        Text(text)
+            .font(NookFont.tabLabel)
+            .tracking(1)
+            .foregroundStyle(Color.nook.searchSectionLabel)
+            .padding(.horizontal, 24)
+            .padding(.bottom, 24)
+    }
+
     // MARK: - Filter Chips
 
     private var filterChips: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
-                // "All" chip
                 filterChip(label: "All", isSelected: selectedFilter == nil) {
-                    selectedFilter = nil
+                    withAnimation(.easeOut(duration: 0.2)) {
+                        selectedFilter = nil
+                    }
                 }
 
-                // Category chips based on user interests
                 ForEach(userInterests) { category in
                     filterChip(
                         label: category.label,
                         dotColor: category.dotColor,
                         isSelected: selectedFilter == category
                     ) {
-                        selectedFilter = category
+                        withAnimation(.easeOut(duration: 0.2)) {
+                            selectedFilter = category
+                        }
                     }
                 }
             }
             .padding(.horizontal, 24)
+            .padding(.vertical, 14)
         }
-        .padding(.vertical, 14)
     }
 
     @ViewBuilder
@@ -222,15 +344,67 @@ struct SearchView: View {
         }
     }
 
+    // MARK: - Search Logic
+
+    private func handleSearchTextChange(_ text: String) {
+        searchTask?.cancel()
+
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if trimmed.isEmpty {
+            withAnimation(.easeOut(duration: 0.2)) {
+                searchState = .idle
+                searchResults = []
+            }
+            return
+        }
+
+        withAnimation(.easeOut(duration: 0.15)) {
+            searchState = .loading
+        }
+
+        searchTask = Task {
+            // Debounce — wait 400ms before firing
+            try? await Task.sleep(for: .milliseconds(400))
+            guard !Task.isCancelled else { return }
+
+            await performSearch(query: trimmed)
+        }
+    }
+
+    private func performSearch(query: String) async {
+        // TODO: Replace with real Supabase search once the media catalog exists.
+        // For now, filter the mock data set to simulate live results.
+        let allMock = SearchView.mockAllMedia
+        let lowerQuery = query.lowercased()
+
+        let matched = allMock.filter { item in
+            item.title.lowercased().contains(lowerQuery)
+                || item.genres.lowercased().contains(lowerQuery)
+                || item.category.label.lowercased().contains(lowerQuery)
+        }
+
+        // Simulate network latency
+        try? await Task.sleep(for: .milliseconds(300))
+        guard !Task.isCancelled else { return }
+
+        await MainActor.run {
+            withAnimation(.easeOut(duration: 0.25)) {
+                searchResults = matched
+                searchState = matched.isEmpty ? .noResults : .results
+            }
+        }
+    }
+
     // MARK: - Actions
 
-    private func toggleAdded(_ item: SearchResultItem) {
-        guard let index = recentSearches.firstIndex(where: { $0.id == item.id }) else { return }
+    private func toggleAdded(for item: SearchResultItem, in list: inout [SearchResultItem]) {
+        guard let index = list.firstIndex(where: { $0.id == item.id }) else { return }
         let generator = UIImpactFeedbackGenerator(style: .light)
         generator.prepare()
 
         withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
-            recentSearches[index].isAdded.toggle()
+            list[index].isAdded.toggle()
         }
         generator.impactOccurred()
     }
@@ -258,17 +432,17 @@ struct SearchView: View {
                 }
             }
         } catch {
-            // Fallback: show all categories
             userInterests = SearchMediaCategory.allCases
         }
     }
 }
 
-// MARK: - Top bar (safeAreaBar on iOS 26, safeAreaInset fallback)
+// MARK: - Top bar
 
 private struct SearchTopBar: ViewModifier {
     @Binding var searchText: String
     var selectedFilter: SearchMediaCategory?
+    var isSearchFocused: FocusState<Bool>.Binding
 
     private var placeholder: String {
         if let filter = selectedFilter {
@@ -313,6 +487,19 @@ private struct SearchTopBar: ViewModifier {
             )
             .font(NookFont.labelMediumSmall)
             .foregroundStyle(Color.nook.searchBarText)
+            .focused(isSearchFocused)
+
+            if !searchText.isEmpty {
+                Button {
+                    searchText = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 16))
+                        .foregroundStyle(Color.nook.searchBarPlaceholder)
+                }
+                .buttonStyle(.plain)
+                .transition(.scale(scale: 0.5).combined(with: .opacity))
+            }
         }
         .padding(.horizontal, 18)
         .frame(height: 44)
@@ -321,7 +508,84 @@ private struct SearchTopBar: ViewModifier {
     }
 }
 
-// MARK: - Search bar background (glass on iOS 26, solid fallback)
+// MARK: - Empty State
+
+private struct SearchEmptyState: View {
+    let icon: String
+    let title: String
+    let subtitle: String
+
+    var body: some View {
+        VStack(spacing: 12) {
+            Image(icon)
+                .renderingMode(.template)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 40, height: 40)
+                .foregroundStyle(Color.nook.searchEmptyIcon)
+
+            Text(title)
+                .font(NookFont.labelBold)
+                .foregroundStyle(Color.nook.searchBarText)
+
+            Text(subtitle)
+                .font(NookFont.bodySmall)
+                .foregroundStyle(Color.nook.searchEmptyText)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 48)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 80)
+    }
+}
+
+// MARK: - Shimmer Row
+
+private struct SearchShimmerRow: View {
+    @State private var isAnimating = false
+
+    var body: some View {
+        HStack(spacing: 16) {
+            // Poster placeholder
+            RoundedRectangle(cornerRadius: 17.78, style: .continuous)
+                .fill(Color.nook.searchShimmerBase)
+                .frame(width: 64, height: 80)
+
+            VStack(alignment: .leading, spacing: 8) {
+                // Category + year
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(Color.nook.searchShimmerBase)
+                    .frame(width: 90, height: 10)
+
+                // Title
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(Color.nook.searchShimmerBase)
+                    .frame(width: 160, height: 14)
+
+                // Rating + genres
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(Color.nook.searchShimmerBase)
+                    .frame(width: 120, height: 10)
+            }
+
+            Spacer()
+
+            // Button placeholder
+            Circle()
+                .fill(Color.nook.searchShimmerBase)
+                .frame(width: 40, height: 40)
+        }
+        .frame(height: 80)
+        .opacity(isAnimating ? 0.5 : 1.0)
+        .animation(
+            .easeInOut(duration: 0.8).repeatForever(autoreverses: true),
+            value: isAnimating
+        )
+        .onAppear { isAnimating = true }
+    }
+}
+
+// MARK: - Search bar background
 
 private struct SearchBarBackground: ViewModifier {
     func body(content: Content) -> some View {
@@ -538,10 +802,159 @@ extension SearchView {
             placeholderColor: Color(hex: 0x87CEEB)
         ),
     ]
+
+    static let mockAllMedia: [SearchResultItem] = [
+        // Movies
+        SearchResultItem(
+            title: "Astris",
+            category: .movies,
+            year: "2023",
+            rating: 9.2,
+            genres: "Sci-fi, Drama, Mystery",
+            imageName: "mock-astris",
+            placeholderColor: Color(hex: 0x2C3E50)
+        ),
+        SearchResultItem(
+            title: "Dune: Part Three",
+            category: .movies,
+            year: "2026",
+            rating: 8.9,
+            genres: "Sci-fi, Adventure, Drama",
+            imageName: "mock-dune",
+            placeholderColor: Color(hex: 0xC2A059)
+        ),
+        SearchResultItem(
+            title: "The Midnight Garden",
+            category: .movies,
+            year: "2025",
+            rating: 7.8,
+            genres: "Drama, Romance",
+            imageName: "mock-midnight-garden",
+            placeholderColor: Color(hex: 0x2D4A3E)
+        ),
+
+        // TV Shows
+        SearchResultItem(
+            title: "Severance",
+            category: .tvShows,
+            year: "2022",
+            rating: 8.7,
+            genres: "Thriller, Drama, Sci-fi",
+            imageName: "mock-severance",
+            placeholderColor: Color(hex: 0x3B5998)
+        ),
+        SearchResultItem(
+            title: "The Bear",
+            category: .tvShows,
+            year: "2022",
+            rating: 8.9,
+            genres: "Drama, Comedy",
+            imageName: "mock-the-bear",
+            placeholderColor: Color(hex: 0x8B4513)
+        ),
+
+        // Anime
+        SearchResultItem(
+            title: "The Cloud Weaver",
+            category: .anime,
+            year: "2024",
+            rating: 8.5,
+            genres: "Fantasy, Adventure",
+            imageName: "mock-cloud-weaver",
+            placeholderColor: Color(hex: 0x87CEEB)
+        ),
+        SearchResultItem(
+            title: "Frieren: Beyond Journey's End",
+            category: .anime,
+            year: "2023",
+            rating: 9.1,
+            genres: "Fantasy, Adventure, Drama",
+            imageName: "mock-frieren",
+            placeholderColor: Color(hex: 0x9B8EC4)
+        ),
+        SearchResultItem(
+            title: "Dandadan",
+            category: .anime,
+            year: "2024",
+            rating: 8.6,
+            genres: "Action, Comedy, Supernatural",
+            imageName: "mock-dandadan",
+            placeholderColor: Color(hex: 0xE84393)
+        ),
+
+        // Manga
+        SearchResultItem(
+            title: "Chainsaw Man",
+            category: .manga,
+            year: "2018",
+            rating: 8.8,
+            genres: "Action, Supernatural, Horror",
+            imageName: "mock-chainsaw-man",
+            placeholderColor: Color(hex: 0xD63031)
+        ),
+        SearchResultItem(
+            title: "Blue Lock",
+            category: .manga,
+            year: "2018",
+            rating: 8.2,
+            genres: "Sports, Drama",
+            imageName: "mock-blue-lock",
+            placeholderColor: Color(hex: 0x0984E3)
+        ),
+
+        // Books
+        SearchResultItem(
+            title: "Foundation's Edge",
+            category: .books,
+            year: "1982",
+            rating: 8.4,
+            genres: "Sci-fi, Philosophy",
+            imageName: "mock-foundations-edge",
+            placeholderColor: Color(hex: 0xD4A373)
+        ),
+        SearchResultItem(
+            title: "Project Hail Mary",
+            category: .books,
+            year: "2021",
+            rating: 9.0,
+            genres: "Sci-fi, Adventure",
+            imageName: "mock-hail-mary",
+            placeholderColor: Color(hex: 0x2C3E50)
+        ),
+
+        // Games
+        SearchResultItem(
+            title: "Iron & Ember",
+            category: .games,
+            year: "2022",
+            rating: 8.8,
+            genres: "Action RPG, Open World",
+            imageName: "mock-iron-ember",
+            placeholderColor: Color(hex: 0xE67E22)
+        ),
+        SearchResultItem(
+            title: "Elden Ring: Nightreign",
+            category: .games,
+            year: "2025",
+            rating: 9.3,
+            genres: "Action RPG, Co-op",
+            imageName: "mock-elden-ring",
+            placeholderColor: Color(hex: 0xFDA523)
+        ),
+        SearchResultItem(
+            title: "Hollow Knight: Silksong",
+            category: .games,
+            year: "2025",
+            rating: 9.1,
+            genres: "Metroidvania, Action",
+            imageName: "mock-silksong",
+            placeholderColor: Color(hex: 0xDFE6E9)
+        ),
+    ]
 }
 
 // MARK: - Preview
 
-#Preview {
+#Preview("Idle") {
     SearchView()
 }
