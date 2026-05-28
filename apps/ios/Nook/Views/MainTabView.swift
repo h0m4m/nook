@@ -40,6 +40,7 @@ struct MainTabView: View {
     @State private var selectedTab: Tab = .home
     @State private var navPath = NavigationPath()
     @State private var isFabMenuOpen = false
+    @State private var showTrackMediaSheet = false
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -81,11 +82,20 @@ struct MainTabView: View {
 
                 NookBottomBar(
                     selectedTab: $selectedTab,
-                    isFabMenuOpen: $isFabMenuOpen
+                    isFabMenuOpen: $isFabMenuOpen,
+                    onTrackMedia: {
+                        showTrackMediaSheet = true
+                    }
                 )
             }
         }
         .ignoresSafeArea(.keyboard)
+        .sheet(isPresented: $showTrackMediaSheet) {
+            TrackMediaSheet()
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+                .presentationBackground(Color.nook.searchBackground)
+        }
     }
 
     private func closeFabMenu() {
@@ -100,17 +110,20 @@ struct MainTabView: View {
 private struct NookBottomBar: View {
     @Binding var selectedTab: Tab
     @Binding var isFabMenuOpen: Bool
+    var onTrackMedia: () -> Void
 
     var body: some View {
         if #available(iOS 26, *) {
             LiquidGlassBottomBar(
                 selectedTab: $selectedTab,
-                isFabMenuOpen: $isFabMenuOpen
+                isFabMenuOpen: $isFabMenuOpen,
+                onTrackMedia: onTrackMedia
             )
         } else {
             ClassicBottomBar(
                 selectedTab: $selectedTab,
-                isFabMenuOpen: $isFabMenuOpen
+                isFabMenuOpen: $isFabMenuOpen,
+                onTrackMedia: onTrackMedia
             )
         }
     }
@@ -122,6 +135,7 @@ private struct NookBottomBar: View {
 private struct LiquidGlassBottomBar: View {
     @Binding var selectedTab: Tab
     @Binding var isFabMenuOpen: Bool
+    var onTrackMedia: () -> Void
     @Namespace private var tabHighlight
 
     var body: some View {
@@ -161,8 +175,8 @@ private struct LiquidGlassBottomBar: View {
             }
 
             fabMenuItem(icon: "bookmark-simple", label: "Track Media") {
-                // TODO: Track Media action
                 closeFabMenu()
+                onTrackMedia()
             }
 
             Button { closeFabMenu() } label: {
@@ -175,6 +189,7 @@ private struct LiquidGlassBottomBar: View {
                     .frame(width: 44, height: 44)
                     .contentShape(Circle())
             }
+            .buttonStyle(.plain)
             .glassEffect(.regular.interactive(), in: .circle)
         }
         .padding(.horizontal, 20)
@@ -202,6 +217,7 @@ private struct LiquidGlassBottomBar: View {
             .padding(.vertical, 14)
             .contentShape(Capsule())
         }
+        .buttonStyle(.plain)
         .glassEffect(.regular.interactive(), in: .capsule)
     }
 
@@ -243,6 +259,7 @@ private struct LiquidGlassBottomBar: View {
                 .frame(width: 52, height: 52)
                 .contentShape(Circle())
         }
+        .buttonStyle(.plain)
         .glassEffect(.regular.interactive(), in: .circle)
     }
 
@@ -264,6 +281,7 @@ private struct LiquidGlassBottomBar: View {
 private struct ClassicBottomBar: View {
     @Binding var selectedTab: Tab
     @Binding var isFabMenuOpen: Bool
+    var onTrackMedia: () -> Void
 
     var body: some View {
         Group {
@@ -306,8 +324,8 @@ private struct ClassicBottomBar: View {
             }
 
             fabMenuItem(icon: "bookmark-simple", label: "Track Media") {
-                // TODO: Track Media action
                 closeFabMenu()
+                onTrackMedia()
             }
 
             Button { closeFabMenu() } label: {

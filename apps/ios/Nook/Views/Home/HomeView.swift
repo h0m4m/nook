@@ -63,17 +63,7 @@ private struct HomeTopBar: ViewModifier {
     }
 }
 
-// MARK: - Scroll edge blur (iOS 26+)
-
-private struct SoftScrollEdge: ViewModifier {
-    func body(content: Content) -> some View {
-        if #available(iOS 26, *) {
-            content.scrollEdgeEffectStyle(.soft, for: .top)
-        } else {
-            content
-        }
-    }
-}
+// SoftScrollEdge is defined in SearchView.swift (shared)
 
 // MARK: - JSON value helper
 

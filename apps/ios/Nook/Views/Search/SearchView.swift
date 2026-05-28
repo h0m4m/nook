@@ -49,7 +49,7 @@ enum SearchMediaCategory: String, CaseIterable, Identifiable {
 
 // MARK: - Search Result Model
 
-struct SearchResultItem: Identifiable {
+struct SearchResultItem: Identifiable, Hashable {
     let id = UUID()
     let title: String
     let category: SearchMediaCategory
@@ -97,13 +97,7 @@ struct SearchResultItem: Identifiable {
 }
 
 // MARK: - Search State
-
-private enum SearchState: Equatable {
-    case idle
-    case loading
-    case results
-    case noResults
-}
+// Defined in TrackMediaSheet.swift (shared)
 
 // MARK: - Search View
 
@@ -577,7 +571,7 @@ private struct SearchTopBar: ViewModifier {
 
 // MARK: - Empty State
 
-private struct SearchEmptyState: View {
+struct SearchEmptyState: View {
     let icon: String
     let title: String
     let subtitle: String
@@ -608,7 +602,7 @@ private struct SearchEmptyState: View {
 
 // MARK: - Shimmer Row
 
-private struct SearchShimmerRow: View {
+struct SearchShimmerRow: View {
     @State private var isAnimating = false
 
     var body: some View {
@@ -654,7 +648,7 @@ private struct SearchShimmerRow: View {
 
 // MARK: - Search bar background
 
-private struct SearchBarBackground: ViewModifier {
+struct SearchBarBackground: ViewModifier {
     func body(content: Content) -> some View {
         if #available(iOS 26, *) {
             content
@@ -670,7 +664,7 @@ private struct SearchBarBackground: ViewModifier {
 
 // MARK: - Scroll edge blur (iOS 26+)
 
-private struct SoftScrollEdge: ViewModifier {
+struct SoftScrollEdge: ViewModifier {
     func body(content: Content) -> some View {
         if #available(iOS 26, *) {
             content.scrollEdgeEffectStyle(.soft, for: .top)
@@ -682,7 +676,7 @@ private struct SoftScrollEdge: ViewModifier {
 
 // MARK: - Search Result Row
 
-private struct SearchResultRow: View {
+struct SearchResultRow: View {
     let item: SearchResultItem
     let onTapAction: () -> Void
 

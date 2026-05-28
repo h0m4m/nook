@@ -1123,6 +1123,22 @@ struct TrackingSheetView: View {
             }
         }
         .background(Color.nook.detailBackground)
+        .onAppear {
+            if selectedStatus == nil {
+                selectedStatus = .planned
+            }
+        }
+        .onChange(of: currentEpisode) { _, newEpisode in
+            withAnimation(.easeOut(duration: 0.2)) {
+                if totalEpisodes > 0 && newEpisode >= totalEpisodes {
+                    selectedStatus = .completed
+                } else if newEpisode > 0 && (selectedStatus == .planned || selectedStatus == nil) {
+                    selectedStatus = .inProgress
+                } else if newEpisode == 0 && selectedStatus == .inProgress {
+                    selectedStatus = .planned
+                }
+            }
+        }
     }
 
     // MARK: - Header
@@ -1199,7 +1215,16 @@ struct TrackingSheetView: View {
 
         Button {
             withAnimation(.easeOut(duration: 0.2)) {
-                selectedStatus = selectedStatus == status ? nil : status
+                let newStatus = selectedStatus == status ? nil : status
+                selectedStatus = newStatus
+
+                if totalEpisodes > 0 {
+                    if newStatus == .completed {
+                        currentEpisode = totalEpisodes
+                    } else if newStatus == .planned || newStatus == nil {
+                        currentEpisode = 0
+                    }
+                }
             }
         } label: {
             Text(status.label)
