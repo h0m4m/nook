@@ -2,4 +2,6 @@ always use design tokens and not regular hex or values unless niche color or exp
 
 icon folder is at apps/ios/Nook/Resources/Icons
 
-New SVG icons must have an imageset created at apps/ios/Nook/Assets.xcassets/Icons/<name>.imageset/ with a Contents.json and the SVG copied in, otherwise they won't render at runtime.
+New SVG icons must have an imageset created at apps/ios/Nook/Assets.xcassets/Icons/`<name>`.imageset/ with a Contents.json and the SVG copied in, otherwise they won't render at runtime.
+
+always ask for icons if u dont have them, dont just make ones in the icons folder

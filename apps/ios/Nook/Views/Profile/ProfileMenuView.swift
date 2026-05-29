@@ -9,26 +9,32 @@ struct ProfileMenuView: View {
     @State private var email: String = ""
     @State private var avatarURL: URL?
     @State private var showLogoutConfirmation = false
+    @State private var showStats = false
+    @State private var showMyProfile = false
+    @State private var showSettings = false
+    @State private var showEditProfile = false
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 20) {
-                    profileHeader
-                    menuSections
-                    logoutButton
+            ZStack(alignment: .topTrailing) {
+                ScrollView {
+                    VStack(spacing: 20) {
+                        profileHeader
+                        menuSections
+                        logoutButton
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 8)
+                    .padding(.bottom, 40)
                 }
-                .padding(.horizontal, 20)
-                .padding(.top, 8)
-                .padding(.bottom, 40)
+
+                closeButton
+                    .padding(.top, 12)
+                    .padding(.trailing, 16)
             }
             .background(Color.nook.profileMenuBackground)
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    closeButton
-                }
-            }
+            .toolbar(.hidden, for: .navigationBar)
             .alert("Log out?", isPresented: $showLogoutConfirmation) {
                 Button("Cancel", role: .cancel) {}
                 Button("Log out", role: .destructive) {
@@ -50,40 +56,35 @@ struct ProfileMenuView: View {
     @ViewBuilder
     private var closeButton: some View {
         if #available(iOS 26, *) {
-            glassCloseButton
+            Button { dismiss() } label: {
+                Image("x-bold")
+                    .renderingMode(.template)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 16, height: 16)
+                    .foregroundStyle(.primary)
+                    .frame(width: 36, height: 36)
+                    .contentShape(Circle())
+                    .glassEffect(.regular.interactive(), in: .circle)
+            }
+            .buttonStyle(.plain)
+            .frame(width: 44, height: 44)
+            .contentShape(Rectangle())
         } else {
-            classicCloseButton
+            Button { dismiss() } label: {
+                Image("x-bold")
+                    .renderingMode(.template)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 16, height: 16)
+                    .foregroundStyle(Color.nook.foreground)
+                    .frame(width: 36, height: 36)
+                    .background(Color.nook.segmentBackground, in: Circle())
+            }
+            .buttonStyle(.plain)
+            .frame(width: 44, height: 44)
+            .contentShape(Rectangle())
         }
-    }
-
-    @available(iOS 26, *)
-    private var glassCloseButton: some View {
-        Button { dismiss() } label: {
-            Image("x-bold")
-                .renderingMode(.template)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(width: 14, height: 14)
-                .foregroundStyle(.secondary)
-        }
-        .buttonStyle(.plain)
-    }
-
-    private var classicCloseButton: some View {
-        Button { dismiss() } label: {
-            Circle()
-                .fill(Color.nook.segmentBackground)
-                .frame(width: 30, height: 30)
-                .overlay {
-                    Image("x-bold")
-                        .renderingMode(.template)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: 14, height: 14)
-                        .foregroundStyle(Color.nook.foreground)
-                }
-        }
-        .buttonStyle(.plain)
     }
 
     // MARK: - Profile Header
@@ -118,6 +119,27 @@ struct ProfileMenuView: View {
                         .foregroundStyle(Color.nook.profileMenuEmail)
                 }
             }
+
+            Button {
+                showEditProfile = true
+            } label: {
+                HStack(spacing: 6) {
+                    Image("pencil-simple-bold")
+                        .renderingMode(.template)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 14, height: 14)
+
+                    Text("Edit Profile")
+                        .font(NookFont.captionSemiBold)
+                }
+                .foregroundStyle(Color.nook.profileMenuRowIcon)
+                .padding(.horizontal, 16)
+                .frame(height: 32)
+                .background(Color.nook.profileMenuRowIconBackground)
+                .clipShape(Capsule())
+            }
+            .buttonStyle(.plain)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 20)
@@ -132,7 +154,9 @@ struct ProfileMenuView: View {
                 label: "Profile",
                 iconColor: Color.nook.profileMenuRowIcon,
                 iconBackground: Color.nook.profileMenuRowIconBackground
-            )
+            ) {
+                showMyProfile = true
+            }
 
             rowDivider
 
@@ -141,7 +165,9 @@ struct ProfileMenuView: View {
                 label: "Settings",
                 iconColor: Color.nook.profileMenuRowIcon,
                 iconBackground: Color.nook.profileMenuRowIconBackground
-            )
+            ) {
+                showSettings = true
+            }
 
             rowDivider
 
@@ -150,7 +176,9 @@ struct ProfileMenuView: View {
                 label: "Stats",
                 iconColor: Color.nook.profileMenuRowIcon,
                 iconBackground: Color.nook.profileMenuRowIconBackground
-            )
+            ) {
+                showStats = true
+            }
         }
         .background(Color.nook.profileMenuSectionBackground)
         .clipShape(RoundedRectangle(cornerRadius: NookRadii.sm))
@@ -158,16 +186,37 @@ struct ProfileMenuView: View {
             RoundedRectangle(cornerRadius: NookRadii.sm)
                 .stroke(Color.nook.profileMenuSectionBorder, lineWidth: 1)
         }
+        .sheet(isPresented: $showStats) {
+            StatsView()
+        }
+        .fullScreenCover(isPresented: $showMyProfile) {
+            NavigationStack {
+                MyProfileView()
+            }
+        }
+        .sheet(isPresented: $showSettings) {
+            SettingsView(router: router)
+                .presentationDetents([.large])
+                .presentationDragIndicator(.hidden)
+                .presentationBackground(Color.nook.settingsBackground)
+        }
+        .sheet(isPresented: $showEditProfile) {
+            EditProfileSheet()
+                .presentationDetents([.large])
+                .presentationDragIndicator(.hidden)
+                .presentationBackground(Color.nook.settingsBackground)
+        }
     }
 
     private func menuRow(
         icon: String,
         label: String,
         iconColor: Color,
-        iconBackground: Color
+        iconBackground: Color,
+        action: (() -> Void)? = nil
     ) -> some View {
         Button {
-            // TODO: Navigate to respective screens
+            action?()
         } label: {
             HStack(spacing: 14) {
                 RoundedRectangle(cornerRadius: NookRadii.xs)

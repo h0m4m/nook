@@ -99,33 +99,36 @@ private struct ReviewCard: View {
 
     private var cardHeader: some View {
         HStack(alignment: .top, spacing: 0) {
-            HStack(spacing: 8) {
-                Circle()
-                    .fill(Color.nook.secondary)
-                    .frame(width: 32, height: 32)
-                    .overlay(
-                        Image(systemName: "person.fill")
-                            .font(.system(size: 14))
-                            .foregroundStyle(Color.nook.mutedForeground)
-                    )
+            NavigationLink(value: UserProfile.profileFor(name: item.reviewerName)) {
+                HStack(spacing: 8) {
+                    Circle()
+                        .fill(Color.nook.secondary)
+                        .frame(width: 32, height: 32)
+                        .overlay(
+                            Image(systemName: "person.fill")
+                                .font(.system(size: 14))
+                                .foregroundStyle(Color.nook.mutedForeground)
+                        )
 
-                VStack(alignment: .leading, spacing: 0) {
-                    Text(item.reviewerName)
-                        .font(NookFont.captionBold)
-                        .foregroundStyle(Color.nook.cardTitle)
-                        .lineLimit(1)
-
-                    HStack(spacing: 2) {
-                        Text("reviewed")
-                            .font(.custom("PlusJakartaSans-Regular", size: 10))
-                            .foregroundStyle(Color.nook.cardSubtitle)
-
-                        Text(item.mediaTitle)
-                            .font(.custom("PlusJakartaSans-SemiBold", size: 10))
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text(item.reviewerName)
+                            .font(NookFont.captionBold)
                             .foregroundStyle(Color.nook.cardTitle)
+                            .lineLimit(1)
+
+                        HStack(spacing: 2) {
+                            Text("reviewed")
+                                .font(.custom("PlusJakartaSans-Regular", size: 10))
+                                .foregroundStyle(Color.nook.cardSubtitle)
+
+                            Text(item.mediaTitle)
+                                .font(.custom("PlusJakartaSans-SemiBold", size: 10))
+                                .foregroundStyle(Color.nook.cardTitle)
+                        }
                     }
                 }
             }
+            .buttonStyle(.plain)
 
             Spacer()
 

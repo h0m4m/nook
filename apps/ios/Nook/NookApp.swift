@@ -3,10 +3,12 @@ import SwiftUI
 
 @main
 struct NookApp: App {
+    @AppStorage("appColorScheme") private var appColorScheme: AppColorScheme = .system
+
     var body: some Scene {
         WindowGroup {
             RootView()
-                .preferredColorScheme(.light)
+                .preferredColorScheme(appColorScheme.colorScheme)
                 .onOpenURL { url in
                     GIDSignIn.sharedInstance.handle(url)
                     supabase.handle(url)

@@ -83,6 +83,13 @@ struct MainTabView: View {
                 .navigationDestination(for: NookItem.self) { nook in
                     NookDetailView(nook: nook)
                 }
+                .navigationDestination(for: UserProfile.self) { user in
+                    if user.isCurrentUser {
+                        MyProfileView()
+                    } else {
+                        OtherProfileView(profile: user)
+                    }
+                }
                 .navigationDestination(isPresented: $showNotifications) {
                     NotificationsView()
                 }

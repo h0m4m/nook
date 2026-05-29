@@ -300,14 +300,12 @@ struct LibraryView: View {
                     .padding(.horizontal, 24)
                     .padding(.bottom, 24)
 
-                ForEach(Array(filteredItems.enumerated()), id: \.element.id) { index, item in
-                    LibraryItemRow(item: item) {
-                        openTrackingSheet(for: item)
-                    }
-                    .padding(.horizontal, 24)
-
-                    if index < filteredItems.count - 1 {
-                        Spacer().frame(height: 24)
+                LazyVStack(spacing: 24) {
+                    ForEach(filteredItems) { item in
+                        LibraryItemRow(item: item) {
+                            openTrackingSheet(for: item)
+                        }
+                        .padding(.horizontal, 24)
                     }
                 }
             }
@@ -418,7 +416,6 @@ private struct LibraryTopBar: ViewModifier {
     @Binding var searchText: String
     var isSearchFocused: FocusState<Bool>.Binding
     @Binding var selectedSort: LibrarySortOption
-    @Namespace private var headerNamespace
 
     func body(content: Content) -> some View {
         if #available(iOS 26, *) {
@@ -453,12 +450,10 @@ private struct LibraryTopBar: ViewModifier {
             Text("Library")
                 .font(NookFont.headingMediumBold)
                 .foregroundStyle(Color.nook.sectionTitle)
-                .transition(.opacity)
 
             Spacer()
 
             headerButtons
-                .matchedGeometryEffect(id: "searchBar", in: headerNamespace)
         }
         .padding(.horizontal, 24)
     }
@@ -476,10 +471,10 @@ private struct LibraryTopBar: ViewModifier {
     private var glassHeaderButtons: some View {
         HStack(spacing: 0) {
             Button {
-                withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
+                withAnimation(.easeOut(duration: 0.25)) {
                     isSearchActive = true
                 }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                     isSearchFocused.wrappedValue = true
                 }
             } label: {
@@ -502,10 +497,10 @@ private struct LibraryTopBar: ViewModifier {
     private var classicHeaderButtons: some View {
         HStack(spacing: 0) {
             Button {
-                withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
+                withAnimation(.easeOut(duration: 0.25)) {
                     isSearchActive = true
                 }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                     isSearchFocused.wrappedValue = true
                 }
             } label: {
@@ -553,7 +548,6 @@ private struct LibraryTopBar: ViewModifier {
     private var expandedSearchBar: some View {
         HStack(spacing: 10) {
             searchField
-                .matchedGeometryEffect(id: "searchBar", in: headerNamespace)
             dismissButton
         }
         .padding(.horizontal, 24)
@@ -589,7 +583,7 @@ private struct LibraryTopBar: ViewModifier {
     private var dismissButton: some View {
         if #available(iOS 26, *) {
             Button {
-                withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
+                withAnimation(.easeOut(duration: 0.25)) {
                     searchText = ""
                     isSearchActive = false
                     isSearchFocused.wrappedValue = false
@@ -603,10 +597,10 @@ private struct LibraryTopBar: ViewModifier {
                     .glassEffect(.regular.interactive(), in: .circle)
             }
             .buttonStyle(.plain)
-            .transition(.scale(scale: 0.5).combined(with: .opacity))
+            .transition(.opacity)
         } else {
             Button {
-                withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
+                withAnimation(.easeOut(duration: 0.25)) {
                     searchText = ""
                     isSearchActive = false
                     isSearchFocused.wrappedValue = false
@@ -622,7 +616,7 @@ private struct LibraryTopBar: ViewModifier {
                     }
             }
             .buttonStyle(.plain)
-            .transition(.scale(scale: 0.5).combined(with: .opacity))
+            .transition(.opacity)
         }
     }
 }

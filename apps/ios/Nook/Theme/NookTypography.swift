@@ -30,4 +30,13 @@ enum NookFont {
     static let outfitLabel = Font.custom("Outfit-Bold", size: 18, relativeTo: .body)
     static let outfitHeadingMedium = Font.custom("Outfit-Bold", size: 24, relativeTo: .title2)
     static let outfitLabelBold = Font.custom("Outfit-Bold", size: 16, relativeTo: .subheadline)
+
+    // Profile-specific
+    static let outfitStatValue = Font.custom("Outfit-Bold", size: 20, relativeTo: .title3)
+    static let outfitFollowerCount = Font.custom("Outfit-Bold", size: 18, relativeTo: .body)
+
+    // Stats page
+    static let statsHeroValue = Font.custom("Outfit-Bold", size: 32, relativeTo: .largeTitle)
+    static let statsCardValue = Font.custom("Outfit-Bold", size: 22, relativeTo: .title2)
+    static let statsBarLabel = Font.custom("PlusJakartaSans-Medium", size: 11, relativeTo: .caption2)
 }

@@ -36,6 +36,8 @@ struct HomeHeaderView: View {
             }
         }
         .buttonStyle(.plain)
+        .frame(width: 44, height: 44)
+        .contentShape(Circle())
     }
 
     // MARK: - Notification Button

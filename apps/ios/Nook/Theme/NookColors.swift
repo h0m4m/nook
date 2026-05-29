@@ -163,6 +163,143 @@ struct NookColors {
     let profileMenuLogoutIcon = Color(hex: 0xE5484D)
     let profileMenuLogoutIconBackground = Color(hex: 0xE5484D, alpha: 0.08)
 
+    // Profile screen tokens
+    let profileBackground = Color(hex: 0xFAFAF9)
+    let profileHeaderBackground = Color(hex: 0xFAFAF9, alpha: 0.8)
+    let profileName = Color(hex: 0x2C282B)
+    let profileUsername = Color(hex: 0x8A8387)
+    let profileBio = Color(hex: 0x2C282B)
+    let profileStatValue = Color(hex: 0x2C282B)
+    let profileStatLabel = Color(hex: 0x8A8387)
+    let profileStatDivider = Color(hex: 0xE8E3E1)
+    let profileSectionTitle = Color(hex: 0x2C282B)
+    let profileViewAll = Color(hex: 0x432C3A)
+
+    // Profile stat card tokens
+    let profileStatCardBackground = Color.white
+    let profileStatCardBorder = Color(hex: 0xE8E3E1)
+
+    // Stat card category colors
+    let profileStatTracked = Color(hex: 0x7896B2)
+    let profileStatTrackedBg = Color(hex: 0xD4DFE8, alpha: 0.3)
+    let profileStatReviews = Color(hex: 0xB58572)
+    let profileStatReviewsBg = Color(hex: 0xE4C7BA, alpha: 0.3)
+    let profileStatNooks = Color(hex: 0xB68B9F)
+    let profileStatNooksBg = Color(hex: 0xEAD6DF, alpha: 0.3)
+    let profileStatCommunities = Color(hex: 0x7C9E7B)
+    let profileStatCommunitiesBg = Color(hex: 0xD3E1D2, alpha: 0.3)
+
+    // Taste identity tag colors
+    let profileTagSciFi = Color(hex: 0x7896B2)
+    let profileTagSciFiBg = Color(hex: 0xD4DFE8, alpha: 0.3)
+    let profileTagSciFiBorder = Color(hex: 0xD4DFE8)
+    let profileTagRPGs = Color(hex: 0xB58572)
+    let profileTagRPGsBg = Color(hex: 0xE4C7BA, alpha: 0.3)
+    let profileTagRPGsBorder = Color(hex: 0xE4C7BA)
+    let profileTagFantasy = Color(hex: 0x7C9E7B)
+    let profileTagFantasyBg = Color(hex: 0xD3E1D2, alpha: 0.3)
+    let profileTagFantasyBorder = Color(hex: 0xD3E1D2)
+    let profileTagHorror = Color(hex: 0xB68B9F)
+    let profileTagHorrorBg = Color(hex: 0xEAD6DF, alpha: 0.3)
+    let profileTagHorrorBorder = Color(hex: 0xEAD6DF)
+    let profileTagCinema = Color(hex: 0x968A79)
+    let profileTagCinemaBg = Color(hex: 0xE8E2D9, alpha: 0.4)
+    let profileTagCinemaBorder = Color(hex: 0xE8E2D9)
+
+    // Profile segment control
+    let profileSegmentBackground = Color(hex: 0xF5F3F1)
+    let profileSegmentActive = Color(hex: 0xFAFAF9)
+    let profileSegmentActiveText = Color(hex: 0x2C282B)
+    let profileSegmentInactiveText = Color(hex: 0x8A8387)
+
+    // Recently active card tokens
+    let profileActivityCard = Color.white
+    let profileActivityCardBorder = Color(hex: 0xE8E3E1)
+    let profileActivityLabel = Color(hex: 0x8A8387)
+    let profileActivityTitle = Color(hex: 0x2C282B)
+    let profileActivityTagBg = Color(hex: 0xF5F3F1)
+    let profileActivityTagText = Color(hex: 0x2C282B)
+
+    // Profile avatar
+    let profileAvatarBorder = Color(hex: 0xFAFAF9)
+    let profileAvatarEditBg = Color(hex: 0x432C3A)
+
+    // Follow button
+    let profileFollowButton = Color(hex: 0x432C3A)
+    let profileFollowingButton = Color(hex: 0xF5F3F1)
+    let profileFollowingText = Color(hex: 0x2C282B)
+
+    // Settings tokens
+    let settingsBackground = Color(hex: 0xFDFBF9)
+    let settingsSectionBackground = Color.white
+    let settingsSectionBorder = Color(hex: 0xE8E5E1, alpha: 0.6)
+    let settingsRowLabel = Color(hex: 0x2C2826)
+    let settingsRowSubtitle = Color(hex: 0x827C77)
+    let settingsRowIcon = Color(hex: 0x462D3E)
+    let settingsRowIconBackground = Color(hex: 0x462D3E, alpha: 0.08)
+    let settingsDivider = Color(hex: 0xE8E5E1)
+    let settingsChevron = Color(hex: 0xB0A9A3)
+    let settingsHeaderLabel = Color(hex: 0x827C77)
+    let settingsDestructiveText = Color(hex: 0xE5484D)
+    let settingsDestructiveIcon = Color(hex: 0xE5484D)
+    let settingsDestructiveIconBg = Color(hex: 0xE5484D, alpha: 0.08)
+    let settingsToggleOn = Color(hex: 0x462D3E)
+
+    // Edit profile tokens
+    let editProfileFieldBackground = Color(hex: 0xF4F1EE)
+    let editProfileFieldBorder = Color(hex: 0xE8E5E1)
+    let editProfileFieldLabel = Color(hex: 0x827C77)
+    let editProfileFieldText = Color(hex: 0x2C2826)
+    let editProfileAvatarOverlay = Color(hex: 0x000000, alpha: 0.35)
+
+    // Stats page tokens
+    let statsBackground = Color(hex: 0xFAFAF9)
+    let statsHeaderBackground = Color(hex: 0xFAFAF9, alpha: 0.8)
+    let statsTitle = Color(hex: 0x2C282B)
+    let statsSubtitle = Color(hex: 0x8A8387)
+    let statsSectionTitle = Color(hex: 0x2C282B)
+
+    // Stats overview card
+    let statsOverviewCard = Color.white
+    let statsOverviewCardBorder = Color(hex: 0xE8E3E1)
+    let statsOverviewValue = Color(hex: 0x2C282B)
+    let statsOverviewLabel = Color(hex: 0x8A8387)
+    let statsOverviewDivider = Color(hex: 0xE8E3E1)
+
+    // Stats category breakdown
+    let statsAnime = Color(hex: 0xBA68C8)
+    let statsAnimeBg = Color(hex: 0xF3EBF5, alpha: 0.5)
+    let statsTvShow = Color(hex: 0x64B5F6)
+    let statsTvShowBg = Color(hex: 0xEEF2F5, alpha: 0.5)
+    let statsBook = Color(hex: 0xD4A373)
+    let statsBookBg = Color(hex: 0xF5F1EB, alpha: 0.5)
+    let statsGame = Color(hex: 0xFFA726)
+    let statsGameBg = Color(hex: 0xFFF3E0, alpha: 0.5)
+    let statsMovie = Color(hex: 0xE57373)
+    let statsMovieBg = Color(hex: 0xFDECEC, alpha: 0.5)
+    let statsManga = Color(hex: 0x66BB6A)
+    let statsMangaBg = Color(hex: 0xE8F5E9, alpha: 0.5)
+
+    // Stats streak & milestone
+    let statsStreakFire = Color(hex: 0xE8712A)
+    let statsStreakFireBg = Color(hex: 0xFDECE1, alpha: 0.6)
+    let statsMilestoneGold = Color(hex: 0xD4A029)
+    let statsMilestoneGoldBg = Color(hex: 0xFDF5E1, alpha: 0.5)
+
+    // Stats progress bar
+    let statsProgressTrack = Color(hex: 0xF0EBE8)
+    let statsProgressFill = Color(hex: 0x462D3E)
+
+    // Stats rating distribution
+    let statsRatingBar = Color(hex: 0xDF8E63, alpha: 0.25)
+    let statsRatingBarFill = Color(hex: 0xDF8E63)
+    let statsRatingLabel = Color(hex: 0x8A8387)
+
+    // Stats genre tag
+    let statsGenreTag = Color(hex: 0xF5F3F1)
+    let statsGenreTagText = Color(hex: 0x2C282B)
+    let statsGenreTagBorder = Color(hex: 0xE8E3E1)
+
     // Tab bar tokens from Figma
     let tabBarBackground = Color(hex: 0xFAF8F6)
     let tabBarBorder = Color(hex: 0xE8E2DF)

@@ -106,7 +106,7 @@ struct SearchView: View {
     @State private var selectedFilter: SearchMediaCategory? = nil
     @State private var recentSearches: [SearchResultItem] = SearchView.mockRecentSearches
     @State private var searchResults: [SearchResultItem] = []
-    @State private var userInterests: [SearchMediaCategory] = []
+    @State private var userInterests: [SearchMediaCategory] = SearchMediaCategory.allCases
     @State private var searchState: SearchState = .idle
     @State private var searchTask: Task<Void, Never>?
     @State private var trackingItemID: UUID?
@@ -210,14 +210,12 @@ struct SearchView: View {
             if !recentSearches.isEmpty {
                 sectionHeader("RECENT SEARCHES")
 
-                ForEach(Array(displayedResults.enumerated()), id: \.element.id) { index, item in
-                    SearchResultRow(item: item) {
-                        openTrackingSheet(for: item)
-                    }
-                    .padding(.horizontal, 24)
-
-                    if index < displayedResults.count - 1 {
-                        Spacer().frame(height: 24)
+                LazyVStack(spacing: 24) {
+                    ForEach(displayedResults) { item in
+                        SearchResultRow(item: item) {
+                            openTrackingSheet(for: item)
+                        }
+                        .padding(.horizontal, 24)
                     }
                 }
             } else {
@@ -253,15 +251,13 @@ struct SearchView: View {
                 Spacer()
             }
 
-            ForEach(Array(results.enumerated()), id: \.element.id) { index, item in
-                SearchResultRow(item: item) {
-                    openTrackingSheet(for: item)
-                }
-                .padding(.horizontal, 24)
-                .transition(.opacity.combined(with: .move(edge: .bottom)))
-
-                if index < results.count - 1 {
-                    Spacer().frame(height: 24)
+            LazyVStack(spacing: 24) {
+                ForEach(results) { item in
+                    SearchResultRow(item: item) {
+                        openTrackingSheet(for: item)
+                    }
+                    .padding(.horizontal, 24)
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
                 }
             }
         }
@@ -488,12 +484,15 @@ struct SearchView: View {
                 .value
 
             if let interests = row.interests {
-                userInterests = SearchMediaCategory.allCases.filter {
+                let filtered = SearchMediaCategory.allCases.filter {
                     interests.contains($0.rawValue)
+                }
+                if !filtered.isEmpty {
+                    userInterests = filtered
                 }
             }
         } catch {
-            userInterests = SearchMediaCategory.allCases
+            // Keep the default (all categories)
         }
     }
 }
