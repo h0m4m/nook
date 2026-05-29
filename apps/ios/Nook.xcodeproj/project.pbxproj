@@ -37,6 +37,7 @@
 		C0NT1NU3TRK1234567890AB01 /* ContinueTrackingSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0NT1NU3TRK1234567890AB02 /* ContinueTrackingSection.swift */; };
 		TR3ND1NGR3V1234567890AB01 /* TrendingReviewsSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = TR3ND1NGR3V1234567890AB02 /* TrendingReviewsSection.swift */; };
 		P0PUL4RN00K1234567890AB01 /* PopularNooksSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = P0PUL4RN00K1234567890AB02 /* PopularNooksSection.swift */; };
+		ACT1V1TYFD1234567890AB01 /* ActivityFeedSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACT1V1TYFD1234567890AB02 /* ActivityFeedSection.swift */; };
 		EBCA79A9A49144D5A443A16B /* SearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 454CB4C34D7941B1AEDE361B /* SearchView.swift */; };
 		BEC6B7B185EF6DF92AD6BC51 /* NookDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7C606984A2F158496A5A281 /* NookDetailView.swift */; };
 		979677449BC14377E1F2FE90 /* CreateNookSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1C82AEE04D614B9BDA0C827 /* CreateNookSheet.swift */; };
@@ -49,6 +50,8 @@
 		1NV1T3MMBR123456789AB01 /* InviteMemberView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1NV1T3MMBR123456789AB02 /* InviteMemberView.swift */; };
 		FAB39E1984C0432BB85F931D /* PlusJakartaSans-Italic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = A4B7743F9C3F4A9DA5DE4D00 /* PlusJakartaSans-Italic.ttf */; };
 		MED1AD3TA1L123456789AB01 /* MediaDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = MED1AD3TA1L123456789AB02 /* MediaDetailView.swift */; };
+		N0T1F1CAT10NS12345678AB01 /* NotificationsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = N0T1F1CAT10NS12345678AB02 /* NotificationsView.swift */; };
+		PR0F1L3M3NU123456789AB01 /* ProfileMenuView.swift in Sources */ = {isa = PBXBuildFile; fileRef = PR0F1L3M3NU123456789AB02 /* ProfileMenuView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -82,6 +85,7 @@
 		C0NT1NU3TRK1234567890AB02 /* ContinueTrackingSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContinueTrackingSection.swift; sourceTree = "<group>"; };
 		TR3ND1NGR3V1234567890AB02 /* TrendingReviewsSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrendingReviewsSection.swift; sourceTree = "<group>"; };
 		P0PUL4RN00K1234567890AB02 /* PopularNooksSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PopularNooksSection.swift; sourceTree = "<group>"; };
+		ACT1V1TYFD1234567890AB02 /* ActivityFeedSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivityFeedSection.swift; sourceTree = "<group>"; };
 		454CB4C34D7941B1AEDE361B /* SearchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchView.swift; sourceTree = "<group>"; };
 		D1C82AEE04D614B9BDA0C827 /* CreateNookSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateNookSheet.swift; sourceTree = "<group>"; };
 		A7C606984A2F158496A5A281 /* NookDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NookDetailView.swift; sourceTree = "<group>"; };
@@ -94,6 +98,8 @@
 		1NV1T3MMBR123456789AB02 /* InviteMemberView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InviteMemberView.swift; sourceTree = "<group>"; };
 		A4B7743F9C3F4A9DA5DE4D00 /* PlusJakartaSans-Italic.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "PlusJakartaSans-Italic.ttf"; sourceTree = "<group>"; };
 		MED1AD3TA1L123456789AB02 /* MediaDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaDetailView.swift; sourceTree = "<group>"; };
+		N0T1F1CAT10NS12345678AB02 /* NotificationsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationsView.swift; sourceTree = "<group>"; };
+		PR0F1L3M3NU123456789AB02 /* ProfileMenuView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileMenuView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -144,6 +150,8 @@
 				E19059905881406DA047C1BF /* Library */,
 				C0MMUN1T1ESGRP123456AB01 /* Communities */,
 				MED1AD3TA1LGRP123456AB01 /* MediaDetail */,
+				N0T1F1CAT10NSGRP123456AB01 /* Notifications */,
+				PR0F1L3GRP1234567890AB01 /* Profile */,
 				R3V13WSGRP1234567890AB01 /* Reviews */,
 			);
 			path = Views;
@@ -152,6 +160,7 @@
 		H0M3GRP1ABC123456789AB01 /* Home */ = {
 			isa = PBXGroup;
 			children = (
+				ACT1V1TYFD1234567890AB02 /* ActivityFeedSection.swift */,
 				C0NT1NU3TRK1234567890AB02 /* ContinueTrackingSection.swift */,
 				H0M3HDR1ABC123456789AB02 /* HomeHeaderView.swift */,
 				H0M3V13WABC123456789AB02 /* HomeView.swift */,
@@ -278,6 +287,22 @@
 			path = Reviews;
 			sourceTree = "<group>";
 		};
+		N0T1F1CAT10NSGRP123456AB01 /* Notifications */ = {
+			isa = PBXGroup;
+			children = (
+				N0T1F1CAT10NS12345678AB02 /* NotificationsView.swift */,
+			);
+			path = Notifications;
+			sourceTree = "<group>";
+		};
+		PR0F1L3GRP1234567890AB01 /* Profile */ = {
+			isa = PBXGroup;
+			children = (
+				PR0F1L3M3NU123456789AB02 /* ProfileMenuView.swift */,
+			);
+			path = Profile;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -370,6 +395,7 @@
 				C0NT1NU3TRK1234567890AB01 /* ContinueTrackingSection.swift in Sources */,
 				TR3ND1NGR3V1234567890AB01 /* TrendingReviewsSection.swift in Sources */,
 				P0PUL4RN00K1234567890AB01 /* PopularNooksSection.swift in Sources */,
+				ACT1V1TYFD1234567890AB01 /* ActivityFeedSection.swift in Sources */,
 				DDF31DFAC904631728E8BE97 /* IntroView.swift in Sources */,
 				F2A3B4C5D6E7F8A9B0C1D2E3 /* MainTabView.swift in Sources */,
 				CCB0999F746FC1447FA54DD5 /* NookApp.swift in Sources */,
@@ -394,6 +420,8 @@
 				1NV1T3MMBR123456789AB01 /* InviteMemberView.swift in Sources */,
 				MED1AD3TA1L123456789AB01 /* MediaDetailView.swift in Sources */,
 				R3V13WD3TA1L123456789AB01 /* ReviewDetailView.swift in Sources */,
+				N0T1F1CAT10NS12345678AB01 /* NotificationsView.swift in Sources */,
+				PR0F1L3M3NU123456789AB01 /* ProfileMenuView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

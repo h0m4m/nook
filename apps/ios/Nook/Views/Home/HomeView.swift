@@ -3,11 +3,17 @@ import SwiftUI
 
 struct HomeView: View {
     @State private var avatarURL: URL?
+    var onAvatarTapped: () -> Void = {}
+    var onNotificationsTapped: () -> Void = {}
 
     var body: some View {
         scrollContent
             .background(Color.nook.background)
-            .modifier(HomeTopBar(avatarURL: avatarURL))
+            .modifier(HomeTopBar(
+                avatarURL: avatarURL,
+                onAvatarTapped: onAvatarTapped,
+                onNotificationsTapped: onNotificationsTapped
+            ))
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .task {
                 await loadUserProfile()
@@ -19,6 +25,9 @@ struct HomeView: View {
             VStack(spacing: 0) {
                 ContinueTrackingSection(items: ContinueTrackingSection.mockItems)
                     .padding(.top, 8)
+
+                ActivityFeedSection(items: ActivityFeedSection.mockItems)
+                    .padding(.top, 32)
 
                 TrendingReviewsSection(items: TrendingReviewsSection.mockItems)
                     .padding(.top, 32)
@@ -44,20 +53,30 @@ struct HomeView: View {
 
 private struct HomeTopBar: ViewModifier {
     let avatarURL: URL?
+    var onAvatarTapped: () -> Void = {}
+    var onNotificationsTapped: () -> Void = {}
 
     func body(content: Content) -> some View {
         if #available(iOS 26, *) {
             content.safeAreaBar(edge: .top, spacing: 0) {
-                HomeHeaderView(avatarURL: avatarURL)
-                    .padding(.top, 4)
-                    .padding(.bottom, 8)
+                HomeHeaderView(
+                    avatarURL: avatarURL,
+                    onAvatarTapped: onAvatarTapped,
+                    onNotificationsTapped: onNotificationsTapped
+                )
+                .padding(.top, 4)
+                .padding(.bottom, 8)
             }
         } else {
             content.safeAreaInset(edge: .top, spacing: 0) {
-                HomeHeaderView(avatarURL: avatarURL)
-                    .background(Color.nook.background)
-                    .padding(.top, 4)
-                    .padding(.bottom, 8)
+                HomeHeaderView(
+                    avatarURL: avatarURL,
+                    onAvatarTapped: onAvatarTapped,
+                    onNotificationsTapped: onNotificationsTapped
+                )
+                .background(Color.nook.background)
+                .padding(.top, 4)
+                .padding(.bottom, 8)
             }
         }
     }

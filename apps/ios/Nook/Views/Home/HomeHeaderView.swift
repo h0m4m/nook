@@ -2,6 +2,8 @@ import SwiftUI
 
 struct HomeHeaderView: View {
     let avatarURL: URL?
+    var onAvatarTapped: () -> Void = {}
+    var onNotificationsTapped: () -> Void = {}
 
     var body: some View {
         HStack {
@@ -15,22 +17,25 @@ struct HomeHeaderView: View {
     // MARK: - Avatar
 
     private var avatar: some View {
-        AsyncImage(url: avatarURL) { phase in
-            switch phase {
-            case .success(let image):
-                image
-                    .resizable()
-                    .scaledToFill()
-            default:
-                Color.nook.secondary
+        Button(action: onAvatarTapped) {
+            AsyncImage(url: avatarURL) { phase in
+                switch phase {
+                case .success(let image):
+                    image
+                        .resizable()
+                        .scaledToFill()
+                default:
+                    Color.nook.secondary
+                }
+            }
+            .frame(width: 34, height: 34)
+            .clipShape(Circle())
+            .overlay {
+                Circle()
+                    .stroke(Color.nook.headerAvatarBorder, lineWidth: 1)
             }
         }
-        .frame(width: 34, height: 34)
-        .clipShape(Circle())
-        .overlay {
-            Circle()
-                .stroke(Color.nook.headerAvatarBorder, lineWidth: 1)
-        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Notification Button
@@ -46,9 +51,7 @@ struct HomeHeaderView: View {
 
     @available(iOS 26, *)
     private var glassNotificationButton: some View {
-        Button {
-            // TODO: Notifications
-        } label: {
+        Button(action: onNotificationsTapped) {
             Image("bell-fill")
                 .renderingMode(.template)
                 .resizable()
@@ -62,9 +65,7 @@ struct HomeHeaderView: View {
     }
 
     private var classicNotificationButton: some View {
-        Button {
-            // TODO: Notifications
-        } label: {
+        Button(action: onNotificationsTapped) {
             Circle()
                 .fill(Color.nook.headerIconBackground)
                 .frame(width: 34, height: 34)

@@ -42,6 +42,8 @@ struct MainTabView: View {
     @State private var isFabMenuOpen = false
     @State private var showTrackMediaSheet = false
     @State private var showCreateNookSheet = false
+    @State private var showNotifications = false
+    @State private var showProfileMenu = false
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -49,7 +51,14 @@ struct MainTabView: View {
                 Group {
                     switch selectedTab {
                     case .home:
-                        HomeView()
+                        HomeView(
+                            onAvatarTapped: {
+                                showProfileMenu = true
+                            },
+                            onNotificationsTapped: {
+                                showNotifications = true
+                            }
+                        )
                     case .search:
                         SearchView()
                     case .library:
@@ -73,6 +82,9 @@ struct MainTabView: View {
                 }
                 .navigationDestination(for: NookItem.self) { nook in
                     NookDetailView(nook: nook)
+                }
+                .navigationDestination(isPresented: $showNotifications) {
+                    NotificationsView()
                 }
             }
 
@@ -109,6 +121,12 @@ struct MainTabView: View {
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
                 .presentationBackground(Color.nook.searchBackground)
+        }
+        .sheet(isPresented: $showProfileMenu) {
+            ProfileMenuView(router: router)
+                .presentationDetents([.large])
+                .presentationDragIndicator(.hidden)
+                .presentationBackground(Color.nook.profileMenuBackground)
         }
     }
 
@@ -187,12 +205,12 @@ private struct LiquidGlassBottomBar: View {
 
     private var fabMenuContent: some View {
         HStack(spacing: 10) {
-            fabMenuItem(icon: "star-fall", label: "Create Nook") {
+            fabMenuItem(icon: "grid-four-bold", label: "Create Nook") {
                 closeFabMenu()
                 onCreateNook()
             }
 
-            fabMenuItem(icon: "bookmark-simple", label: "Track Media") {
+            fabMenuItem(icon: "bookmark-simple-bold", label: "Track Media") {
                 closeFabMenu()
                 onTrackMedia()
             }
@@ -337,12 +355,12 @@ private struct ClassicBottomBar: View {
 
     private var fabMenuContent: some View {
         HStack(spacing: 10) {
-            fabMenuItem(icon: "star-fall", label: "Create Nook") {
+            fabMenuItem(icon: "grid-four-bold", label: "Create Nook") {
                 closeFabMenu()
                 onCreateNook()
             }
 
-            fabMenuItem(icon: "bookmark-simple", label: "Track Media") {
+            fabMenuItem(icon: "bookmark-simple-bold", label: "Track Media") {
                 closeFabMenu()
                 onTrackMedia()
             }

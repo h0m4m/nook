@@ -136,6 +136,33 @@ struct NookColors {
     let clubDetailPollBar = Color(hex: 0xF4F1EE)
     let clubDetailPollBarFill = Color(hex: 0x362A31, alpha: 0.15)
 
+    // Notification tokens
+    let notificationBackground = Color(hex: 0xFDFBF9)
+    let notificationTitle = Color(hex: 0x2C2826)
+    let notificationBody = Color(hex: 0x827C77)
+    let notificationTimestamp = Color(hex: 0xB0A9A3)
+    let notificationSectionHeader = Color(hex: 0x7C7176)
+    let notificationDivider = Color(hex: 0xE8E5E1)
+
+    // Activity feed tokens
+    let activityCardBorder = Color(hex: 0xE8E5E1, alpha: 0.5)
+    let activityClubName = Color(hex: 0x462D3E)
+
+    // Profile menu tokens
+    let profileMenuBackground = Color(hex: 0xFDFBF9)
+    let profileMenuSectionBackground = Color.white
+    let profileMenuSectionBorder = Color(hex: 0xE8E5E1, alpha: 0.6)
+    let profileMenuName = Color(hex: 0x2C2826)
+    let profileMenuEmail = Color(hex: 0x827C77)
+    let profileMenuRowLabel = Color(hex: 0x2C2826)
+    let profileMenuRowIcon = Color(hex: 0x462D3E)
+    let profileMenuRowIconBackground = Color(hex: 0x462D3E, alpha: 0.08)
+    let profileMenuDivider = Color(hex: 0xE8E5E1)
+    let profileMenuChevron = Color(hex: 0xB0A9A3)
+    let profileMenuLogoutText = Color(hex: 0xE5484D)
+    let profileMenuLogoutIcon = Color(hex: 0xE5484D)
+    let profileMenuLogoutIconBackground = Color(hex: 0xE5484D, alpha: 0.08)
+
     // Tab bar tokens from Figma
     let tabBarBackground = Color(hex: 0xFAF8F6)
     let tabBarBorder = Color(hex: 0xE8E2DF)
