@@ -336,48 +336,37 @@ struct NookDetailView: View {
     }
 
     private func nookMediaCard(_ item: NookMediaItem) -> some View {
-        let isExpanded = expandedNoteID == item.id
+        let isFlipped = expandedNoteID == item.id
         let hasNote = item.note != nil
 
         return VStack(alignment: .leading, spacing: 6) {
-            // Poster
-            GeometryReader { geo in
-                Group {
-                    if let color = item.placeholderColor {
-                        color
-                    } else {
-                        Image(item.imageName)
-                            .resizable()
-                            .scaledToFill()
-                            .frame(width: geo.size.width, height: geo.size.height)
-                            .clipped()
-                    }
-                }
-                .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 20, style: .continuous)
-                        .strokeBorder(Color(hex: 0xE6E2E0), lineWidth: 1)
-                )
-                // Note indicator
-                .overlay(alignment: .bottomTrailing) {
-                    if hasNote {
-                        Image("notes")
-                            .renderingMode(.template)
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(width: 14, height: 14)
-                            .foregroundStyle(.white)
-                            .frame(width: 30, height: 30)
-                            .background(.black.opacity(0.35), in: Circle())
-                            .padding(10)
-                    }
+            // Flippable card
+            ZStack {
+                // Front — poster
+                cardFront(item: item, hasNote: hasNote)
+                    .opacity(isFlipped ? 0 : 1)
+                    .rotation3DEffect(
+                        .degrees(isFlipped ? 180 : 0),
+                        axis: (x: 0, y: 1, z: 0),
+                        perspective: 0.4
+                    )
+
+                // Back — note
+                if let note = item.note {
+                    cardBack(item: item, note: note)
+                        .opacity(isFlipped ? 1 : 0)
+                        .rotation3DEffect(
+                            .degrees(isFlipped ? 0 : -180),
+                            axis: (x: 0, y: 1, z: 0),
+                            perspective: 0.4
+                        )
                 }
             }
             .aspectRatio(2.0 / 3.0, contentMode: .fit)
             .onTapGesture {
                 guard hasNote else { return }
-                withAnimation(.easeOut(duration: 0.25)) {
-                    expandedNoteID = isExpanded ? nil : item.id
+                withAnimation(.spring(duration: 0.5, bounce: 0.15)) {
+                    expandedNoteID = isFlipped ? nil : item.id
                 }
             }
 
@@ -387,17 +376,83 @@ struct NookDetailView: View {
                 .foregroundStyle(Color.nook.detailTitle)
                 .lineLimit(1)
                 .padding(.horizontal, 2)
+        }
+    }
 
-            // Expanded note
-            if isExpanded, let note = item.note {
-                Text(note)
-                    .font(NookFont.caption)
-                    .foregroundStyle(Color.nook.detailMeta)
-                    .lineSpacing(3)
-                    .padding(.horizontal, 2)
-                    .transition(.opacity.combined(with: .move(edge: .top)))
+    private func cardFront(item: NookMediaItem, hasNote: Bool) -> some View {
+        GeometryReader { geo in
+            Group {
+                if let color = item.placeholderColor {
+                    color
+                } else {
+                    Image(item.imageName)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: geo.size.width, height: geo.size.height)
+                        .clipped()
+                }
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .strokeBorder(Color(hex: 0xE6E2E0), lineWidth: 1)
+            )
+            .overlay(alignment: .bottomTrailing) {
+                if hasNote {
+                    Image("notes")
+                        .renderingMode(.template)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 14, height: 14)
+                        .foregroundStyle(.white)
+                        .frame(width: 28, height: 28)
+                        .background(.black.opacity(0.35), in: Circle())
+                        .padding(10)
+                }
             }
         }
+    }
+
+    private func cardBack(item: NookMediaItem, note: String) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Curator's note header
+            HStack(spacing: 6) {
+                Image("pencil-line")
+                    .renderingMode(.template)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 14, height: 14)
+                    .foregroundStyle(Color(hex: 0x43313D))
+
+                Text("Note")
+                    .font(NookFont.captionBold)
+                    .foregroundStyle(Color(hex: 0x43313D))
+            }
+            .padding(.bottom, 10)
+
+            // Note text
+            Text(note)
+                .font(NookFont.caption)
+                .foregroundStyle(Color(hex: 0x44403C))
+                .lineSpacing(4)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            Spacer(minLength: 0)
+
+            // Tap hint
+            Text("Tap to flip back")
+                .font(.custom("PlusJakartaSans-Medium", size: 9))
+                .foregroundStyle(Color(hex: 0x78716C).opacity(0.6))
+                .frame(maxWidth: .infinity, alignment: .center)
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(hex: 0xF5F1EC))
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .strokeBorder(Color(hex: 0xE6E2E0), lineWidth: 1)
+        )
     }
 
     // MARK: - Comments
