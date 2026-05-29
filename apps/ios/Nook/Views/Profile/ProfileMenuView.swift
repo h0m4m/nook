@@ -13,6 +13,7 @@ struct ProfileMenuView: View {
     @State private var showMyProfile = false
     @State private var showSettings = false
     @State private var showEditProfile = false
+    @State private var showCreateClub = false
 
     var body: some View {
         NavigationStack {
@@ -179,6 +180,17 @@ struct ProfileMenuView: View {
             ) {
                 showStats = true
             }
+
+            rowDivider
+
+            menuRow(
+                icon: "users-three-bold",
+                label: "Create Club",
+                iconColor: Color.nook.profileMenuRowIcon,
+                iconBackground: Color.nook.profileMenuRowIconBackground
+            ) {
+                showCreateClub = true
+            }
         }
         .background(Color.nook.profileMenuSectionBackground)
         .clipShape(RoundedRectangle(cornerRadius: NookRadii.sm))
@@ -205,6 +217,13 @@ struct ProfileMenuView: View {
                 .presentationDetents([.large])
                 .presentationDragIndicator(.hidden)
                 .presentationBackground(Color.nook.settingsBackground)
+        }
+        .sheet(isPresented: $showCreateClub) {
+            CreateClubSheet()
+                .presentationDetents([.large])
+                .presentationDragIndicator(.hidden)
+                .presentationBackground(Color.nook.createClubBackground)
+                .interactiveDismissDisabled()
         }
     }
 

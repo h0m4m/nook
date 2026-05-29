@@ -42,6 +42,39 @@ enum ClubCategory: CaseIterable, Identifiable {
         case .games: Color.nook.badgeGameText
         }
     }
+
+    var iconName: String {
+        switch self {
+        case .movies: "reel"
+        case .tvShows: "videocamera-record"
+        case .anime: "star-fall"
+        case .manga: "notes"
+        case .books: "book"
+        case .games: "gamepad"
+        }
+    }
+
+    var iconColor: Color {
+        switch self {
+        case .movies: Color(hex: 0x968A79)
+        case .tvShows: Color(hex: 0x7896B2)
+        case .anime: Color(hex: 0xB68B9F)
+        case .manga: Color(hex: 0x7C9E7B)
+        case .books: Color(hex: 0x968A79)
+        case .games: Color(hex: 0xB58572)
+        }
+    }
+
+    var iconBackgroundColor: Color {
+        switch self {
+        case .movies: Color(hex: 0xE8E2D9, alpha: 0.4)
+        case .tvShows: Color(hex: 0xD4DFE8, alpha: 0.3)
+        case .anime: Color(hex: 0xEAD6DF, alpha: 0.3)
+        case .manga: Color(hex: 0xD3E1D2, alpha: 0.3)
+        case .books: Color(hex: 0xE8E2D9, alpha: 0.4)
+        case .games: Color(hex: 0xE4C7BA, alpha: 0.3)
+        }
+    }
 }
 
 // MARK: - Club Model

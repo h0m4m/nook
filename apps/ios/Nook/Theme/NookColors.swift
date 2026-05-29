@@ -136,6 +136,18 @@ struct NookColors {
     let clubDetailPollBar = Color(hex: 0xF4F1EE)
     let clubDetailPollBarFill = Color(hex: 0x362A31, alpha: 0.15)
 
+    // Create club tokens
+    let createClubBackground = Color(hex: 0xFDFBF9)
+    let createClubTitle = Color(hex: 0x1C1918)
+    let createClubMeta = Color(hex: 0x78716C)
+    let createClubButton = Color(hex: 0x43313D)
+    let createClubBorder = Color(hex: 0xE6E2E0)
+    let createClubFieldBackground = Color(hex: 0xF2EFEE)
+    let createClubWarningBackground = Color(hex: 0xFFFBEB)
+    let createClubWarningBorder = Color(hex: 0xFDE68A)
+    let createClubWarningIcon = Color(hex: 0xD97706)
+    let createClubWarningText = Color(hex: 0x92400E)
+
     // Notification tokens
     let notificationBackground = Color(hex: 0xFDFBF9)
     let notificationTitle = Color(hex: 0x2C2826)

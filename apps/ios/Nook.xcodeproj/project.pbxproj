@@ -48,6 +48,7 @@
 		P0STD3TA1L123456789AB01 /* PostDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = P0STD3TA1L123456789AB02 /* PostDetailView.swift */; };
 		C0MP0SEP0ST123456789AB01 /* ComposePostView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0MP0SEP0ST123456789AB02 /* ComposePostView.swift */; };
 		1NV1T3MMBR123456789AB01 /* InviteMemberView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1NV1T3MMBR123456789AB02 /* InviteMemberView.swift */; };
+		CR3AT3CLUB123456789AB01 /* CreateClubSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = CR3AT3CLUB123456789AB02 /* CreateClubSheet.swift */; };
 		FAB39E1984C0432BB85F931D /* PlusJakartaSans-Italic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = A4B7743F9C3F4A9DA5DE4D00 /* PlusJakartaSans-Italic.ttf */; };
 		MED1AD3TA1L123456789AB01 /* MediaDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = MED1AD3TA1L123456789AB02 /* MediaDetailView.swift */; };
 		N0T1F1CAT10NS12345678AB01 /* NotificationsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = N0T1F1CAT10NS12345678AB02 /* NotificationsView.swift */; };
@@ -104,6 +105,7 @@
 		P0STD3TA1L123456789AB02 /* PostDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostDetailView.swift; sourceTree = "<group>"; };
 		C0MP0SEP0ST123456789AB02 /* ComposePostView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComposePostView.swift; sourceTree = "<group>"; };
 		1NV1T3MMBR123456789AB02 /* InviteMemberView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InviteMemberView.swift; sourceTree = "<group>"; };
+		CR3AT3CLUB123456789AB02 /* CreateClubSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateClubSheet.swift; sourceTree = "<group>"; };
 		A4B7743F9C3F4A9DA5DE4D00 /* PlusJakartaSans-Italic.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "PlusJakartaSans-Italic.ttf"; sourceTree = "<group>"; };
 		MED1AD3TA1L123456789AB02 /* MediaDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaDetailView.swift; sourceTree = "<group>"; };
 		N0T1F1CAT10NS12345678AB02 /* NotificationsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationsView.swift; sourceTree = "<group>"; };
@@ -285,6 +287,7 @@
 				P0STD3TA1L123456789AB02 /* PostDetailView.swift */,
 				C0MP0SEP0ST123456789AB02 /* ComposePostView.swift */,
 				1NV1T3MMBR123456789AB02 /* InviteMemberView.swift */,
+				CR3AT3CLUB123456789AB02 /* CreateClubSheet.swift */,
 			);
 			path = Communities;
 			sourceTree = "<group>";
@@ -450,6 +453,7 @@
 				P0STD3TA1L123456789AB01 /* PostDetailView.swift in Sources */,
 				C0MP0SEP0ST123456789AB01 /* ComposePostView.swift in Sources */,
 				1NV1T3MMBR123456789AB01 /* InviteMemberView.swift in Sources */,
+				CR3AT3CLUB123456789AB01 /* CreateClubSheet.swift in Sources */,
 				MED1AD3TA1L123456789AB01 /* MediaDetailView.swift in Sources */,
 				R3V13WD3TA1L123456789AB01 /* ReviewDetailView.swift in Sources */,
 				N0T1F1CAT10NS12345678AB01 /* NotificationsView.swift in Sources */,
