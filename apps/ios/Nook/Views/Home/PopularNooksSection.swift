@@ -2,18 +2,67 @@ import SwiftUI
 
 // MARK: - Data Model
 
-struct NookItem: Identifiable {
+struct NookItem: Identifiable, Hashable {
     let id = UUID()
     let title: String
+    let description: String
     let curatorName: String
     let imageName: String
     let placeholderColor: Color?
+    let likes: Int
+    let comments: Int
+    let mediaItems: [NookMediaItem]
+    let privacy: String
+    let layout: String
 
-    init(title: String, curatorName: String, imageName: String, placeholderColor: Color? = nil) {
+    init(
+        title: String,
+        description: String = "",
+        curatorName: String,
+        imageName: String,
+        placeholderColor: Color? = nil,
+        likes: Int = 0,
+        comments: Int = 0,
+        mediaItems: [NookMediaItem] = [],
+        privacy: String = "Public",
+        layout: String = "Grid"
+    ) {
         self.title = title
+        self.description = description
         self.curatorName = curatorName
         self.imageName = imageName
         self.placeholderColor = placeholderColor
+        self.likes = likes
+        self.comments = comments
+        self.mediaItems = mediaItems
+        self.privacy = privacy
+        self.layout = layout
+    }
+}
+
+struct NookMediaItem: Identifiable, Hashable {
+    let id = UUID()
+    let title: String
+    let category: String
+    let year: String
+    let imageName: String
+    let placeholderColor: Color?
+    let note: String?
+
+    init(
+        title: String,
+        category: String,
+        year: String,
+        imageName: String,
+        placeholderColor: Color? = nil,
+        note: String? = nil
+    ) {
+        self.title = title
+        self.category = category
+        self.year = year
+        self.imageName = imageName
+        self.placeholderColor = placeholderColor
+        self.note = note
     }
 }
 
@@ -57,7 +106,10 @@ struct PopularNooksSection: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 16) {
                 ForEach(items) { item in
-                    NookCard(item: item)
+                    NavigationLink(value: item) {
+                        NookCard(item: item)
+                    }
+                    .buttonStyle(.plain)
                 }
             }
             .padding(.horizontal, 24)
@@ -82,7 +134,8 @@ private struct NookCard: View {
                         .scaledToFill()
                 }
             }
-            .frame(width: 354, height: 192)
+            .frame(width: 354)
+            .aspectRatio(402.0 / 394.0, contentMode: .fill)
             .clipped()
 
             // Gradient overlay
@@ -127,7 +180,8 @@ private struct NookCard: View {
             }
             .padding(24)
         }
-        .frame(width: 354, height: 192)
+        .frame(width: 354)
+        .aspectRatio(402.0 / 394.0, contentMode: .fit)
         .clipShape(RoundedRectangle(cornerRadius: NookRadii.lg))
     }
 }
@@ -138,21 +192,46 @@ extension PopularNooksSection {
     static let mockItems: [NookItem] = [
         NookItem(
             title: "Books and films that feel like autumn",
+            description: "A cozy collection of stories that capture the warmth of golden leaves, warm drinks, and that quiet feeling of change. Perfect for rainy afternoons.",
             curatorName: "Sarah",
             imageName: "mock-autumn-nook",
-            placeholderColor: Color(hex: 0x5C3A1E)
+            placeholderColor: Color(hex: 0x5C3A1E),
+            likes: 234,
+            comments: 18,
+            mediaItems: [
+                NookMediaItem(title: "The Midnight Garden", category: "MOVIE", year: "2025", imageName: "mock-midnight-garden", placeholderColor: Color(hex: 0x2D4A3E), note: "The cinematography in this one is unreal"),
+                NookMediaItem(title: "Foundation's Edge", category: "BOOK", year: "1982", imageName: "mock-foundations-edge", placeholderColor: Color(hex: 0xD4A373), note: "Asimov at his most contemplative"),
+                NookMediaItem(title: "Frieren: Beyond Journey's End", category: "ANIME", year: "2023", imageName: "mock-frieren", placeholderColor: Color(hex: 0x9B8EC4)),
+                NookMediaItem(title: "Project Hail Mary", category: "BOOK", year: "2021", imageName: "mock-hail-mary", placeholderColor: Color(hex: 0x2C3E50), note: "This book made me cry on a plane"),
+                NookMediaItem(title: "The Cloud Weaver", category: "ANIME", year: "2024", imageName: "mock-cloud-weaver", placeholderColor: Color(hex: 0x87CEEB)),
+            ]
         ),
         NookItem(
             title: "Sci-fi worlds that feel lived in",
+            description: "Not the shiny utopias — the ones with rust and history. Worlds that feel like someone actually lives there.",
             curatorName: "James",
             imageName: "mock-scifi-nook",
-            placeholderColor: Color(hex: 0x1A2940)
+            placeholderColor: Color(hex: 0x1A2940),
+            likes: 189,
+            comments: 12,
+            mediaItems: [
+                NookMediaItem(title: "Astris", category: "MOVIE", year: "2023", imageName: "mock-astris", placeholderColor: Color(hex: 0x2C3E50)),
+                NookMediaItem(title: "Severance", category: "TV SHOW", year: "2022", imageName: "mock-severance", placeholderColor: Color(hex: 0x3B5998)),
+                NookMediaItem(title: "Dune: Part Three", category: "MOVIE", year: "2026", imageName: "mock-dune", placeholderColor: Color(hex: 0xC2A059)),
+            ]
         ),
         NookItem(
             title: "Stories that hit different at night",
+            description: "The kind of stories you stay up way too late for. Atmospheric, emotional, and impossible to put down.",
             curatorName: "Mia",
             imageName: "mock-night-nook",
-            placeholderColor: Color(hex: 0x2D1B4E)
+            placeholderColor: Color(hex: 0x2D1B4E),
+            likes: 156,
+            comments: 9,
+            mediaItems: [
+                NookMediaItem(title: "Dandadan", category: "ANIME", year: "2024", imageName: "mock-dandadan", placeholderColor: Color(hex: 0xE84393)),
+                NookMediaItem(title: "Chainsaw Man", category: "MANGA", year: "2018", imageName: "mock-chainsaw-man", placeholderColor: Color(hex: 0xD63031)),
+            ]
         ),
     ]
 }

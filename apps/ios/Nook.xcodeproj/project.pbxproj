@@ -38,6 +38,7 @@
 		TR3ND1NGR3V1234567890AB01 /* TrendingReviewsSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = TR3ND1NGR3V1234567890AB02 /* TrendingReviewsSection.swift */; };
 		P0PUL4RN00K1234567890AB01 /* PopularNooksSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = P0PUL4RN00K1234567890AB02 /* PopularNooksSection.swift */; };
 		EBCA79A9A49144D5A443A16B /* SearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 454CB4C34D7941B1AEDE361B /* SearchView.swift */; };
+		BEC6B7B185EF6DF92AD6BC51 /* NookDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7C606984A2F158496A5A281 /* NookDetailView.swift */; };
 		979677449BC14377E1F2FE90 /* CreateNookSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1C82AEE04D614B9BDA0C827 /* CreateNookSheet.swift */; };
 		62C7DDAA2D614FBF81CF7120 /* TrackMediaSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4D340F8349DB5CFE60D294F /* TrackMediaSheet.swift */; };
 		A27881B804224019B33F7B18 /* LibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D1662AB256F4B7192FEB135 /* LibraryView.swift */; };
@@ -83,6 +84,7 @@
 		P0PUL4RN00K1234567890AB02 /* PopularNooksSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PopularNooksSection.swift; sourceTree = "<group>"; };
 		454CB4C34D7941B1AEDE361B /* SearchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchView.swift; sourceTree = "<group>"; };
 		D1C82AEE04D614B9BDA0C827 /* CreateNookSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateNookSheet.swift; sourceTree = "<group>"; };
+		A7C606984A2F158496A5A281 /* NookDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NookDetailView.swift; sourceTree = "<group>"; };
 		C4D340F8349DB5CFE60D294F /* TrackMediaSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackMediaSheet.swift; sourceTree = "<group>"; };
 		8D1662AB256F4B7192FEB135 /* LibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryView.swift; sourceTree = "<group>"; };
 		C0MMUN1T1ES123456789AB02 /* CommunitiesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommunitiesView.swift; sourceTree = "<group>"; };
@@ -235,6 +237,7 @@
 			isa = PBXGroup;
 			children = (
 				D1C82AEE04D614B9BDA0C827 /* CreateNookSheet.swift */,
+				A7C606984A2F158496A5A281 /* NookDetailView.swift */,
 			);
 			path = Nooks;
 			sourceTree = "<group>";
@@ -381,6 +384,7 @@
 				4183747E99656D4952E06508 /* Supabase.swift in Sources */,
 				EBCA79A9A49144D5A443A16B /* SearchView.swift in Sources */,
 				979677449BC14377E1F2FE90 /* CreateNookSheet.swift in Sources */,
+				BEC6B7B185EF6DF92AD6BC51 /* NookDetailView.swift in Sources */,
 				62C7DDAA2D614FBF81CF7120 /* TrackMediaSheet.swift in Sources */,
 				A27881B804224019B33F7B18 /* LibraryView.swift in Sources */,
 				C0MMUN1T1ES123456789AB01 /* CommunitiesView.swift in Sources */,

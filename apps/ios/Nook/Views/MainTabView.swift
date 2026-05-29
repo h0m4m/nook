@@ -71,6 +71,9 @@ struct MainTabView: View {
                 .navigationDestination(for: ReviewItem.self) { review in
                     ReviewDetailView(review: review)
                 }
+                .navigationDestination(for: NookItem.self) { nook in
+                    NookDetailView(nook: nook)
+                }
             }
 
             if navPath.isEmpty {

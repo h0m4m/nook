@@ -142,16 +142,19 @@ struct CreateNookSheet: View {
         )
         .onChange(of: pickerSelection) { _, items in
             guard let item = items.first else { return }
-            Task {
-                if let data = try? await item.loadTransferable(type: Data.self),
-                   let uiImage = UIImage(data: data) {
-                    await MainActor.run {
-                        rawPickedImage = uiImage
+            pickerSelection = []
+            Task.detached {
+                guard let data = try? await item.loadTransferable(type: Data.self) else { return }
+                // Downsample to max 2000px wide to avoid UI freezes with huge photos
+                let downsized = Self.downsample(data: data, maxWidth: 2000)
+                await MainActor.run {
+                    rawPickedImage = downsized
+                    // Small delay so the picker dismissal animation completes first
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                         showCropSheet = true
                     }
                 }
             }
-            pickerSelection = []
         }
         .fullScreenCover(isPresented: $showCropSheet) {
             if let rawPickedImage {
@@ -226,14 +229,8 @@ struct CreateNookSheet: View {
                 if let coverImage {
                     Image(uiImage: coverImage)
                         .resizable()
-                        .scaledToFill()
-                        .frame(height: 170)
-                        .clipped()
+                        .scaledToFit()
                         .clipShape(RoundedRectangle(cornerRadius: coverRadius, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: coverRadius, style: .continuous)
-                                .fill(.black.opacity(0.1))
-                        )
                         .overlay(
                             RoundedRectangle(cornerRadius: coverRadius, style: .continuous)
                                 .strokeBorder(Color(hex: 0xE6E2E0), lineWidth: 1)
@@ -241,7 +238,7 @@ struct CreateNookSheet: View {
                 } else {
                     RoundedRectangle(cornerRadius: coverRadius, style: .continuous)
                         .fill(Color(hex: 0xF2EFEE).opacity(0.3))
-                        .frame(height: 170)
+                        .aspectRatio(402.0 / 394.0, contentMode: .fit)
                         .overlay(
                             RoundedRectangle(cornerRadius: coverRadius, style: .continuous)
                                 .strokeBorder(Color(hex: 0xE6E2E0), lineWidth: 1)
@@ -700,6 +697,23 @@ struct CreateNookSheet: View {
         .contentShape(Rectangle())
     }
 
+    // MARK: - Image Helpers
+
+    nonisolated private static func downsample(data: Data, maxWidth: CGFloat) -> UIImage? {
+        let options: [CFString: Any] = [
+            kCGImageSourceShouldCache: false,
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceThumbnailMaxPixelSize: maxWidth,
+        ]
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil),
+              let cgImage = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary)
+        else {
+            return UIImage(data: data)
+        }
+        return UIImage(cgImage: cgImage)
+    }
+
     // MARK: - Publish
 
     private func publishNook() {
@@ -809,7 +823,8 @@ private struct CoverCropView: View {
     @State private var lastOffset: CGSize = .zero
     @State private var viewSize: CGSize = .zero
 
-    private let cropAspect: CGFloat = 16.0 / 9.0
+    // Match the detail hero ratio (full width × 394pt on ~393pt screen)
+    private let cropAspect: CGFloat = 402.0 / 394.0
 
     private var cropWidth: CGFloat { max(1, viewSize.width - 48) }
     private var cropHeight: CGFloat { cropWidth / cropAspect }

@@ -298,7 +298,7 @@ private extension MediaDetailView {
 
             Spacer()
 
-            navButton(icon: "export-bold") {
+            navButton(icon: "export") {
                 // TODO: More options
             }
         }
