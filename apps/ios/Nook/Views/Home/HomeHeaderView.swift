@@ -2,6 +2,7 @@ import SwiftUI
 
 struct HomeHeaderView: View {
     let avatarURL: URL?
+    var notifBadgeCount: Int = 0
     var onAvatarTapped: () -> Void = {}
     var onNotificationsTapped: () -> Void = {}
 
@@ -64,6 +65,9 @@ struct HomeHeaderView: View {
         }
         .buttonStyle(.plain)
         .glassEffect(.regular.interactive(), in: .circle)
+        .overlay(alignment: .topTrailing) {
+            notifBadge
+        }
     }
 
     private var classicNotificationButton: some View {
@@ -85,6 +89,22 @@ struct HomeHeaderView: View {
                 }
         }
         .buttonStyle(.plain)
+        .overlay(alignment: .topTrailing) {
+            notifBadge
+        }
+    }
+
+    @ViewBuilder
+    private var notifBadge: some View {
+        if notifBadgeCount > 0 {
+            Text("\(notifBadgeCount)")
+                .font(.system(size: 10, weight: .bold))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 4)
+                .frame(minWidth: 16, minHeight: 16)
+                .background(Color.red, in: Capsule())
+                .offset(x: 4, y: -4)
+        }
     }
 }
 

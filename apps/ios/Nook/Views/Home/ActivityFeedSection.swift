@@ -43,6 +43,25 @@ struct ActivityFeedItem: Identifiable, Hashable {
         self.likes = likes
         self.comments = comments
     }
+
+    init(from entry: ActivityFeedEntry) {
+        self.userName = entry.userName
+        self.timeAgo = ""
+        self.likes = nil
+        self.comments = nil
+
+        let mediaTitle = entry.mediaTitle ?? "something"
+        switch entry.actionType {
+        case "tracked":
+            self.type = .started(mediaTitle: mediaTitle)
+        case "completed":
+            self.type = .completed(mediaTitle: mediaTitle)
+        case "reviewed":
+            self.type = .reviewed(mediaTitle: mediaTitle, rating: 0, excerpt: "")
+        default:
+            self.type = .started(mediaTitle: mediaTitle)
+        }
+    }
 }
 
 // MARK: - Section

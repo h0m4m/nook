@@ -5,8 +5,9 @@ import * as kitsu from '../_shared/providers/mal.ts';
 import * as openlibrary from '../_shared/providers/openlibrary.ts';
 import type { MediaDetail } from '../_shared/types.ts';
 
+const STALENESS_DAYS = 30;
+
 Deno.serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
@@ -26,6 +27,23 @@ Deno.serve(async (req) => {
       );
     }
 
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Check if we have a fresh cached version
+    const cached = await getCachedDetail(supabase, source, source_id);
+    if (cached) {
+      return new Response(JSON.stringify(cached), {
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json',
+          'Cache-Control': 'public, max-age=3600',
+        },
+      });
+    }
+
+    // Fetch from provider
     let detail: MediaDetail;
 
     switch (source) {
@@ -45,11 +63,7 @@ Deno.serve(async (req) => {
         });
     }
 
-    // Upsert into media_items using service role
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
+    // Upsert into media_items
     const { data: upserted, error: dbError } = await supabase
       .from('media_items')
       .upsert(
@@ -108,3 +122,53 @@ Deno.serve(async (req) => {
     );
   }
 });
+
+async function getCachedDetail(
+  supabase: ReturnType<typeof createClient>,
+  source: string,
+  sourceId: string,
+): Promise<Record<string, unknown> | null> {
+  try {
+    const { data, error } = await supabase
+      .from('media_items')
+      .select('*')
+      .eq('source', source)
+      .eq('source_id', sourceId)
+      .single();
+
+    if (error || !data) return null;
+
+    // Check staleness — if synopsis exists and updated within threshold, use cache
+    if (!data.synopsis || !data.details) return null;
+
+    const updatedAt = new Date(data.updated_at as string);
+    const ageMs = Date.now() - updatedAt.getTime();
+    const ageDays = ageMs / (1000 * 60 * 60 * 24);
+
+    if (ageDays > STALENESS_DAYS) return null;
+
+    // Reconstruct the detail response from cached data
+    return {
+      media_id: data.source_id,
+      source: data.source,
+      media_type: data.media_type,
+      source_url: '',
+      title: data.title,
+      image_url: data.image_url,
+      synopsis: data.synopsis,
+      genres: data.genres || [],
+      score: data.score,
+      score_count: data.score_count,
+      max_progress:
+        (data.details as Record<string, unknown>)?.episodes ??
+        (data.details as Record<string, unknown>)?.chapters ??
+        (data.details as Record<string, unknown>)?.pages ??
+        null,
+      details: data.details || {},
+      related: null,
+      db_id: data.id,
+    };
+  } catch {
+    return null;
+  }
+}

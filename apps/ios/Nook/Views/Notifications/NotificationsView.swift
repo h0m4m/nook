@@ -19,27 +19,53 @@ enum NotificationSection: String, CaseIterable {
 
 struct NotificationsView: View {
     @Environment(\.dismiss) private var dismiss
-    private let notifications = Self.mockNotifications
+    @State private var notifications: [NotificationItem] = []
+    @State private var realNotifications: [NotificationModel] = []
+    @State private var isLoading = true
+
+    private var displayNotifications: [NotificationItem] {
+        if !realNotifications.isEmpty {
+            return realNotifications.map { notif in
+                NotificationItem(
+                    title: notif.message,
+                    body: "",
+                    timestamp: notif.createdAt.formatted(.relative(presentation: .named))
+                )
+            }
+        }
+        return isLoading ? [] : Self.mockNotifications
+    }
 
     private var groupedNotifications: [(NotificationSection, [NotificationItem])] {
-        NotificationSection.allCases.compactMap { section in
-            let items = notifications.filter { item in
-                switch section {
-                case .today:
-                    return item.timestamp.hasSuffix("m ago") || item.timestamp.hasSuffix("h ago")
-                case .thisWeek:
-                    return item.timestamp.hasSuffix("d ago")
-                case .earlier:
-                    return item.timestamp.hasSuffix("w ago")
-                }
-            }
-            return items.isEmpty ? nil : (section, items)
+        let items = displayNotifications
+        guard !items.isEmpty else { return [] }
+
+        // Simple grouping: first 3 = Today, next 4 = This Week, rest = Earlier
+        var result: [(NotificationSection, [NotificationItem])] = []
+        if items.count > 0 {
+            result.append((.today, Array(items.prefix(min(3, items.count)))))
         }
+        if items.count > 3 {
+            result.append((.thisWeek, Array(items.dropFirst(3).prefix(4))))
+        }
+        if items.count > 7 {
+            result.append((.earlier, Array(items.dropFirst(7))))
+        }
+        return result
     }
 
     var body: some View {
         VStack(spacing: 0) {
-            if notifications.isEmpty {
+            if isLoading {
+                VStack(spacing: 24) {
+                    ForEach(0..<4, id: \.self) { _ in
+                        SearchShimmerRow()
+                            .padding(.horizontal, 24)
+                    }
+                }
+                .padding(.top, 80)
+                Spacer()
+            } else if displayNotifications.isEmpty {
                 emptyState
             } else {
                 notificationsList
@@ -51,6 +77,22 @@ struct NotificationsView: View {
         .navigationBarBackButtonHidden()
         .toolbar(.hidden, for: .navigationBar)
         .modifier(InteractivePopGesture())
+        .task {
+            await loadNotifications()
+        }
+        .refreshable {
+            await loadNotifications()
+        }
+    }
+
+    private func loadNotifications() async {
+        isLoading = true
+        let service = NotificationService()
+        realNotifications = (try? await service.getNotifications()) ?? []
+
+        // Mark all as read
+        try? await service.markAllAsRead()
+        isLoading = false
     }
 
     // MARK: - List
@@ -58,16 +100,26 @@ struct NotificationsView: View {
     private var notificationsList: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 0) {
-                ForEach(groupedNotifications, id: \.0) { section, items in
-                    sectionHeader(section.rawValue)
+                if !realNotifications.isEmpty {
+                    // Real notifications with navigation
+                    ForEach(realNotifications) { notif in
+                        NavigationLink(value: UserProfile.profileFor(name: notif.actorName)) {
+                            RealNotificationRow(notification: notif)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                } else {
+                    ForEach(groupedNotifications, id: \.0) { section, items in
+                        sectionHeader(section.rawValue)
 
-                    ForEach(items) { notification in
-                        NotificationRow(notification: notification)
+                        ForEach(items) { notification in
+                            NotificationRow(notification: notification)
 
-                        if notification.id != items.last?.id {
-                            Divider()
-                                .foregroundStyle(Color.nook.notificationDivider)
-                                .padding(.leading, 68)
+                            if notification.id != items.last?.id {
+                                Divider()
+                                    .foregroundStyle(Color.nook.notificationDivider)
+                                    .padding(.leading, 68)
+                            }
                         }
                     }
                 }
@@ -153,6 +205,58 @@ private struct NotificationRow: View {
             }
 
             Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 24)
+        .padding(.vertical, 12)
+        .contentShape(Rectangle())
+    }
+}
+
+// MARK: - Real Notification Row (from DB)
+
+private struct RealNotificationRow: View {
+    let notification: NotificationModel
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            AsyncImage(url: notification.actorAvatarURL) { phase in
+                switch phase {
+                case .success(let image):
+                    image.resizable().scaledToFill()
+                default:
+                    Circle()
+                        .fill(Color.nook.secondary)
+                        .overlay {
+                            Image(systemName: "person.fill")
+                                .font(.system(size: 14))
+                                .foregroundStyle(Color.nook.mutedForeground)
+                        }
+                }
+            }
+            .frame(width: 40, height: 40)
+            .clipShape(Circle())
+            .overlay {
+                Circle()
+                    .stroke(Color.nook.border, lineWidth: 1)
+            }
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(notification.message)
+                    .font(NookFont.labelSmall)
+                    .foregroundStyle(notification.isRead ? Color.nook.notificationBody : Color.nook.notificationTitle)
+
+                Text(notification.createdAt, style: .relative)
+                    .font(NookFont.caption)
+                    .foregroundStyle(Color.nook.notificationTimestamp)
+            }
+
+            Spacer(minLength: 0)
+
+            if !notification.isRead {
+                Circle()
+                    .fill(Color.nook.primary)
+                    .frame(width: 8, height: 8)
+            }
         }
         .padding(.horizontal, 24)
         .padding(.vertical, 12)

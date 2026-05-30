@@ -85,26 +85,95 @@ final class ProfileService: Sendable {
     }
 
     func follow(userId: UUID) async throws {
-        // TODO: Implement in Prompt 11
+        let currentUserId = try await supabase.auth.session.user.id
+
+        struct FollowInsert: Encodable {
+            let follower_id: String
+            let following_id: String
+        }
+
+        try await supabase
+            .from("user_follows")
+            .insert(FollowInsert(
+                follower_id: currentUserId.uuidString,
+                following_id: userId.uuidString
+            ))
+            .execute()
+
+        // Insert notification for the followed user
+        struct NotifInsert: Encodable {
+            let user_id: String
+            let actor_id: String
+            let type: String
+        }
+
+        try? await supabase
+            .from("notifications")
+            .insert(NotifInsert(
+                user_id: userId.uuidString,
+                actor_id: currentUserId.uuidString,
+                type: "follow"
+            ))
+            .execute()
     }
 
     func unfollow(userId: UUID) async throws {
-        // TODO: Implement in Prompt 11
+        let currentUserId = try await supabase.auth.session.user.id
+
+        try await supabase
+            .from("user_follows")
+            .delete()
+            .eq("follower_id", value: currentUserId.uuidString)
+            .eq("following_id", value: userId.uuidString)
+            .execute()
     }
 
     func isFollowing(userId: UUID) async throws -> Bool {
-        // TODO: Implement in Prompt 11
-        return false
+        let currentUserId = try await supabase.auth.session.user.id
+
+        struct Row: Decodable {
+            let follower_id: UUID
+        }
+
+        let rows: [Row] = try await supabase
+            .from("user_follows")
+            .select("follower_id")
+            .eq("follower_id", value: currentUserId.uuidString)
+            .eq("following_id", value: userId.uuidString)
+            .execute()
+            .value
+
+        return !rows.isEmpty
     }
 
     func getFollowerCount(userId: UUID) async throws -> Int {
-        // TODO: Implement in Prompt 11
-        return 0
+        struct Row: Decodable {
+            let following_id: UUID
+        }
+
+        let rows: [Row] = try await supabase
+            .from("user_follows")
+            .select("following_id")
+            .eq("following_id", value: userId.uuidString)
+            .execute()
+            .value
+
+        return rows.count
     }
 
     func getFollowingCount(userId: UUID) async throws -> Int {
-        // TODO: Implement in Prompt 11
-        return 0
+        struct Row: Decodable {
+            let follower_id: UUID
+        }
+
+        let rows: [Row] = try await supabase
+            .from("user_follows")
+            .select("follower_id")
+            .eq("follower_id", value: userId.uuidString)
+            .execute()
+            .value
+
+        return rows.count
     }
 }
 

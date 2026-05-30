@@ -6,6 +6,8 @@ struct HomeView: View {
     @State private var popularNooks: [NookItem] = []
     @State private var trendingReviews: [ReviewItem] = []
     @State private var continueTracking: [TrackingItem] = []
+    @State private var activityFeed: [ActivityFeedItem] = []
+    @State private var unreadNotifCount: Int = 0
     var onAvatarTapped: () -> Void = {}
     var onNotificationsTapped: () -> Void = {}
 
@@ -14,6 +16,7 @@ struct HomeView: View {
             .background(Color.nook.background)
             .modifier(HomeTopBar(
                 avatarURL: avatarURL,
+                notifBadgeCount: unreadNotifCount,
                 onAvatarTapped: onAvatarTapped,
                 onNotificationsTapped: onNotificationsTapped
             ))
@@ -21,8 +24,18 @@ struct HomeView: View {
             .task {
                 await loadUserProfile()
                 await loadContinueTracking()
+                await loadActivityFeed()
                 await loadTrendingReviews()
                 await loadPopularNooks()
+                await loadUnreadCount()
+            }
+            .refreshable {
+                await loadUserProfile()
+                await loadContinueTracking()
+                await loadActivityFeed()
+                await loadTrendingReviews()
+                await loadPopularNooks()
+                await loadUnreadCount()
             }
     }
 
@@ -32,7 +45,7 @@ struct HomeView: View {
                 ContinueTrackingSection(items: continueTracking.isEmpty ? ContinueTrackingSection.mockItems : continueTracking)
                     .padding(.top, 8)
 
-                ActivityFeedSection(items: ActivityFeedSection.mockItems)
+                ActivityFeedSection(items: activityFeed.isEmpty ? ActivityFeedSection.mockItems : activityFeed)
                     .padding(.top, 32)
 
                 TrendingReviewsSection(items: trendingReviews.isEmpty ? TrendingReviewsSection.mockItems : trendingReviews)
@@ -59,6 +72,18 @@ struct HomeView: View {
         if let urlString = user.userMetadata["avatar_url"]?.stringValue {
             avatarURL = URL(string: urlString)
         }
+    }
+
+    private func loadActivityFeed() async {
+        let feedService = ActivityFeedService()
+        if let entries = try? await feedService.getFeed() {
+            activityFeed = entries.map { ActivityFeedItem(from: $0) }
+        }
+    }
+
+    private func loadUnreadCount() async {
+        let notifService = NotificationService()
+        unreadNotifCount = (try? await notifService.getUnreadCount()) ?? 0
     }
 
     private func loadContinueTracking() async {
@@ -89,6 +114,7 @@ struct HomeView: View {
 
 private struct HomeTopBar: ViewModifier {
     let avatarURL: URL?
+    var notifBadgeCount: Int = 0
     var onAvatarTapped: () -> Void = {}
     var onNotificationsTapped: () -> Void = {}
 
@@ -97,6 +123,7 @@ private struct HomeTopBar: ViewModifier {
             content.safeAreaBar(edge: .top, spacing: 0) {
                 HomeHeaderView(
                     avatarURL: avatarURL,
+                    notifBadgeCount: notifBadgeCount,
                     onAvatarTapped: onAvatarTapped,
                     onNotificationsTapped: onNotificationsTapped
                 )
@@ -107,6 +134,7 @@ private struct HomeTopBar: ViewModifier {
             content.safeAreaInset(edge: .top, spacing: 0) {
                 HomeHeaderView(
                     avatarURL: avatarURL,
+                    notifBadgeCount: notifBadgeCount,
                     onAvatarTapped: onAvatarTapped,
                     onNotificationsTapped: onNotificationsTapped
                 )

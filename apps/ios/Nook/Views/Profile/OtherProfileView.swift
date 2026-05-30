@@ -5,6 +5,8 @@ struct OtherProfileView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var selectedTab: ProfileTab = .tracked
     @State private var isFollowing = false
+    @State private var followerCount: Int = 0
+    @State private var followingCount: Int = 0
 
     var body: some View {
         ZStack(alignment: .top) {
@@ -33,6 +35,17 @@ struct OtherProfileView: View {
         .navigationBarBackButtonHidden()
         .toolbar(.hidden, for: .navigationBar)
         .modifier(InteractivePopGesture())
+        .task {
+            await loadFollowState()
+        }
+    }
+
+    private func loadFollowState() async {
+        guard let userId = UUID(uuidString: profile.id) else { return }
+        let profileService = ProfileService()
+        isFollowing = (try? await profileService.isFollowing(userId: userId)) ?? false
+        followerCount = (try? await profileService.getFollowerCount(userId: userId)) ?? profile.followersCount
+        followingCount = (try? await profileService.getFollowingCount(userId: userId)) ?? profile.followingCount
     }
 
     // MARK: - Navigation Buttons (MediaDetail-style overlay)
@@ -143,7 +156,7 @@ struct OtherProfileView: View {
     private var followerCountsView: some View {
         HStack(spacing: 0) {
             VStack(spacing: 0) {
-                Text(formatCount(profile.followersCount))
+                Text(formatCount(followerCount))
                     .font(NookFont.outfitFollowerCount)
                     .foregroundStyle(Color.nook.profileStatValue)
                 Text("Followers")
@@ -157,7 +170,7 @@ struct OtherProfileView: View {
                 .padding(.horizontal, 16)
 
             VStack(spacing: 0) {
-                Text("\(profile.followingCount)")
+                Text("\(followingCount)")
                     .font(NookFont.outfitFollowerCount)
                     .foregroundStyle(Color.nook.profileStatValue)
                 Text("Following")
@@ -177,8 +190,21 @@ struct OtherProfileView: View {
 
     private var followButton: some View {
         Button {
+            let wasFollowing = isFollowing
             withAnimation(.spring(duration: 0.3, bounce: 0.2)) {
                 isFollowing.toggle()
+                followerCount += wasFollowing ? -1 : 1
+            }
+
+            if let userId = UUID(uuidString: profile.id) {
+                Task {
+                    let profileService = ProfileService()
+                    if wasFollowing {
+                        try? await profileService.unfollow(userId: userId)
+                    } else {
+                        try? await profileService.follow(userId: userId)
+                    }
+                }
             }
         } label: {
             HStack(spacing: 8) {

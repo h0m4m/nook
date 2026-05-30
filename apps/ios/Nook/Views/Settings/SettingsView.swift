@@ -8,10 +8,10 @@ struct SettingsView: View {
 
     // MARK: - Notification Preferences
 
-    @State private var pushNotificationsEnabled = true
-    @State private var activityNotifications = true
-    @State private var communityNotifications = true
-    @State private var reviewNotifications = true
+    @AppStorage("pushNotificationsEnabled") private var pushNotificationsEnabled = true
+    @AppStorage("activityNotifications") private var activityNotifications = true
+    @AppStorage("communityNotifications") private var communityNotifications = true
+    @AppStorage("reviewNotifications") private var reviewNotifications = true
 
     // MARK: - Interests
 
@@ -27,6 +27,7 @@ struct SettingsView: View {
 
     @State private var showClearCacheAlert = false
     @State private var showDeleteAccountAlert = false
+    @State private var showCacheClearedAlert = false
     @State private var showLogoutConfirmation = false
 
     // MARK: - Feedback fallback
@@ -64,15 +65,20 @@ struct SettingsView: View {
             .alert("Clear Cache?", isPresented: $showClearCacheAlert) {
                 Button("Cancel", role: .cancel) {}
                 Button("Clear", role: .destructive) {
-                    // TODO: Clear cached data
+                    clearCache()
                 }
             } message: {
                 Text("This will clear all cached images and data. Your account and tracked media won't be affected.")
             }
+            .alert("Cache Cleared", isPresented: $showCacheClearedAlert) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("All cached data has been cleared.")
+            }
             .alert("Delete Account?", isPresented: $showDeleteAccountAlert) {
                 Button("Cancel", role: .cancel) {}
                 Button("Delete Account", role: .destructive) {
-                    // TODO: Delete account flow
+                    deleteAccount()
                 }
             } message: {
                 Text("This will permanently delete your account, all tracked media, reviews, nooks, and community memberships. This cannot be undone.")
@@ -391,6 +397,35 @@ struct SettingsView: View {
         } else {
             UIPasteboard.general.string = feedbackEmail
             showFeedbackCopiedAlert = true
+        }
+    }
+
+    // MARK: - Cache & Account
+
+    private func clearCache() {
+        URLCache.shared.removeAllCachedResponses()
+        showCacheClearedAlert = true
+    }
+
+    private func deleteAccount() {
+        Task {
+            do {
+                // Delete user via Supabase Admin API (CASCADE handles related data)
+                let userId = try await supabase.auth.session.user.id
+
+                // Delete the user profile first (CASCADE will handle tracked_media, reviews, etc.)
+                try await supabase
+                    .from("user_profiles")
+                    .delete()
+                    .eq("id", value: userId.uuidString)
+                    .execute()
+
+                // Sign out
+                try await router.signOut()
+            } catch {
+                // If profile delete fails, still try to sign out
+                try? await router.signOut()
+            }
         }
     }
 

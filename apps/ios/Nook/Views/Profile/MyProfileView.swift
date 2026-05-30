@@ -40,6 +40,7 @@ struct MyProfileView: View {
                 .presentationBackground(Color.nook.profileBackground)
         }
         .task { await loadProfile() }
+        .refreshable { await loadProfile() }
     }
 
     // MARK: - Navigation Buttons (MediaDetail-style overlay)

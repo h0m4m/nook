@@ -3,10 +3,9 @@ import { corsHeaders } from '../_shared/cors.ts';
 import * as thetvdb from '../_shared/providers/tmdb.ts';
 import * as kitsu from '../_shared/providers/mal.ts';
 import * as openlibrary from '../_shared/providers/openlibrary.ts';
-import type { SearchResult } from '../_shared/types.ts';
+import type { SearchResult, SearchResponse } from '../_shared/types.ts';
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
@@ -21,7 +20,20 @@ Deno.serve(async (req) => {
       });
     }
 
-    let result;
+    // DB-first search: check media_items cache for matches
+    const cached = await searchCachedMedia(query, media_type, page);
+    if (cached && cached.results.length >= 10) {
+      return new Response(JSON.stringify(cached), {
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json',
+          'Cache-Control': 'public, max-age=300',
+        },
+      });
+    }
+
+    // Fall through to provider
+    let result: SearchResponse;
 
     switch (media_type) {
       case 'movie':
@@ -67,6 +79,50 @@ Deno.serve(async (req) => {
     );
   }
 });
+
+async function searchCachedMedia(
+  query: string,
+  mediaType: string,
+  page: number,
+): Promise<SearchResponse | null> {
+  try {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    const limit = 24;
+    const offset = (page - 1) * limit;
+
+    const { data, error } = await supabase
+      .from('media_items')
+      .select('source, source_id, media_type, title, image_url, year, score')
+      .eq('media_type', mediaType)
+      .ilike('title', `%${query}%`)
+      .order('score', { ascending: false, nullsFirst: false })
+      .range(offset, offset + limit - 1);
+
+    if (error || !data || data.length === 0) return null;
+
+    const results: SearchResult[] = data.map((row: Record<string, unknown>) => ({
+      media_id: row.source_id as string,
+      source: row.source as string,
+      media_type: row.media_type as string,
+      title: row.title as string,
+      image_url: (row.image_url as string) || null,
+      year: (row.year as string) || null,
+      score: (row.score as number) || null,
+    }));
+
+    return {
+      results,
+      page,
+      total_pages: results.length === limit ? page + 1 : page,
+      per_page: limit,
+    };
+  } catch {
+    return null;
+  }
+}
 
 async function cacheSearchResults(results: SearchResult[]): Promise<void> {
   if (!results || results.length === 0) return;
