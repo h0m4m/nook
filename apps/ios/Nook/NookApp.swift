@@ -8,7 +8,7 @@ struct NookApp: App {
     var body: some Scene {
         WindowGroup {
             RootView()
-                .preferredColorScheme(appColorScheme.colorScheme)
+                .preferredColorScheme(.light)
                 .onOpenURL { url in
                     GIDSignIn.sharedInstance.handle(url)
                     supabase.handle(url)

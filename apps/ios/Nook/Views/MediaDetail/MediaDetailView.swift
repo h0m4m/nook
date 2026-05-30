@@ -20,6 +20,7 @@ struct MediaDetail: Identifiable, Hashable {
     let rating: Double
     let ratingCount: String
     let imageName: String
+    let imageURL: URL?
     let placeholderColor: Color?
     let synopsis: String
     let studio: String
@@ -40,6 +41,7 @@ struct MediaDetail: Identifiable, Hashable {
         rating: Double,
         ratingCount: String,
         imageName: String,
+        imageURL: URL? = nil,
         placeholderColor: Color? = nil,
         synopsis: String,
         studio: String,
@@ -59,6 +61,7 @@ struct MediaDetail: Identifiable, Hashable {
         self.rating = rating
         self.ratingCount = ratingCount
         self.imageName = imageName
+        self.imageURL = imageURL
         self.placeholderColor = placeholderColor
         self.synopsis = synopsis
         self.studio = studio
@@ -70,6 +73,7 @@ struct MediaDetail: Identifiable, Hashable {
         self.trackingStatus = trackingStatus
         self.reviews = reviews
     }
+
 
     var progress: Double {
         guard totalEpisodes > 0 else { return 0 }
@@ -175,11 +179,18 @@ struct MediaDetailView: View {
         .modifier(InteractivePopGesture())
         .modifier(SoftDetailScrollEdge())
         .task {
-            let name = media.imageName
-            let color = await Task.detached {
-                Self.extractDominantColor(from: name)
-            }.value
-            dominantColor = color
+            if let url = media.imageURL {
+                let color = await Task.detached {
+                    await Self.extractDominantColor(fromURL: url)
+                }.value
+                dominantColor = color
+            } else if !media.imageName.isEmpty {
+                let name = media.imageName
+                let color = await Task.detached {
+                    Self.extractDominantColor(from: name)
+                }.value
+                dominantColor = color
+            }
         }
         .sheet(isPresented: $showTrackingSheet) {
             TrackingSheetView(
@@ -214,11 +225,20 @@ struct MediaDetailView: View {
         dominantColor ?? media.placeholderColor ?? Color.nook.foreground
     }
 
+    nonisolated static func extractDominantColor(fromURL url: URL) async -> Color? {
+        guard let (data, _) = try? await URLSession.shared.data(from: url),
+              let uiImage = UIImage(data: data),
+              let cgImage = uiImage.cgImage else { return nil }
+        return extractDominantColorFromCGImage(cgImage)
+    }
+
     nonisolated static func extractDominantColor(from imageName: String) -> Color? {
         guard let uiImage = UIImage(named: imageName),
               let cgImage = uiImage.cgImage else { return nil }
+        return extractDominantColorFromCGImage(cgImage)
+    }
 
-        // Sample from the top strip of the image for overscroll matching
+    nonisolated static func extractDominantColorFromCGImage(_ cgImage: CGImage) -> Color? {
         let width = cgImage.width
         let sampleHeight = min(cgImage.height / 4, 80)
 
@@ -273,12 +293,27 @@ private extension MediaDetailView {
 
     var heroImage: some View {
         Group {
-            if let color = media.placeholderColor {
+            if let url = media.imageURL {
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image.resizable().scaledToFill()
+                    case .failure:
+                        (media.placeholderColor ?? Color.nook.foreground)
+                    case .empty:
+                        (media.placeholderColor ?? Color.nook.foreground)
+                    @unknown default:
+                        (media.placeholderColor ?? Color.nook.foreground)
+                    }
+                }
+            } else if let color = media.placeholderColor {
                 color
-            } else {
+            } else if !media.imageName.isEmpty {
                 Image(media.imageName)
                     .resizable()
                     .scaledToFill()
+            } else {
+                Color.nook.foreground
             }
         }
         .frame(maxWidth: .infinity)
@@ -1519,16 +1554,24 @@ struct ReviewSheetView: View {
     private var mediaCard: some View {
         HStack(spacing: 13) {
             Group {
-                if let color = media.placeholderColor {
+                if let url = media.imageURL {
+                    MediaPosterImage(url: url, width: 64, height: 90)
+                } else if let color = media.placeholderColor {
                     color
-                } else {
+                        .frame(width: 64, height: 90)
+                        .clipShape(RoundedRectangle(cornerRadius: 17.78, style: .continuous))
+                } else if !media.imageName.isEmpty {
                     Image(media.imageName)
                         .resizable()
                         .scaledToFill()
+                        .frame(width: 64, height: 90)
+                        .clipShape(RoundedRectangle(cornerRadius: 17.78, style: .continuous))
+                } else {
+                    Color.nook.searchShimmerBase
+                        .frame(width: 64, height: 90)
+                        .clipShape(RoundedRectangle(cornerRadius: 17.78, style: .continuous))
                 }
             }
-            .frame(width: 64, height: 90)
-            .clipShape(RoundedRectangle(cornerRadius: 17.78, style: .continuous))
             .shadow(color: .black.opacity(0.1), radius: 1.5, y: 0.5)
 
             VStack(alignment: .leading, spacing: 0) {

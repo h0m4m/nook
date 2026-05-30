@@ -2,12 +2,8 @@ import SwiftUI
 
 struct TrackMediaSheet: View {
     @Environment(\.dismiss) private var dismiss
-    @State private var searchText = ""
-    @State private var selectedFilter: SearchMediaCategory? = nil
-    @State private var searchResults: [SearchResultItem] = []
-    @State private var searchState: SearchState = .idle
-    @State private var searchTask: Task<Void, Never>?
-    @State private var selectedItem: SearchResultItem?
+    @State private var viewModel = SearchViewModel()
+    @State private var selectedItem: MediaSearchResult?
     @State private var userInterests: [SearchMediaCategory] = []
     @FocusState private var isSearchFocused: Bool
 
@@ -17,19 +13,6 @@ struct TrackMediaSheet: View {
     @State private var sheetScore: Int?
     @State private var sheetIsTracking = false
     @State private var sheetIsRated = false
-
-    private var displayedResults: [SearchResultItem] {
-        let source: [SearchResultItem] = switch searchState {
-        case .idle: SearchView.mockAllMedia
-        case .results: searchResults
-        case .loading, .noResults: []
-        }
-
-        if let filter = selectedFilter {
-            return source.filter { $0.category == filter }
-        }
-        return source
-    }
 
     var body: some View {
         NavigationStack {
@@ -59,7 +42,7 @@ struct TrackMediaSheet: View {
                 .navigationDestination(item: $selectedItem) { item in
                     TrackingSheetView(
                         mediaTitle: item.title,
-                        totalEpisodes: item.totalEpisodes,
+                        totalEpisodes: 0,
                         selectedStatus: $sheetStatus,
                         currentEpisode: $sheetEpisode,
                         userScore: $sheetScore,
@@ -69,12 +52,12 @@ struct TrackMediaSheet: View {
                     .toolbar(.hidden, for: .navigationBar)
                 }
         }
-        .onChange(of: searchText) { _, newValue in
-            handleSearchTextChange(newValue)
+        .onChange(of: viewModel.searchText) { _, _ in
+            viewModel.search()
         }
-        .onChange(of: selectedFilter) { _, _ in
-            if !searchText.isEmpty {
-                handleSearchTextChange(searchText)
+        .onChange(of: viewModel.selectedFilter) { _, _ in
+            if !viewModel.searchText.isEmpty {
+                viewModel.search()
             }
         }
         .onChange(of: sheetIsTracking) { old, new in
@@ -96,7 +79,7 @@ struct TrackMediaSheet: View {
                 VStack(alignment: .leading, spacing: 0) {
                     filterChips
 
-                    switch searchState {
+                    switch viewModel.searchState {
                     case .idle:
                         idleContent
                     case .loading:
@@ -126,7 +109,7 @@ struct TrackMediaSheet: View {
 
             TextField(
                 searchPlaceholder,
-                text: $searchText,
+                text: $viewModel.searchText,
                 prompt: Text(searchPlaceholder)
                     .font(NookFont.labelMediumSmall)
                     .foregroundStyle(Color.nook.searchBarPlaceholder)
@@ -135,9 +118,9 @@ struct TrackMediaSheet: View {
             .foregroundStyle(Color.nook.searchBarText)
             .focused($isSearchFocused)
 
-            if !searchText.isEmpty {
+            if !viewModel.searchText.isEmpty {
                 Button {
-                    searchText = ""
+                    viewModel.searchText = ""
                 } label: {
                     Image(systemName: "xmark.circle.fill")
                         .font(.system(size: 16))
@@ -155,10 +138,10 @@ struct TrackMediaSheet: View {
     }
 
     private var searchPlaceholder: String {
-        if let filter = selectedFilter {
+        if let filter = viewModel.selectedFilter {
             "Search \(filter.label)..."
         } else {
-            "Search movies, books, games..."
+            "Search movies, books, anime..."
         }
     }
 
@@ -167,20 +150,14 @@ struct TrackMediaSheet: View {
     private var filterChips: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
-                filterChip(label: "All", isSelected: selectedFilter == nil) {
-                    withAnimation(.easeOut(duration: 0.2)) {
-                        selectedFilter = nil
-                    }
-                }
-
                 ForEach(userInterests) { category in
                     filterChip(
                         label: category.label,
                         dotColor: category.dotColor,
-                        isSelected: selectedFilter == category
+                        isSelected: viewModel.selectedFilter == category
                     ) {
                         withAnimation(.easeOut(duration: 0.2)) {
-                            selectedFilter = category
+                            viewModel.selectedFilter = category
                         }
                     }
                 }
@@ -253,18 +230,11 @@ struct TrackMediaSheet: View {
     // MARK: - Content States
 
     private var idleContent: some View {
-        Group {
-            sectionHeader("BROWSE")
-
-            ForEach(Array(displayedResults.enumerated()), id: \.element.id) { index, item in
-                mediaRow(item)
-                    .padding(.horizontal, 24)
-
-                if index < displayedResults.count - 1 {
-                    Spacer().frame(height: 24)
-                }
-            }
-        }
+        SearchEmptyState(
+            icon: "magnifying-glass-bold",
+            title: "Search to track",
+            subtitle: "Find movies, shows, anime, books, and manga to track"
+        )
     }
 
     private var loadingContent: some View {
@@ -279,7 +249,7 @@ struct TrackMediaSheet: View {
 
     private var resultsContent: some View {
         Group {
-            let results = displayedResults
+            let results = viewModel.results
 
             HStack(spacing: 0) {
                 sectionHeader("\(results.count) RESULT\(results.count == 1 ? "" : "S")")
@@ -290,6 +260,11 @@ struct TrackMediaSheet: View {
                 mediaRow(item)
                     .padding(.horizontal, 24)
                     .transition(.opacity.combined(with: .move(edge: .bottom)))
+                    .onAppear {
+                        if item.id == results.last?.id {
+                            viewModel.loadNextPage()
+                        }
+                    }
 
                 if index < results.count - 1 {
                     Spacer().frame(height: 24)
@@ -302,50 +277,49 @@ struct TrackMediaSheet: View {
         SearchEmptyState(
             icon: "magnifying-glass-bold",
             title: "No results found",
-            subtitle: selectedFilter != nil
-                ? "Try removing the \(selectedFilter!.label) filter or searching for something else"
+            subtitle: viewModel.selectedFilter != nil
+                ? "Try removing the \(viewModel.selectedFilter!.label) filter or searching for something else"
                 : "Try a different search term"
         )
     }
 
     // MARK: - Media Row (tappable, no action button)
 
-    private func mediaRow(_ item: SearchResultItem) -> some View {
-        Button {
+    private func mediaRow(_ item: MediaSearchResult) -> some View {
+        let category = SearchMediaCategory.from(apiMediaType: item.mediaType)
+
+        return Button {
             openTracking(for: item)
         } label: {
             HStack(spacing: 16) {
-                // Poster
-                Group {
-                    if let color = item.placeholderColor {
-                        color
-                    } else {
-                        Image(item.imageName)
-                            .resizable()
-                            .scaledToFill()
-                    }
-                }
-                .frame(width: 64, height: 80)
-                .clipShape(RoundedRectangle(cornerRadius: 17.78, style: .continuous))
+                MediaPosterImage(
+                    url: item.imageURL,
+                    width: 64,
+                    height: 80,
+                    fallbackColor: category?.dotColor.opacity(0.3) ?? Color.nook.searchShimmerBase
+                )
                 .shadow(color: .black.opacity(0.1), radius: 1.5, x: 0, y: 1)
                 .shadow(color: .black.opacity(0.1), radius: 1, x: 0, y: -0.5)
 
-                // Info
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(alignment: .center, spacing: 4) {
-                        Text(item.category.uppercaseLabel)
-                            .font(NookFont.tabLabel)
-                            .tracking(0.5)
-                            .foregroundStyle(item.category.dotColor)
+                        if let cat = category {
+                            Text(cat.uppercaseLabel)
+                                .font(NookFont.tabLabel)
+                                .tracking(0.5)
+                                .foregroundStyle(cat.dotColor)
+                        }
 
-                        Circle()
-                            .fill(Color.nook.searchSectionLabel)
-                            .frame(width: 3, height: 3)
+                        if item.year != nil {
+                            Circle()
+                                .fill(Color.nook.searchSectionLabel)
+                                .frame(width: 3, height: 3)
 
-                        Text(item.year)
-                            .font(NookFont.tabLabel)
-                            .tracking(0.5)
-                            .foregroundStyle(Color.nook.searchSectionLabel)
+                            Text(item.year ?? "")
+                                .font(NookFont.tabLabel)
+                                .tracking(0.5)
+                                .foregroundStyle(Color.nook.searchSectionLabel)
+                        }
                     }
 
                     Text(item.title)
@@ -353,28 +327,24 @@ struct TrackMediaSheet: View {
                         .foregroundStyle(Color.nook.searchBarText)
                         .lineLimit(1)
 
-                    HStack(spacing: 6) {
-                        Image("star-fill")
-                            .renderingMode(.template)
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(width: 12, height: 12)
-                            .foregroundStyle(Color.nook.reviewRating)
+                    if let score = item.score {
+                        HStack(spacing: 6) {
+                            Image("star-fill")
+                                .renderingMode(.template)
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(width: 12, height: 12)
+                                .foregroundStyle(Color.nook.reviewRating)
 
-                        Text(String(format: "%.1f", item.rating))
-                            .font(NookFont.captionBold)
-                            .foregroundStyle(Color.nook.reviewRating)
-
-                        Text(item.genres)
-                            .font(NookFont.caption.italic())
-                            .foregroundStyle(Color.nook.searchSectionLabel)
-                            .lineLimit(1)
+                            Text(String(format: "%.1f", score))
+                                .font(NookFont.captionBold)
+                                .foregroundStyle(Color.nook.reviewRating)
+                        }
                     }
                 }
 
                 Spacer(minLength: 8)
 
-                // Chevron
                 Image("caret-left-bold")
                     .renderingMode(.template)
                     .resizable()
@@ -402,65 +372,18 @@ struct TrackMediaSheet: View {
 
     // MARK: - Tracking
 
-    private func openTracking(for item: SearchResultItem) {
+    private func openTracking(for item: MediaSearchResult) {
         let generator = UIImpactFeedbackGenerator(style: .light)
         generator.prepare()
 
-        sheetStatus = item.selectedStatus
-        sheetEpisode = item.currentEpisode
-        sheetScore = item.userScore
-        sheetIsTracking = item.isTracked
-        sheetIsRated = item.userScore != nil
+        sheetStatus = nil
+        sheetEpisode = 0
+        sheetScore = nil
+        sheetIsTracking = false
+        sheetIsRated = false
         selectedItem = item
 
         generator.impactOccurred()
-    }
-
-    // MARK: - Search Logic
-
-    private func handleSearchTextChange(_ text: String) {
-        searchTask?.cancel()
-
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-
-        if trimmed.isEmpty {
-            withAnimation(.easeOut(duration: 0.2)) {
-                searchState = .idle
-                searchResults = []
-            }
-            return
-        }
-
-        withAnimation(.easeOut(duration: 0.15)) {
-            searchState = .loading
-        }
-
-        searchTask = Task {
-            try? await Task.sleep(for: .milliseconds(400))
-            guard !Task.isCancelled else { return }
-            await performSearch(query: trimmed)
-        }
-    }
-
-    private func performSearch(query: String) async {
-        let allMock = SearchView.mockAllMedia
-        let lowerQuery = query.lowercased()
-
-        let matched = allMock.filter { item in
-            item.title.lowercased().contains(lowerQuery)
-                || item.genres.lowercased().contains(lowerQuery)
-                || item.category.label.lowercased().contains(lowerQuery)
-        }
-
-        try? await Task.sleep(for: .milliseconds(300))
-        guard !Task.isCancelled else { return }
-
-        await MainActor.run {
-            withAnimation(.easeOut(duration: 0.25)) {
-                searchResults = matched
-                searchState = matched.isEmpty ? .noResults : .results
-            }
-        }
     }
 
     private func loadUserInterests() async {
@@ -485,8 +408,14 @@ struct TrackMediaSheet: View {
                     interests.contains($0.rawValue)
                 }
             }
+            if viewModel.selectedFilter == nil {
+                viewModel.selectedFilter = userInterests.first ?? .movies
+            }
         } catch {
             userInterests = SearchMediaCategory.allCases
+            if viewModel.selectedFilter == nil {
+                viewModel.selectedFilter = userInterests.first ?? .movies
+            }
         }
     }
 }

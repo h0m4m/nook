@@ -13,10 +13,6 @@ struct SettingsView: View {
     @State private var communityNotifications = true
     @State private var reviewNotifications = true
 
-    // MARK: - Appearance
-
-    @AppStorage("appColorScheme") private var appColorScheme: AppColorScheme = .system
-
     // MARK: - Interests
 
     @State private var showEditInterests = false
@@ -24,7 +20,6 @@ struct SettingsView: View {
     // MARK: - Sheets
 
     @State private var showNotificationsSheet = false
-    @State private var showAppearanceSheet = false
     @State private var showAboutSheet = false
     @State private var showMailCompose = false
 
@@ -108,12 +103,6 @@ struct SettingsView: View {
             .presentationDetents([.medium])
             .presentationDragIndicator(.visible)
             .presentationBackground(Color.nook.settingsBackground)
-        }
-        .sheet(isPresented: $showAppearanceSheet) {
-            AppearancePreferencesSheet(colorScheme: $appColorScheme)
-                .presentationDetents([.height(360)])
-                .presentationDragIndicator(.visible)
-                .presentationBackground(Color.nook.settingsBackground)
         }
         .sheet(isPresented: $showEditInterests) {
             EditInterestsSheet()
@@ -219,16 +208,6 @@ struct SettingsView: View {
             sectionHeader("PREFERENCES")
 
             settingsCard {
-                settingsRow(
-                    icon: "paint-brush-household",
-                    label: "Appearance",
-                    subtitle: appColorScheme.label
-                ) {
-                    showAppearanceSheet = true
-                }
-
-                settingsDivider
-
                 settingsRow(
                     icon: "sparkle",
                     label: "Interests",
@@ -640,86 +619,6 @@ private struct NotificationPreferencesSheet: View {
             .frame(height: 1)
             .padding(.leading, 66)
             .padding(.trailing, 16)
-    }
-}
-
-// MARK: - Appearance Preferences Sheet
-
-private struct AppearancePreferencesSheet: View {
-    @Binding var colorScheme: AppColorScheme
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        VStack(spacing: 0) {
-            Text("Appearance")
-                .font(NookFont.labelBold)
-                .foregroundStyle(Color.nook.settingsRowLabel)
-                .padding(.top, 20)
-                .padding(.bottom, 20)
-
-            VStack(spacing: 0) {
-                ForEach(Array(AppColorScheme.allCases.enumerated()), id: \.offset) { index, option in
-                    Button {
-                        colorScheme = option
-                        dismiss()
-                    } label: {
-                        HStack(spacing: 12) {
-                            Image(option.icon)
-                                .renderingMode(.template)
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .frame(width: 18, height: 18)
-                                .foregroundStyle(Color.nook.settingsRowIcon)
-                                .frame(width: 36, height: 36)
-                                .background(
-                                    Color.nook.settingsRowIconBackground,
-                                    in: RoundedRectangle(cornerRadius: NookRadii.xs)
-                                )
-
-                            VStack(alignment: .leading, spacing: 1) {
-                                Text(option.label)
-                                    .font(NookFont.labelBoldSmall)
-                                    .foregroundStyle(Color.nook.settingsRowLabel)
-
-                                Text(option.subtitle)
-                                    .font(NookFont.caption)
-                                    .foregroundStyle(Color.nook.settingsRowSubtitle)
-                            }
-
-                            Spacer()
-
-                            if option == colorScheme {
-                                Image("check-bold")
-                                    .renderingMode(.template)
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fit)
-                                    .frame(width: 16, height: 16)
-                                    .foregroundStyle(Color.nook.settingsRowIcon)
-                            }
-                        }
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 16)
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-
-                    if index < AppColorScheme.allCases.count - 1 {
-                        Color.nook.settingsDivider.opacity(0.5)
-                            .frame(height: 1)
-                            .padding(.horizontal, 20)
-                    }
-                }
-            }
-            .background(Color.nook.settingsSectionBackground)
-            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .strokeBorder(Color.nook.settingsSectionBorder, lineWidth: 1)
-            }
-            .padding(.horizontal, 20)
-
-            Spacer()
-        }
     }
 }
 

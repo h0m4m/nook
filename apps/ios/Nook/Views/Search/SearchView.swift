@@ -45,6 +45,37 @@ enum SearchMediaCategory: String, CaseIterable, Identifiable {
         }
     }
 
+    var apiValue: String {
+        switch self {
+        case .movies: "movie"
+        case .tvShows: "tv"
+        case .anime: "anime"
+        case .manga: "manga"
+        case .books: "book"
+        case .games: "game"
+        }
+    }
+
+    var source: String {
+        switch self {
+        case .movies, .tvShows: "thetvdb"
+        case .anime, .manga: "kitsu"
+        case .books: "openlibrary"
+        case .games: "igdb"
+        }
+    }
+
+    static func from(apiMediaType: String) -> SearchMediaCategory? {
+        switch apiMediaType {
+        case "movie": .movies
+        case "tv": .tvShows
+        case "anime": .anime
+        case "manga": .manga
+        case "book": .books
+        case "game": .games
+        default: nil
+        }
+    }
 }
 
 // MARK: - Search Result Model
@@ -102,13 +133,8 @@ struct SearchResultItem: Identifiable, Hashable {
 // MARK: - Search View
 
 struct SearchView: View {
-    @State private var searchText = ""
-    @State private var selectedFilter: SearchMediaCategory? = nil
-    @State private var recentSearches: [SearchResultItem] = SearchView.mockRecentSearches
-    @State private var searchResults: [SearchResultItem] = []
+    @State private var viewModel = SearchViewModel()
     @State private var userInterests: [SearchMediaCategory] = SearchMediaCategory.allCases
-    @State private var searchState: SearchState = .idle
-    @State private var searchTask: Task<Void, Never>?
     @State private var trackingItemID: UUID?
     @State private var sheetStatus: TrackingStatus?
     @State private var sheetEpisode: Int = 0
@@ -117,43 +143,23 @@ struct SearchView: View {
     @State private var sheetIsRated = false
     @FocusState private var isSearchFocused: Bool
 
-    private var displayedResults: [SearchResultItem] {
-        switch searchState {
-        case .idle:
-            var results = recentSearches
-            if let filter = selectedFilter {
-                results = results.filter { $0.category == filter }
-            }
-            return results
-        case .results:
-            var results = searchResults
-            if let filter = selectedFilter {
-                results = results.filter { $0.category == filter }
-            }
-            return results
-        case .loading, .noResults:
-            return []
-        }
-    }
-
     var body: some View {
         scrollContent
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             .background(Color.nook.searchBackground)
             .modifier(
                 SearchTopBar(
-                    searchText: $searchText,
-                    selectedFilter: selectedFilter,
+                    searchText: $viewModel.searchText,
+                    selectedFilter: viewModel.selectedFilter,
                     isSearchFocused: $isSearchFocused
                 )
             )
-            .onChange(of: searchText) { _, newValue in
-                handleSearchTextChange(newValue)
+            .onChange(of: viewModel.searchText) { _, _ in
+                viewModel.search()
             }
-            .onChange(of: selectedFilter) { _, _ in
-                // Re-trigger search with current text when filter changes
-                if !searchText.isEmpty {
-                    handleSearchTextChange(searchText)
+            .onChange(of: viewModel.selectedFilter) { _, _ in
+                if !viewModel.searchText.isEmpty {
+                    viewModel.search()
                 }
             }
             .task {
@@ -161,12 +167,12 @@ struct SearchView: View {
             }
             .sheet(isPresented: Binding(
                 get: { trackingItemID != nil },
-                set: { if !$0 { syncTrackingState(); trackingItemID = nil } }
+                set: { if !$0 { trackingItemID = nil } }
             )) {
                 if let item = findTrackingItem() {
                     TrackingSheetView(
                         mediaTitle: item.title,
-                        totalEpisodes: item.totalEpisodes,
+                        totalEpisodes: 0,
                         selectedStatus: $sheetStatus,
                         currentEpisode: $sheetEpisode,
                         userScore: $sheetScore,
@@ -187,7 +193,7 @@ struct SearchView: View {
             VStack(alignment: .leading, spacing: 0) {
                 filterChips
 
-                switch searchState {
+                switch viewModel.searchState {
                 case .idle:
                     idleContent
                 case .loading:
@@ -206,26 +212,11 @@ struct SearchView: View {
     // MARK: - Idle (Recent Searches)
 
     private var idleContent: some View {
-        Group {
-            if !recentSearches.isEmpty {
-                sectionHeader("RECENT SEARCHES")
-
-                LazyVStack(spacing: 24) {
-                    ForEach(displayedResults) { item in
-                        SearchResultRow(item: item) {
-                            openTrackingSheet(for: item)
-                        }
-                        .padding(.horizontal, 24)
-                    }
-                }
-            } else {
-                SearchEmptyState(
-                    icon: "magnifying-glass-bold",
-                    title: "Search for anything",
-                    subtitle: "Find movies, shows, anime, books, manga, and games"
-                )
-            }
-        }
+        SearchEmptyState(
+            icon: "magnifying-glass-bold",
+            title: "Search for anything",
+            subtitle: "Find movies, shows, anime, books, and manga"
+        )
     }
 
     // MARK: - Loading
@@ -244,7 +235,7 @@ struct SearchView: View {
 
     private var resultsContent: some View {
         Group {
-            let results = displayedResults
+            let results = viewModel.results
 
             HStack(spacing: 0) {
                 sectionHeader("\(results.count) RESULT\(results.count == 1 ? "" : "S")")
@@ -253,12 +244,28 @@ struct SearchView: View {
 
             LazyVStack(spacing: 24) {
                 ForEach(results) { item in
-                    SearchResultRow(item: item) {
-                        openTrackingSheet(for: item)
+                    NavigationLink(value: MediaDetailRoute(from: item)) {
+                        APISearchResultRow(item: item) {
+                            openTrackingSheet(for: item)
+                        }
                     }
+                    .buttonStyle(.plain)
                     .padding(.horizontal, 24)
                     .transition(.opacity.combined(with: .move(edge: .bottom)))
+                    .onAppear {
+                        if item.id == results.last?.id {
+                            viewModel.loadNextPage()
+                        }
+                    }
                 }
+            }
+
+            if let error = viewModel.error {
+                Text(error.localizedDescription)
+                    .font(NookFont.bodySmall)
+                    .foregroundStyle(.red)
+                    .padding(.horizontal, 24)
+                    .padding(.top, 16)
             }
         }
     }
@@ -269,8 +276,8 @@ struct SearchView: View {
         SearchEmptyState(
             icon: "magnifying-glass-bold",
             title: "No results found",
-            subtitle: selectedFilter != nil
-                ? "Try removing the \(selectedFilter!.label) filter or searching for something else"
+            subtitle: viewModel.selectedFilter != nil
+                ? "Try removing the \(viewModel.selectedFilter!.label) filter or searching for something else"
                 : "Try a different search term"
         )
     }
@@ -291,20 +298,14 @@ struct SearchView: View {
     private var filterChips: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
-                filterChip(label: "All", isSelected: selectedFilter == nil) {
-                    withAnimation(.easeOut(duration: 0.2)) {
-                        selectedFilter = nil
-                    }
-                }
-
                 ForEach(userInterests) { category in
                     filterChip(
                         label: category.label,
                         dotColor: category.dotColor,
-                        isSelected: selectedFilter == category
+                        isSelected: viewModel.selectedFilter == category
                     ) {
                         withAnimation(.easeOut(duration: 0.2)) {
-                            selectedFilter = category
+                            viewModel.selectedFilter = category
                         }
                     }
                 }
@@ -374,96 +375,25 @@ struct SearchView: View {
         }
     }
 
-    // MARK: - Search Logic
-
-    private func handleSearchTextChange(_ text: String) {
-        searchTask?.cancel()
-
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-
-        if trimmed.isEmpty {
-            withAnimation(.easeOut(duration: 0.2)) {
-                searchState = .idle
-                searchResults = []
-            }
-            return
-        }
-
-        withAnimation(.easeOut(duration: 0.15)) {
-            searchState = .loading
-        }
-
-        searchTask = Task {
-            // Debounce — wait 400ms before firing
-            try? await Task.sleep(for: .milliseconds(400))
-            guard !Task.isCancelled else { return }
-
-            await performSearch(query: trimmed)
-        }
-    }
-
-    private func performSearch(query: String) async {
-        // TODO: Replace with real Supabase search once the media catalog exists.
-        // For now, filter the mock data set to simulate live results.
-        let allMock = SearchView.mockAllMedia
-        let lowerQuery = query.lowercased()
-
-        let matched = allMock.filter { item in
-            item.title.lowercased().contains(lowerQuery)
-                || item.genres.lowercased().contains(lowerQuery)
-                || item.category.label.lowercased().contains(lowerQuery)
-        }
-
-        // Simulate network latency
-        try? await Task.sleep(for: .milliseconds(300))
-        guard !Task.isCancelled else { return }
-
-        await MainActor.run {
-            withAnimation(.easeOut(duration: 0.25)) {
-                searchResults = matched
-                searchState = matched.isEmpty ? .noResults : .results
-            }
-        }
-    }
-
     // MARK: - Tracking Sheet
 
-    private func openTrackingSheet(for item: SearchResultItem) {
+    private func openTrackingSheet(for item: MediaSearchResult) {
         let generator = UIImpactFeedbackGenerator(style: .light)
         generator.prepare()
 
-        // Load current tracking state into sheet bindings
-        sheetStatus = item.selectedStatus
-        sheetEpisode = item.currentEpisode
-        sheetScore = item.userScore
-        sheetIsTracking = item.isTracked
-        sheetIsRated = item.userScore != nil
+        sheetStatus = nil
+        sheetEpisode = 0
+        sheetScore = nil
+        sheetIsTracking = false
+        sheetIsRated = false
         trackingItemID = item.id
 
         generator.impactOccurred()
     }
 
-    private func findTrackingItem() -> SearchResultItem? {
+    private func findTrackingItem() -> MediaSearchResult? {
         guard let id = trackingItemID else { return nil }
-        return recentSearches.first { $0.id == id }
-            ?? searchResults.first { $0.id == id }
-    }
-
-    private func syncTrackingState() {
-        guard let id = trackingItemID else { return }
-
-        withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
-            if let index = recentSearches.firstIndex(where: { $0.id == id }) {
-                recentSearches[index].selectedStatus = sheetStatus
-                recentSearches[index].currentEpisode = sheetEpisode
-                recentSearches[index].userScore = sheetScore
-            }
-            if let index = searchResults.firstIndex(where: { $0.id == id }) {
-                searchResults[index].selectedStatus = sheetStatus
-                searchResults[index].currentEpisode = sheetEpisode
-                searchResults[index].userScore = sheetScore
-            }
-        }
+        return viewModel.results.first { $0.id == id }
     }
 
     private func loadUserInterests() async {
@@ -491,8 +421,15 @@ struct SearchView: View {
                     userInterests = filtered
                 }
             }
+            // Default to first interest if no filter selected yet
+            if viewModel.selectedFilter == nil {
+                viewModel.selectedFilter = userInterests.first
+            }
         } catch {
             // Keep the default (all categories)
+            if viewModel.selectedFilter == nil {
+                viewModel.selectedFilter = userInterests.first
+            }
         }
     }
 }
@@ -673,350 +610,114 @@ struct SoftScrollEdge: ViewModifier {
     }
 }
 
-// MARK: - Search Result Row
+// MARK: - API Search Result Row (uses MediaSearchResult from real API)
 
-struct SearchResultRow: View {
-    let item: SearchResultItem
+struct APISearchResultRow: View {
+    let item: MediaSearchResult
     let onTapAction: () -> Void
+
+    private var category: SearchMediaCategory? {
+        SearchMediaCategory.from(apiMediaType: item.mediaType)
+    }
 
     var body: some View {
         HStack(spacing: 16) {
-            posterImage
+            MediaPosterImage(
+                url: item.imageURL,
+                width: 64,
+                height: 80,
+                fallbackColor: category?.dotColor.opacity(0.3) ?? Color.nook.searchShimmerBase
+            )
+            .shadow(color: .black.opacity(0.1), radius: 1.5, x: 0, y: 1)
+            .shadow(color: .black.opacity(0.1), radius: 1, x: 0, y: -0.5)
 
             VStack(alignment: .leading, spacing: 4) {
-                categoryAndYear
-                titleText
-                ratingAndGenres
+                HStack(alignment: .center, spacing: 4) {
+                    if let cat = category {
+                        Text(cat.uppercaseLabel)
+                            .font(NookFont.tabLabel)
+                            .tracking(0.5)
+                            .foregroundStyle(cat.dotColor)
+                    }
+
+                    if item.year != nil {
+                        Circle()
+                            .fill(Color.nook.searchSectionLabel)
+                            .frame(width: 3, height: 3)
+
+                        Text(item.year ?? "")
+                            .font(NookFont.tabLabel)
+                            .tracking(0.5)
+                            .foregroundStyle(Color.nook.searchSectionLabel)
+                    }
+                }
+
+                Text(item.title)
+                    .font(NookFont.labelBold)
+                    .foregroundStyle(Color.nook.searchBarText)
+                    .lineLimit(1)
+
+                if let score = item.score {
+                    HStack(spacing: 6) {
+                        Image("star-fill")
+                            .renderingMode(.template)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 12, height: 12)
+                            .foregroundStyle(Color.nook.reviewRating)
+
+                        Text(String(format: "%.1f", score))
+                            .font(NookFont.captionBold)
+                            .foregroundStyle(Color.nook.reviewRating)
+                    }
+                }
             }
 
             Spacer(minLength: 8)
 
-            actionButton
+            addButton
         }
         .frame(height: 80)
     }
 
-    private var posterImage: some View {
-        Group {
-            if let color = item.placeholderColor {
-                color
-            } else {
-                Image(item.imageName)
-                    .resizable()
-                    .scaledToFill()
-            }
-        }
-        .frame(width: 64, height: 80)
-        .clipShape(RoundedRectangle(cornerRadius: 17.78, style: .continuous))
-        .shadow(color: .black.opacity(0.1), radius: 1.5, x: 0, y: 1)
-        .shadow(color: .black.opacity(0.1), radius: 1, x: 0, y: -0.5)
-    }
-
-    private var categoryAndYear: some View {
-        HStack(alignment: .center, spacing: 4) {
-            Text(item.category.uppercaseLabel)
-                .font(NookFont.tabLabel)
-                .tracking(0.5)
-                .foregroundStyle(item.category.dotColor)
-
-            Circle()
-                .fill(Color.nook.searchSectionLabel)
-                .frame(width: 3, height: 3)
-
-            Text(item.year)
-                .font(NookFont.tabLabel)
-                .tracking(0.5)
-                .foregroundStyle(Color.nook.searchSectionLabel)
-        }
-    }
-
-    private var titleText: some View {
-        Text(item.title)
-            .font(NookFont.labelBold)
-            .foregroundStyle(Color.nook.searchBarText)
-            .lineLimit(1)
-    }
-
-    private var ratingAndGenres: some View {
-        HStack(spacing: 6) {
-            Image("star-fill")
-                .renderingMode(.template)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(width: 12, height: 12)
-                .foregroundStyle(Color.nook.reviewRating)
-
-            Text(String(format: "%.1f", item.rating))
-                .font(NookFont.captionBold)
-                .foregroundStyle(Color.nook.reviewRating)
-
-            Text(item.genres)
-                .font(NookFont.caption.italic())
-                .foregroundStyle(Color.nook.searchSectionLabel)
-                .lineLimit(1)
-        }
-    }
-
     @ViewBuilder
-    private var actionButton: some View {
+    private var addButton: some View {
         if #available(iOS 26, *) {
-            glassActionButton
-        } else {
-            classicActionButton
-        }
-    }
-
-    private var actionIcon: some View {
-        Group {
-            if item.isTracked {
-                Image("pencil-simple-line-fill")
-                    .renderingMode(.template)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 18, height: 18)
-            } else {
+            Button(action: onTapAction) {
                 Image("plus-bold")
                     .renderingMode(.template)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .frame(width: 18, height: 18)
+                    .foregroundStyle(.primary)
+                    .frame(width: 40, height: 40)
+                    .background(.white, in: Circle())
+                    .glassEffect(.regular.interactive(), in: .circle)
             }
+            .buttonStyle(.plain)
+        } else {
+            Button(action: onTapAction) {
+                Circle()
+                    .fill(Color.nook.searchAddButton)
+                    .frame(width: 40, height: 40)
+                    .overlay {
+                        Image("plus-bold")
+                            .renderingMode(.template)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 18, height: 18)
+                            .foregroundStyle(Color.nook.searchAddedButton)
+                    }
+            }
+            .buttonStyle(.plain)
         }
-    }
-
-    @available(iOS 26, *)
-    private var glassActionButton: some View {
-        Button(action: onTapAction) {
-            actionIcon
-                .foregroundStyle(item.isTracked ? .white : .primary)
-                .frame(width: 40, height: 40)
-                .background(
-                    item.isTracked ? Color.nook.searchAddedButton : .white,
-                    in: Circle()
-                )
-                .glassEffect(
-                    item.isTracked ? .regular : .regular.interactive(),
-                    in: .circle
-                )
-        }
-        .buttonStyle(.plain)
-    }
-
-    private var classicActionButton: some View {
-        Button(action: onTapAction) {
-            Circle()
-                .fill(item.isTracked ? Color.nook.searchAddedButton : Color.nook.searchAddButton)
-                .frame(width: 40, height: 40)
-                .overlay {
-                    actionIcon
-                        .foregroundStyle(item.isTracked ? .white : Color.nook.searchAddedButton)
-                }
-                .shadow(
-                    color: item.isTracked ? .black.opacity(0.1) : .clear,
-                    radius: 3,
-                    x: 0,
-                    y: 2
-                )
-                .shadow(
-                    color: item.isTracked ? .black.opacity(0.1) : .clear,
-                    radius: 1.5,
-                    x: 0,
-                    y: -1
-                )
-        }
-        .buttonStyle(.plain)
     }
 }
 
-// MARK: - Mock Data
+// MARK: - Legacy Mock Data (used by CreateNookSheet until Prompt 9)
 
 extension SearchView {
-    static let mockRecentSearches: [SearchResultItem] = [
-        SearchResultItem(
-            title: "Astris",
-            category: .movies,
-            year: "2023",
-            rating: 9.2,
-            genres: "Sci-fi, Drama, Mystery",
-            imageName: "mock-astris",
-            placeholderColor: Color(hex: 0x2C3E50)
-        ),
-        SearchResultItem(
-            title: "Iron & Ember",
-            category: .games,
-            year: "2022",
-            rating: 8.8,
-            genres: "Action RPG, Open World",
-            imageName: "mock-iron-ember",
-            placeholderColor: Color(hex: 0xE67E22),
-            selectedStatus: .inProgress,
-            userScore: 9
-        ),
-        SearchResultItem(
-            title: "The Cloud Weaver",
-            category: .anime,
-            year: "2024",
-            rating: 8.5,
-            genres: "Fantasy, Adventure",
-            imageName: "mock-cloud-weaver",
-            placeholderColor: Color(hex: 0x87CEEB),
-            totalEpisodes: 24
-        ),
-    ]
-
-    static let mockAllMedia: [SearchResultItem] = [
-        // Movies
-        SearchResultItem(
-            title: "Astris",
-            category: .movies,
-            year: "2023",
-            rating: 9.2,
-            genres: "Sci-fi, Drama, Mystery",
-            imageName: "mock-astris",
-            placeholderColor: Color(hex: 0x2C3E50)
-        ),
-        SearchResultItem(
-            title: "Dune: Part Three",
-            category: .movies,
-            year: "2026",
-            rating: 8.9,
-            genres: "Sci-fi, Adventure, Drama",
-            imageName: "mock-dune",
-            placeholderColor: Color(hex: 0xC2A059)
-        ),
-        SearchResultItem(
-            title: "The Midnight Garden",
-            category: .movies,
-            year: "2025",
-            rating: 7.8,
-            genres: "Drama, Romance",
-            imageName: "mock-midnight-garden",
-            placeholderColor: Color(hex: 0x2D4A3E)
-        ),
-
-        // TV Shows
-        SearchResultItem(
-            title: "Severance",
-            category: .tvShows,
-            year: "2022",
-            rating: 8.7,
-            genres: "Thriller, Drama, Sci-fi",
-            imageName: "mock-severance",
-            placeholderColor: Color(hex: 0x3B5998),
-            totalEpisodes: 19
-        ),
-        SearchResultItem(
-            title: "The Bear",
-            category: .tvShows,
-            year: "2022",
-            rating: 8.9,
-            genres: "Drama, Comedy",
-            imageName: "mock-the-bear",
-            placeholderColor: Color(hex: 0x8B4513),
-            totalEpisodes: 28
-        ),
-
-        // Anime
-        SearchResultItem(
-            title: "The Cloud Weaver",
-            category: .anime,
-            year: "2024",
-            rating: 8.5,
-            genres: "Fantasy, Adventure",
-            imageName: "mock-cloud-weaver",
-            placeholderColor: Color(hex: 0x87CEEB),
-            totalEpisodes: 24
-        ),
-        SearchResultItem(
-            title: "Frieren: Beyond Journey's End",
-            category: .anime,
-            year: "2023",
-            rating: 9.1,
-            genres: "Fantasy, Adventure, Drama",
-            imageName: "mock-frieren",
-            placeholderColor: Color(hex: 0x9B8EC4),
-            totalEpisodes: 28
-        ),
-        SearchResultItem(
-            title: "Dandadan",
-            category: .anime,
-            year: "2024",
-            rating: 8.6,
-            genres: "Action, Comedy, Supernatural",
-            imageName: "mock-dandadan",
-            placeholderColor: Color(hex: 0xE84393),
-            totalEpisodes: 12
-        ),
-
-        // Manga
-        SearchResultItem(
-            title: "Chainsaw Man",
-            category: .manga,
-            year: "2018",
-            rating: 8.8,
-            genres: "Action, Supernatural, Horror",
-            imageName: "mock-chainsaw-man",
-            placeholderColor: Color(hex: 0xD63031)
-        ),
-        SearchResultItem(
-            title: "Blue Lock",
-            category: .manga,
-            year: "2018",
-            rating: 8.2,
-            genres: "Sports, Drama",
-            imageName: "mock-blue-lock",
-            placeholderColor: Color(hex: 0x0984E3)
-        ),
-
-        // Books
-        SearchResultItem(
-            title: "Foundation's Edge",
-            category: .books,
-            year: "1982",
-            rating: 8.4,
-            genres: "Sci-fi, Philosophy",
-            imageName: "mock-foundations-edge",
-            placeholderColor: Color(hex: 0xD4A373)
-        ),
-        SearchResultItem(
-            title: "Project Hail Mary",
-            category: .books,
-            year: "2021",
-            rating: 9.0,
-            genres: "Sci-fi, Adventure",
-            imageName: "mock-hail-mary",
-            placeholderColor: Color(hex: 0x2C3E50)
-        ),
-
-        // Games
-        SearchResultItem(
-            title: "Iron & Ember",
-            category: .games,
-            year: "2022",
-            rating: 8.8,
-            genres: "Action RPG, Open World",
-            imageName: "mock-iron-ember",
-            placeholderColor: Color(hex: 0xE67E22)
-        ),
-        SearchResultItem(
-            title: "Elden Ring: Nightreign",
-            category: .games,
-            year: "2025",
-            rating: 9.3,
-            genres: "Action RPG, Co-op",
-            imageName: "mock-elden-ring",
-            placeholderColor: Color(hex: 0xFDA523)
-        ),
-        SearchResultItem(
-            title: "Hollow Knight: Silksong",
-            category: .games,
-            year: "2025",
-            rating: 9.1,
-            genres: "Metroidvania, Action",
-            imageName: "mock-silksong",
-            placeholderColor: Color(hex: 0xDFE6E9)
-        ),
-    ]
+    static let mockAllMedia: [SearchResultItem] = []
 }
 
 // MARK: - Preview
