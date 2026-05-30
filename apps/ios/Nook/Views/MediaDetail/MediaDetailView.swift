@@ -31,6 +31,7 @@ struct MediaDetail: Identifiable, Hashable {
     let totalEpisodes: Int
     let trackingStatus: TrackingStatus?
     let reviews: [MediaReview]
+    let dbId: UUID?
 
     init(
         title: String,
@@ -51,7 +52,8 @@ struct MediaDetail: Identifiable, Hashable {
         currentEpisode: Int,
         totalEpisodes: Int,
         trackingStatus: TrackingStatus? = .inProgress,
-        reviews: [MediaReview] = []
+        reviews: [MediaReview] = [],
+        dbId: UUID? = nil
     ) {
         self.title = title
         self.year = year
@@ -72,6 +74,7 @@ struct MediaDetail: Identifiable, Hashable {
         self.totalEpisodes = totalEpisodes
         self.trackingStatus = trackingStatus
         self.reviews = reviews
+        self.dbId = dbId
     }
 
 
@@ -145,6 +148,8 @@ struct MediaDetailView: View {
     @State private var reviewTitle: String = ""
     @State private var reviewBody: String = ""
     @State private var containsSpoilers: Bool = false
+    @State private var loadedReviews: [Review] = []
+    @State private var isLoadingReviews = false
 
     init(media: MediaDetail) {
         self.media = media
@@ -191,8 +196,13 @@ struct MediaDetailView: View {
                 }.value
                 dominantColor = color
             }
+
+            // Check if already tracking this media
+            await loadExistingTracking()
         }
-        .sheet(isPresented: $showTrackingSheet) {
+        .sheet(isPresented: $showTrackingSheet, onDismiss: {
+            persistTracking()
+        }) {
             TrackingSheetView(
                 mediaTitle: media.title,
                 totalEpisodes: media.totalEpisodes,
@@ -206,7 +216,9 @@ struct MediaDetailView: View {
             .presentationDragIndicator(.visible)
             .presentationBackground(Color.nook.detailBackground)
         }
-        .sheet(isPresented: $showReviewSheet) {
+        .sheet(isPresented: $showReviewSheet, onDismiss: {
+            Task { await loadReviews() }
+        }) {
             ReviewSheetView(
                 media: media,
                 rating: $reviewRating,
@@ -236,6 +248,43 @@ struct MediaDetailView: View {
         guard let uiImage = UIImage(named: imageName),
               let cgImage = uiImage.cgImage else { return nil }
         return extractDominantColorFromCGImage(cgImage)
+    }
+
+    private var progressLabel: String {
+        switch media.category {
+        case .book: "Pages"
+        case .manga: "Chapters"
+        case .movie: "Runtime"
+        default: "Episodes"
+        }
+    }
+
+    private func loadExistingTracking() async {
+        guard let dbId = media.dbId,
+              let userId = try? await supabase.auth.session.user.id else { return }
+        let service = TrackingService()
+        if let existing = try? await service.getTrackingForMedia(userId: userId, mediaItemId: dbId) {
+            selectedStatus = TrackingStatus.from(dbValue: existing.status)
+            currentEpisode = existing.progress
+            userScore = existing.score.map { Int($0) }
+            isTracking = true
+            isRated = existing.score != nil
+        }
+    }
+
+    private func persistTracking() {
+        guard isTracking, let status = selectedStatus, let dbId = media.dbId else { return }
+        Task {
+            guard let userId = try? await supabase.auth.session.user.id else { return }
+            let service = TrackingService()
+            try? await service.track(
+                userId: userId,
+                mediaItemId: dbId,
+                status: status.dbValue,
+                progress: currentEpisode,
+                score: userScore.map { Double($0) }
+            )
+        }
     }
 
     nonisolated static func extractDominantColorFromCGImage(_ cgImage: CGImage) -> Color? {
@@ -808,7 +857,9 @@ private extension MediaDetailView {
                 detailRow(label: "Director", value: media.director)
                 detailRow(label: "Status", value: media.status)
                 detailRow(label: "Aired", value: media.airedDates)
-                detailRow(label: "Episodes", value: "\(media.totalEpisodes)")
+                if !media.episodeCount.isEmpty {
+                    detailRow(label: progressLabel, value: media.episodeCount)
+                }
                 detailRow(label: "Genre", value: media.genres)
             }
         }
@@ -835,17 +886,151 @@ private extension MediaDetailView {
 private extension MediaDetailView {
     var reviewsTab: some View {
         VStack(spacing: 16) {
-            ForEach(media.reviews) { review in
-                NavigationLink(value: review.toReviewItem(mediaTitle: media.title)) {
-                    reviewCard(review)
+            if isLoadingReviews {
+                ForEach(0..<3, id: \.self) { _ in
+                    SearchShimmerRow()
                 }
-                .buttonStyle(.plain)
+            } else if loadedReviews.isEmpty {
+                VStack(spacing: 12) {
+                    Text("No reviews yet")
+                        .font(NookFont.labelBold)
+                        .foregroundStyle(Color.nook.detailMeta)
+                    Text("Be the first to review this")
+                        .font(NookFont.bodySmall)
+                        .foregroundStyle(Color.nook.detailMeta.opacity(0.7))
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.top, 40)
+            } else {
+                ForEach(loadedReviews) { review in
+                    NavigationLink(value: ReviewItem(
+                        reviewerName: review.authorName,
+                        mediaTitle: media.title,
+                        rating: review.rating,
+                        title: review.title ?? "",
+                        body: review.body,
+                        likes: "\(review.likesCount)",
+                        comments: "0"
+                    )) {
+                        loadedReviewCard(review)
+                    }
+                    .buttonStyle(.plain)
+                }
             }
 
             viewAllReviewsButton
         }
         .padding(24)
         .padding(.bottom, 100)
+        .task {
+            await loadReviews()
+        }
+    }
+
+    private func loadReviews() async {
+        guard let dbId = media.dbId else { return }
+        isLoadingReviews = true
+        let service = ReviewService()
+        loadedReviews = (try? await service.getReviewsForMedia(mediaItemId: dbId)) ?? []
+        isLoadingReviews = false
+    }
+
+    func loadedReviewCard(_ review: Review) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .top) {
+                HStack(spacing: 12) {
+                    AsyncImage(url: review.authorAvatarURL) { phase in
+                        switch phase {
+                        case .success(let image):
+                            image.resizable().scaledToFill()
+                        default:
+                            Circle()
+                                .fill(Color.nook.secondary)
+                                .overlay(
+                                    Image(systemName: "person.fill")
+                                        .font(.system(size: 14))
+                                        .foregroundStyle(Color.nook.mutedForeground)
+                                )
+                        }
+                    }
+                    .frame(width: 32, height: 32)
+                    .clipShape(Circle())
+
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text(review.authorName)
+                            .font(NookFont.captionBold)
+                            .foregroundStyle(Color.nook.detailReviewTitle)
+
+                        Text(review.createdAt, style: .relative)
+                            .font(.custom("PlusJakartaSans-Regular", size: 10))
+                            .foregroundStyle(Color.nook.detailMeta)
+                    }
+                }
+
+                Spacer()
+
+                HStack(spacing: 2) {
+                    Image("star-fill")
+                        .renderingMode(.template)
+                        .resizable()
+                        .frame(width: 10, height: 10)
+                        .foregroundStyle(Color.nook.detailRatingText)
+
+                    Text(String(format: "%.1f", review.rating))
+                        .font(NookFont.captionBold)
+                        .foregroundStyle(Color.nook.detailRatingText)
+                }
+                .padding(.horizontal, 6.5)
+                .padding(.vertical, 5)
+                .background(
+                    RoundedRectangle(cornerRadius: 6.39, style: .continuous)
+                        .fill(Color.nook.detailRatingBadge)
+                )
+            }
+
+            if review.isSpoiler {
+                Text("⚠ Contains spoilers")
+                    .font(NookFont.caption)
+                    .foregroundStyle(Color.nook.accent)
+                    .padding(.top, 8)
+            }
+
+            if let title = review.title, !title.isEmpty {
+                Text(title)
+                    .font(NookFont.labelBold)
+                    .foregroundStyle(Color.nook.detailReviewTitle)
+                    .padding(.top, 12)
+            }
+
+            Text(review.body)
+                .font(NookFont.bodySmall)
+                .foregroundStyle(Color.nook.detailReviewBody)
+                .lineSpacing(4)
+                .lineLimit(4)
+                .padding(.top, 8)
+
+            HStack(spacing: 16) {
+                HStack(spacing: 4) {
+                    Image("heart")
+                        .renderingMode(.template)
+                        .resizable()
+                        .frame(width: 14, height: 14)
+                    Text("\(review.likesCount)")
+                        .font(NookFont.caption)
+                }
+                .foregroundStyle(Color.nook.detailMeta)
+
+                Spacer()
+            }
+            .padding(.top, 12)
+        }
+        .padding(16)
+        .background(Color.nook.card)
+        .clipShape(RoundedRectangle(cornerRadius: NookRadii.md, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: NookRadii.md, style: .continuous)
+                .stroke(Color.nook.detailTabBorder, lineWidth: 1)
+        }
     }
 
     func reviewCard(_ review: MediaReview) -> some View {
@@ -1528,8 +1713,20 @@ struct ReviewSheetView: View {
             .buttonStyle(.plain)
 
             Button {
-                isReviewed = !reviewText.isEmpty || rating > 0
-                dismiss()
+                Task {
+                    if let dbId = media.dbId, (!reviewText.isEmpty || rating > 0) {
+                        let service = ReviewService()
+                        try? await service.createReview(
+                            mediaItemId: dbId,
+                            title: title.isEmpty ? nil : title,
+                            body: reviewText.isEmpty ? "No text" : reviewText,
+                            rating: Double(rating),
+                            isSpoiler: containsSpoilers
+                        )
+                    }
+                    isReviewed = !reviewText.isEmpty || rating > 0
+                    dismiss()
+                }
             } label: {
                 Text("Publish")
                     .font(NookFont.labelBoldSmall)

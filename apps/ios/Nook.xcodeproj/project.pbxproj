@@ -21,6 +21,7 @@
 		42E0FF185893CEDE141E57A4 /* StorageService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D6D834D5C1CD2D41B12DAA5 /* StorageService.swift */; };
 		48E3207C563290F5E70EBD03 /* NookModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 458984E0CFA02A1306D2942F /* NookModel.swift */; };
 		4986E3F77DEFDEB9D6BA662F /* NookColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7606A1FC37BD878D7E0CED14 /* NookColors.swift */; };
+		5825B2ADCAFFA90557B8146F /* CommunitiesViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B390F28EE30E457D652D804 /* CommunitiesViewModel.swift */; };
 		59F7D97DD6618CEB19C4EBF2 /* ActivityFeedItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AFB20105D40E406F26DBE29 /* ActivityFeedItem.swift */; };
 		5E22898B88C0F64037468342 /* Notification.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51EA445A39A27E00523E5459 /* Notification.swift */; };
 		625FF3C0CE30F28E1503E8D2 /* MediaDetailLoadingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A03A298E5CF84BE5FD73427 /* MediaDetailLoadingView.swift */; };
@@ -31,6 +32,7 @@
 		77C5FE341F1BB1D2B6F2BF60 /* NookService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6AF20BA9D38FCF037278411 /* NookService.swift */; };
 		7AD0E66260A95DAE57C2730A /* MediaDetailRoute.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5883C29336BCC3D35FC8074 /* MediaDetailRoute.swift */; };
 		7C81B47EC64E6781300C9068 /* ClubPost.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D88F9FD9F442983295DD648 /* ClubPost.swift */; };
+		8136E5B3A26F24F59844D36A /* ClubDetailViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C8B2DEBBEC9DEEA0831151C /* ClubDetailViewModel.swift */; };
 		824194E8B9852F0FE526C6E4 /* ClubService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8457ECFF77A850DAB3A43B26 /* ClubService.swift */; };
 		83378889CD3F189814C32FF7 /* ActivityFeedService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7B2DCE8D67C87C423A9C43A /* ActivityFeedService.swift */; };
 		8B544F2AF1CC75C4F2A0FB54 /* PlusJakartaSans-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = D7A3FD70DAD38D02B5A01342 /* PlusJakartaSans-Regular.ttf */; };
@@ -57,6 +59,7 @@
 		C231097F6648253EB7780319 /* Review.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B11619819AF6AC7AA1F8B5A /* Review.swift */; };
 		C7A0531D0AEB4260772159C3 /* NookFonts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2480F7DC49F5AF409A6F9B5D /* NookFonts.swift */; };
 		CAD3F964A7937F02D2550CC2 /* ReviewService.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAAD1F4F312C0AE01394FB84 /* ReviewService.swift */; };
+		CAFE087BAC7B1A7E99A95853 /* LibraryViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41FDD1C55573861D3806FE3B /* LibraryViewModel.swift */; };
 		CCB0999F746FC1447FA54DD5 /* NookApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47CBA70A6F7BC8F3D41E9242 /* NookApp.swift */; };
 		CLUBD3TA1L123456789AB01 /* ClubDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CLUBD3TA1L123456789AB02 /* ClubDetailView.swift */; };
 		CR3AT3CLUB123456789AB01 /* CreateClubSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = CR3AT3CLUB123456789AB02 /* CreateClubSheet.swift */; };
@@ -106,12 +109,14 @@
 		3BC8194956769B7D778E9F0A /* AppRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppRouter.swift; sourceTree = "<group>"; };
 		3D1T1NT3R3STSSH3T00000002 /* EditInterestsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditInterestsSheet.swift; sourceTree = "<group>"; };
 		3D1TPR0F1LESH33T00000002 /* EditProfileSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditProfileSheet.swift; sourceTree = "<group>"; };
+		41FDD1C55573861D3806FE3B /* LibraryViewModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LibraryViewModel.swift; sourceTree = "<group>"; };
 		454CB4C34D7941B1AEDE361B /* SearchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchView.swift; sourceTree = "<group>"; };
 		458984E0CFA02A1306D2942F /* NookModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NookModel.swift; sourceTree = "<group>"; };
 		47CBA70A6F7BC8F3D41E9242 /* NookApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NookApp.swift; sourceTree = "<group>"; };
 		4A03A298E5CF84BE5FD73427 /* MediaDetailLoadingView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MediaDetailLoadingView.swift; sourceTree = "<group>"; };
 		4A85B81F104D19CC716670DC /* SearchViewModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SearchViewModel.swift; sourceTree = "<group>"; };
 		4B11619819AF6AC7AA1F8B5A /* Review.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = Review.swift; sourceTree = "<group>"; };
+		4C8B2DEBBEC9DEEA0831151C /* ClubDetailViewModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ClubDetailViewModel.swift; sourceTree = "<group>"; };
 		51EA445A39A27E00523E5459 /* Notification.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = Notification.swift; sourceTree = "<group>"; };
 		53A5779B2FC2FA2900003DC0 /* Nook.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Nook.entitlements; sourceTree = "<group>"; };
 		5DFC5ACF4DD3EB602132421E /* APIClient.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
@@ -126,6 +131,7 @@
 		8457ECFF77A850DAB3A43B26 /* ClubService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ClubService.swift; sourceTree = "<group>"; };
 		8D1662AB256F4B7192FEB135 /* LibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryView.swift; sourceTree = "<group>"; };
 		9702BBB3E69FB7B1267F94CD /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		9B390F28EE30E457D652D804 /* CommunitiesViewModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CommunitiesViewModel.swift; sourceTree = "<group>"; };
 		9C1E1BD95458B81859177F14 /* TrackedMedia.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TrackedMedia.swift; sourceTree = "<group>"; };
 		A4B7743F9C3F4A9DA5DE4D00 /* PlusJakartaSans-Italic.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "PlusJakartaSans-Italic.ttf"; sourceTree = "<group>"; };
 		A63E2633397AA4E21A7BD212 /* NotificationService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NotificationService.swift; sourceTree = "<group>"; };
@@ -319,6 +325,8 @@
 				C0MP0SEP0ST123456789AB02 /* ComposePostView.swift */,
 				1NV1T3MMBR123456789AB02 /* InviteMemberView.swift */,
 				CR3AT3CLUB123456789AB02 /* CreateClubSheet.swift */,
+				9B390F28EE30E457D652D804 /* CommunitiesViewModel.swift */,
+				4C8B2DEBBEC9DEEA0831151C /* ClubDetailViewModel.swift */,
 			);
 			path = Communities;
 			sourceTree = "<group>";
@@ -346,6 +354,7 @@
 			isa = PBXGroup;
 			children = (
 				8D1662AB256F4B7192FEB135 /* LibraryView.swift */,
+				41FDD1C55573861D3806FE3B /* LibraryViewModel.swift */,
 			);
 			path = Library;
 			sourceTree = "<group>";
@@ -584,6 +593,9 @@
 				7AD0E66260A95DAE57C2730A /* MediaDetailRoute.swift in Sources */,
 				F8264F4DA956D0AA56F755AE /* MediaDetailViewModel.swift in Sources */,
 				625FF3C0CE30F28E1503E8D2 /* MediaDetailLoadingView.swift in Sources */,
+				CAFE087BAC7B1A7E99A95853 /* LibraryViewModel.swift in Sources */,
+				5825B2ADCAFFA90557B8146F /* CommunitiesViewModel.swift in Sources */,
+				8136E5B3A26F24F59844D36A /* ClubDetailViewModel.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

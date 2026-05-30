@@ -56,6 +56,27 @@ enum TrackingStatus {
         default: "plus"
         }
     }
+
+    var dbValue: String {
+        switch self {
+        case .inProgress: "in_progress"
+        case .planned: "planned"
+        case .onHold: "on_hold"
+        case .dropped: "dropped"
+        case .completed: "completed"
+        }
+    }
+
+    static func from(dbValue: String) -> TrackingStatus? {
+        switch dbValue {
+        case "in_progress": .inProgress
+        case "planned": .planned
+        case "on_hold": .onHold
+        case "dropped": .dropped
+        case "completed": .completed
+        default: nil
+        }
+    }
 }
 
 // MARK: - Library Media Category
@@ -100,6 +121,18 @@ enum LibraryMediaCategory: String, CaseIterable, Identifiable {
         case .game: Color.nook.badgeGameBg
         case .movie: Color.nook.badgeMovieBg
         case .manga: Color.nook.badgeMangaBg
+        }
+    }
+
+    static func from(apiMediaType: String) -> LibraryMediaCategory {
+        switch apiMediaType {
+        case "movie": .movie
+        case "tv": .tvShow
+        case "anime": .anime
+        case "manga": .manga
+        case "book": .book
+        case "game": .game
+        default: .movie
         }
     }
 }
@@ -216,11 +249,8 @@ enum LibrarySortOption: CaseIterable, Identifiable {
 // MARK: - Library View
 
 struct LibraryView: View {
-    @State private var selectedFilter: LibraryFilter = .all
-    @State private var selectedSort: LibrarySortOption = .status
+    @State private var viewModel = LibraryViewModel()
     @State private var isSearchActive = false
-    @State private var searchText = ""
-    @State private var items: [LibraryItem] = LibraryView.mockItems
     @State private var trackingItemID: UUID?
     @State private var sheetStatus: TrackingStatus?
     @State private var sheetEpisode: Int = 0
@@ -229,32 +259,6 @@ struct LibraryView: View {
     @State private var sheetIsRated = false
     @FocusState private var isSearchFocused: Bool
 
-    private var filteredItems: [LibraryItem] {
-        var results = items
-
-        switch selectedFilter {
-        case .all: break
-        case .inProgress:
-            results = results.filter { $0.status == .inProgress }
-        case .planned:
-            results = results.filter { $0.status == .planned }
-        case .onHold:
-            results = results.filter { $0.status == .onHold }
-        case .dropped:
-            results = results.filter { $0.status == .dropped }
-        case .completed:
-            results = results.filter { $0.status == .completed }
-        }
-
-        if !searchText.isEmpty {
-            results = results.filter {
-                $0.title.localizedCaseInsensitiveContains(searchText)
-            }
-        }
-
-        return results
-    }
-
     var body: some View {
         scrollContent
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -262,19 +266,25 @@ struct LibraryView: View {
             .modifier(
                 LibraryTopBar(
                     isSearchActive: $isSearchActive,
-                    searchText: $searchText,
+                    searchText: $viewModel.searchText,
                     isSearchFocused: $isSearchFocused,
-                    selectedSort: $selectedSort
+                    selectedSort: $viewModel.selectedSort
                 )
             )
+            .task {
+                await viewModel.loadLibrary()
+            }
+            .refreshable {
+                await viewModel.loadLibrary()
+            }
             .sheet(isPresented: Binding(
                 get: { trackingItemID != nil },
-                set: { if !$0 { syncTrackingState(); trackingItemID = nil } }
+                set: { if !$0 { handleSheetDismiss(); trackingItemID = nil } }
             )) {
-                if let item = items.first(where: { $0.id == trackingItemID }) {
+                if let item = viewModel.items.first(where: { $0.id == trackingItemID }) {
                     TrackingSheetView(
                         mediaTitle: item.title,
-                        totalEpisodes: item.totalEpisodes,
+                        totalEpisodes: 0,
                         selectedStatus: $sheetStatus,
                         currentEpisode: $sheetEpisode,
                         userScore: $sheetScore,
@@ -293,19 +303,35 @@ struct LibraryView: View {
             VStack(alignment: .leading, spacing: 0) {
                 filterChips
 
-                Text("\(filteredItems.count) ITEMS")
-                    .font(NookFont.tabLabel)
-                    .tracking(1)
-                    .foregroundStyle(Color.nook.searchSectionLabel)
-                    .padding(.horizontal, 24)
-                    .padding(.bottom, 24)
-
-                LazyVStack(spacing: 24) {
-                    ForEach(filteredItems) { item in
-                        LibraryItemRow(item: item) {
-                            openTrackingSheet(for: item)
+                if viewModel.isLoading && viewModel.items.isEmpty {
+                    VStack(spacing: 24) {
+                        ForEach(0..<4, id: \.self) { _ in
+                            SearchShimmerRow()
+                                .padding(.horizontal, 24)
                         }
+                    }
+                    .padding(.top, 8)
+                } else if viewModel.filteredItems.isEmpty {
+                    SearchEmptyState(
+                        icon: "books-bold",
+                        title: "Nothing here yet",
+                        subtitle: "Search for media and start tracking to build your library"
+                    )
+                } else {
+                    Text("\(viewModel.filteredItems.count) ITEMS")
+                        .font(NookFont.tabLabel)
+                        .tracking(1)
+                        .foregroundStyle(Color.nook.searchSectionLabel)
                         .padding(.horizontal, 24)
+                        .padding(.bottom, 24)
+
+                    LazyVStack(spacing: 24) {
+                        ForEach(viewModel.filteredItems) { item in
+                            RealLibraryItemRow(item: item) {
+                                openTrackingSheet(for: item)
+                            }
+                            .padding(.horizontal, 24)
+                        }
                     }
                 }
             }
@@ -331,12 +357,12 @@ struct LibraryView: View {
 
     @ViewBuilder
     private func filterChip(_ filter: LibraryFilter) -> some View {
-        let isSelected = selectedFilter == filter
+        let isSelected = viewModel.selectedFilter == filter
 
         if #available(iOS 26, *) {
             Button {
                 withAnimation(.easeOut(duration: 0.2)) {
-                    selectedFilter = filter
+                    viewModel.selectedFilter = filter
                 }
             } label: {
                 Text(filter.label)
@@ -354,7 +380,7 @@ struct LibraryView: View {
         } else {
             Button {
                 withAnimation(.easeOut(duration: 0.2)) {
-                    selectedFilter = filter
+                    viewModel.selectedFilter = filter
                 }
             } label: {
                 Text(filter.label)
@@ -380,31 +406,31 @@ struct LibraryView: View {
 
     // MARK: - Tracking Sheet
 
-    private func openTrackingSheet(for item: LibraryItem) {
+    private func openTrackingSheet(for item: TrackedMediaItem) {
         let generator = UIImpactFeedbackGenerator(style: .light)
         generator.prepare()
 
-        sheetStatus = item.status
-        sheetEpisode = item.currentEpisode
-        sheetScore = item.userScore
+        sheetStatus = TrackingStatus.from(dbValue: item.status)
+        sheetEpisode = item.progress
+        sheetScore = item.score.map { Int($0) }
         sheetIsTracking = true
-        sheetIsRated = item.userScore != nil
+        sheetIsRated = item.score != nil
         trackingItemID = item.id
 
         generator.impactOccurred()
     }
 
-    private func syncTrackingState() {
-        guard let id = trackingItemID else { return }
+    private func handleSheetDismiss() {
+        guard let id = trackingItemID,
+              let item = viewModel.items.first(where: { $0.id == id }) else { return }
 
-        withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
-            if let index = items.firstIndex(where: { $0.id == id }) {
-                if let status = sheetStatus {
-                    items[index].status = status
-                }
-                items[index].currentEpisode = sheetEpisode
-                items[index].userScore = sheetScore
-            }
+        Task {
+            await viewModel.updateTracking(
+                trackingId: item.id,
+                status: sheetStatus,
+                progress: sheetEpisode,
+                score: sheetScore.map { Double($0) }
+            )
         }
     }
 }
@@ -788,7 +814,125 @@ private struct LibraryItemRow: View {
     }
 }
 
-// MARK: - Mock Data
+// MARK: - Real Library Item Row (uses TrackedMediaItem from Supabase)
+
+private struct RealLibraryItemRow: View {
+    let item: TrackedMediaItem
+    let onTapAction: () -> Void
+
+    private var category: LibraryMediaCategory {
+        LibraryMediaCategory.from(apiMediaType: item.mediaType)
+    }
+
+    private var status: TrackingStatus {
+        TrackingStatus.from(dbValue: item.status) ?? .planned
+    }
+
+    private var progressDetail: String {
+        if item.progress > 0 {
+            return "Progress: \(item.progress)"
+        }
+        return status.label
+    }
+
+    var body: some View {
+        HStack(spacing: 16) {
+            MediaPosterImage(
+                url: item.imageURL,
+                width: 64,
+                height: 80,
+                fallbackColor: category.textColor.opacity(0.3)
+            )
+            .shadow(color: .black.opacity(0.1), radius: 1.5, x: 0, y: 1)
+            .shadow(color: .black.opacity(0.1), radius: 1, x: 0, y: -0.5)
+
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(alignment: .center, spacing: 4) {
+                    Text(category.label)
+                        .font(NookFont.tabLabel)
+                        .tracking(0.5)
+                        .foregroundStyle(category.textColor)
+
+                    Circle()
+                        .fill(Color.nook.searchSectionLabel)
+                        .frame(width: 3, height: 3)
+
+                    Text(status.label)
+                        .font(NookFont.tabLabel)
+                        .tracking(0.5)
+                        .foregroundStyle(Color.nook.searchSectionLabel)
+                }
+
+                Text(item.title)
+                    .font(NookFont.labelBold)
+                    .foregroundStyle(Color.nook.searchBarText)
+                    .lineLimit(1)
+
+                HStack(spacing: 6) {
+                    if let score = item.score {
+                        Image("star-fill")
+                            .renderingMode(.template)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 12, height: 12)
+                            .foregroundStyle(Color.nook.reviewRating)
+
+                        Text(String(format: "%.1f", score))
+                            .font(NookFont.captionBold)
+                            .foregroundStyle(Color.nook.reviewRating)
+                    }
+
+                    Text(progressDetail)
+                        .font(NookFont.caption.italic())
+                        .foregroundStyle(Color.nook.searchSectionLabel)
+                        .lineLimit(1)
+                }
+            }
+
+            Spacer(minLength: 8)
+
+            realActionButton
+        }
+        .frame(height: 80)
+    }
+
+    @ViewBuilder
+    private var realActionButton: some View {
+        if #available(iOS 26, *) {
+            Button(action: onTapAction) {
+                Image("pencil-simple-line-fill")
+                    .renderingMode(.template)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 18, height: 18)
+                    .foregroundStyle(.white)
+                    .frame(width: 40, height: 40)
+                    .background(Color.nook.searchAddedButton, in: Circle())
+                    .glassEffect(.regular, in: .circle)
+            }
+            .buttonStyle(.plain)
+        } else {
+            Button(action: onTapAction) {
+                Circle()
+                    .fill(Color.nook.searchAddedButton)
+                    .frame(width: 40, height: 40)
+                    .overlay {
+                        Image("pencil-simple-line-fill")
+                            .renderingMode(.template)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 18, height: 18)
+                            .foregroundStyle(.white)
+                    }
+                    .shadow(color: .black.opacity(0.1), radius: 3, x: 0, y: 2)
+                    .shadow(color: .black.opacity(0.1), radius: 1.5, x: 0, y: -1)
+            }
+            .buttonStyle(.plain)
+        }
+    }
+}
+
+// MARK: - Mock Data (for previews)
 
 extension LibraryView {
     static let mockItems: [LibraryItem] = [

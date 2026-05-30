@@ -4,6 +4,7 @@ import SwiftUI
 
 struct ReviewItem: Identifiable, Hashable {
     let id = UUID()
+    let dbId: UUID?
     let reviewerName: String
     let mediaTitle: String
     let rating: Double
@@ -11,6 +12,37 @@ struct ReviewItem: Identifiable, Hashable {
     let body: String
     let likes: String
     let comments: String
+
+    init(
+        reviewerName: String,
+        mediaTitle: String,
+        rating: Double,
+        title: String,
+        body: String,
+        likes: String,
+        comments: String,
+        dbId: UUID? = nil
+    ) {
+        self.reviewerName = reviewerName
+        self.mediaTitle = mediaTitle
+        self.rating = rating
+        self.title = title
+        self.body = body
+        self.likes = likes
+        self.comments = comments
+        self.dbId = dbId
+    }
+
+    init(from review: Review) {
+        self.dbId = review.id
+        self.reviewerName = review.authorName
+        self.mediaTitle = review.mediaTitle ?? ""
+        self.rating = review.rating
+        self.title = review.title ?? ""
+        self.body = review.body
+        self.likes = "\(review.likesCount)"
+        self.comments = "0"
+    }
 }
 
 // MARK: - Section

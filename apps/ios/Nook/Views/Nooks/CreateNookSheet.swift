@@ -10,10 +10,10 @@ struct CreateNookSheet: View {
     @State private var showPhotoPicker = false
     @State private var rawPickedImage: UIImage?
     @State private var showCropSheet = false
-    @State private var mediaItems: [SearchResultItem] = []
+    @State private var mediaItems: [MediaSearchResult] = []
     @State private var mediaNotes: [UUID: String] = [:]
     @State private var showAddMedia = false
-    @State private var editingNoteItem: SearchResultItem?
+    @State private var editingNoteItem: MediaSearchResult?
     @State private var editingNoteText = ""
     @State private var privacy: NookPrivacy = .publicVisible
     @State private var layout: NookLayout = .grid
@@ -451,21 +451,16 @@ struct CreateNookSheet: View {
         .buttonStyle(.plain)
     }
 
-    private func mediaCard(_ item: SearchResultItem, at index: Int) -> some View {
+    private func mediaCard(_ item: MediaSearchResult, at index: Int) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             GeometryReader { geo in
-                Group {
-                    if let color = item.placeholderColor {
-                        color
-                    } else {
-                        Image(item.imageName)
-                            .resizable()
-                            .scaledToFill()
-                            .frame(width: geo.size.width, height: geo.size.height)
-                            .clipped()
-                    }
-                }
-                .clipShape(RoundedRectangle(cornerRadius: cardRadius, style: .continuous))
+                MediaPosterImage(
+                    url: item.imageURL,
+                    width: geo.size.width,
+                    height: geo.size.height,
+                    cornerRadius: cardRadius,
+                    fallbackColor: SearchMediaCategory.from(apiMediaType: item.mediaType)?.dotColor.opacity(0.3) ?? Color.nook.searchShimmerBase
+                )
                 .overlay(
                     RoundedRectangle(cornerRadius: cardRadius, style: .continuous)
                         .strokeBorder(Color(hex: 0xE6E2E0), lineWidth: 1)
@@ -525,38 +520,38 @@ struct CreateNookSheet: View {
         }
     }
 
-    private func mediaListRow(_ item: SearchResultItem, at index: Int) -> some View {
-        HStack(spacing: 14) {
-            // Poster
-            Group {
-                if let color = item.placeholderColor {
-                    color
-                } else {
-                    Image(item.imageName)
-                        .resizable()
-                        .scaledToFill()
-                }
-            }
-            .frame(width: 48, height: 64)
-            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+    private func mediaListRow(_ item: MediaSearchResult, at index: Int) -> some View {
+        let category = SearchMediaCategory.from(apiMediaType: item.mediaType)
+
+        return HStack(spacing: 14) {
+            MediaPosterImage(
+                url: item.imageURL,
+                width: 48,
+                height: 64,
+                cornerRadius: 12,
+                fallbackColor: category?.dotColor.opacity(0.3) ?? Color.nook.searchShimmerBase
+            )
             .shadow(color: .black.opacity(0.08), radius: 1.5, x: 0, y: 1)
 
-            // Info
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 4) {
-                    Text(item.category.uppercaseLabel)
-                        .font(NookFont.tabLabel)
-                        .tracking(0.5)
-                        .foregroundStyle(item.category.dotColor)
+                    if let cat = category {
+                        Text(cat.uppercaseLabel)
+                            .font(NookFont.tabLabel)
+                            .tracking(0.5)
+                            .foregroundStyle(cat.dotColor)
+                    }
 
-                    Circle()
-                        .fill(Color(hex: 0x78716C))
-                        .frame(width: 3, height: 3)
+                    if item.year != nil {
+                        Circle()
+                            .fill(Color(hex: 0x78716C))
+                            .frame(width: 3, height: 3)
 
-                    Text(item.year)
-                        .font(NookFont.tabLabel)
-                        .tracking(0.5)
-                        .foregroundStyle(Color(hex: 0x78716C))
+                        Text(item.year ?? "")
+                            .font(NookFont.tabLabel)
+                            .tracking(0.5)
+                            .foregroundStyle(Color(hex: 0x78716C))
+                    }
                 }
 
                 Text(item.title)
@@ -719,8 +714,48 @@ struct CreateNookSheet: View {
     private func publishNook() {
         guard canPublish else { return }
         isPublishing = true
-        // TODO: Persist nook to Supabase
-        dismiss()
+
+        Task {
+            do {
+                let nookService = NookService()
+
+                let privacyValue: String = switch privacy {
+                case .publicVisible: "public"
+                case .friendsOnly: "friends_only"
+                case .privateOnly: "private"
+                }
+
+                let layoutValue: String = switch layout {
+                case .grid: "grid"
+                case .list: "list"
+                }
+
+                let coverData = coverImage?.jpegData(compressionQuality: 0.8)
+
+                let nookId = try await nookService.createNook(
+                    name: name.trimmingCharacters(in: .whitespacesAndNewlines),
+                    description: nookDescription.isEmpty ? nil : nookDescription,
+                    coverData: coverData,
+                    privacy: privacyValue,
+                    layout: layoutValue
+                )
+
+                // Add media items if any were added
+                // Note: mediaItems are SearchResultItem which don't have dbId yet
+                // This will be fully wired when media items have persistent IDs
+
+                let generator = UINotificationFeedbackGenerator()
+                generator.notificationOccurred(.success)
+
+                await MainActor.run {
+                    dismiss()
+                }
+            } catch {
+                await MainActor.run {
+                    isPublishing = false
+                }
+            }
+        }
     }
 }
 
@@ -1072,31 +1107,14 @@ private struct MediaNoteSheet: View {
 // MARK: - Add Media Sub-Sheet
 
 private struct AddMediaToNookSheet: View {
-    @Binding var mediaItems: [SearchResultItem]
+    @Binding var mediaItems: [MediaSearchResult]
     @Environment(\.dismiss) private var dismiss
-    @State private var searchText = ""
-    @State private var selectedFilter: SearchMediaCategory? = nil
-    @State private var searchResults: [SearchResultItem] = []
-    @State private var searchState: SearchState = .idle
-    @State private var searchTask: Task<Void, Never>?
+    @State private var viewModel = SearchViewModel()
     @State private var userInterests: [SearchMediaCategory] = []
     @FocusState private var isSearchFocused: Bool
 
     private var addedIDs: Set<UUID> {
         Set(mediaItems.map(\.id))
-    }
-
-    private var displayedResults: [SearchResultItem] {
-        let source: [SearchResultItem] = switch searchState {
-        case .idle: SearchView.mockAllMedia
-        case .results: searchResults
-        case .loading, .noResults: []
-        }
-
-        if let filter = selectedFilter {
-            return source.filter { $0.category == filter }
-        }
-        return source
     }
 
     var body: some View {
@@ -1108,7 +1126,7 @@ private struct AddMediaToNookSheet: View {
                     VStack(alignment: .leading, spacing: 0) {
                         filterChips
 
-                        switch searchState {
+                        switch viewModel.searchState {
                         case .idle:
                             idleContent
                         case .loading:
@@ -1154,12 +1172,12 @@ private struct AddMediaToNookSheet: View {
                 }
             }
         }
-        .onChange(of: searchText) { _, newValue in
-            handleSearchTextChange(newValue)
+        .onChange(of: viewModel.searchText) { _, _ in
+            viewModel.search()
         }
-        .onChange(of: selectedFilter) { _, _ in
-            if !searchText.isEmpty {
-                handleSearchTextChange(searchText)
+        .onChange(of: viewModel.selectedFilter) { _, _ in
+            if !viewModel.searchText.isEmpty {
+                viewModel.search()
             }
         }
         .task {
@@ -1180,7 +1198,7 @@ private struct AddMediaToNookSheet: View {
 
             TextField(
                 searchPlaceholder,
-                text: $searchText,
+                text: $viewModel.searchText,
                 prompt: Text(searchPlaceholder)
                     .font(NookFont.labelMediumSmall)
                     .foregroundStyle(Color.nook.searchBarPlaceholder)
@@ -1189,9 +1207,9 @@ private struct AddMediaToNookSheet: View {
             .foregroundStyle(Color.nook.searchBarText)
             .focused($isSearchFocused)
 
-            if !searchText.isEmpty {
+            if !viewModel.searchText.isEmpty {
                 Button {
-                    searchText = ""
+                    viewModel.searchText = ""
                 } label: {
                     Image(systemName: "xmark.circle.fill")
                         .font(.system(size: 16))
@@ -1209,10 +1227,10 @@ private struct AddMediaToNookSheet: View {
     }
 
     private var searchPlaceholder: String {
-        if let filter = selectedFilter {
+        if let filter = viewModel.selectedFilter {
             "Search \(filter.label)..."
         } else {
-            "Search movies, books, games..."
+            "Search movies, books, anime..."
         }
     }
 
@@ -1221,20 +1239,14 @@ private struct AddMediaToNookSheet: View {
     private var filterChips: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
-                filterChip(label: "All", isSelected: selectedFilter == nil) {
-                    withAnimation(.easeOut(duration: 0.2)) {
-                        selectedFilter = nil
-                    }
-                }
-
                 ForEach(userInterests) { category in
                     filterChip(
                         label: category.label,
                         dotColor: category.dotColor,
-                        isSelected: selectedFilter == category
+                        isSelected: viewModel.selectedFilter == category
                     ) {
                         withAnimation(.easeOut(duration: 0.2)) {
-                            selectedFilter = category
+                            viewModel.selectedFilter = category
                         }
                     }
                 }
@@ -1307,18 +1319,11 @@ private struct AddMediaToNookSheet: View {
     // MARK: - Content States
 
     private var idleContent: some View {
-        Group {
-            sectionHeader("BROWSE")
-
-            ForEach(Array(displayedResults.enumerated()), id: \.element.id) { index, item in
-                mediaRow(item)
-                    .padding(.horizontal, 24)
-
-                if index < displayedResults.count - 1 {
-                    Spacer().frame(height: 24)
-                }
-            }
-        }
+        SearchEmptyState(
+            icon: "magnifying-glass-bold",
+            title: "Search to add media",
+            subtitle: "Find movies, shows, anime, books, and manga to add to your nook"
+        )
     }
 
     private var loadingContent: some View {
@@ -1333,7 +1338,7 @@ private struct AddMediaToNookSheet: View {
 
     private var resultsContent: some View {
         Group {
-            let results = displayedResults
+            let results = viewModel.results
 
             HStack(spacing: 0) {
                 sectionHeader("\(results.count) RESULT\(results.count == 1 ? "" : "S")")
@@ -1341,9 +1346,14 @@ private struct AddMediaToNookSheet: View {
             }
 
             ForEach(Array(results.enumerated()), id: \.element.id) { index, item in
-                mediaRow(item)
+                nookMediaRow(item)
                     .padding(.horizontal, 24)
                     .transition(.opacity.combined(with: .move(edge: .bottom)))
+                    .onAppear {
+                        if item.id == results.last?.id {
+                            viewModel.loadNextPage()
+                        }
+                    }
 
                 if index < results.count - 1 {
                     Spacer().frame(height: 24)
@@ -1356,47 +1366,47 @@ private struct AddMediaToNookSheet: View {
         SearchEmptyState(
             icon: "magnifying-glass-bold",
             title: "No results found",
-            subtitle: selectedFilter != nil
-                ? "Try removing the \(selectedFilter!.label) filter or searching for something else"
+            subtitle: viewModel.selectedFilter != nil
+                ? "Try removing the \(viewModel.selectedFilter!.label) filter or searching for something else"
                 : "Try a different search term"
         )
     }
 
     // MARK: - Media Row
 
-    private func mediaRow(_ item: SearchResultItem) -> some View {
+    private func nookMediaRow(_ item: MediaSearchResult) -> some View {
         let isAdded = addedIDs.contains(item.id)
+        let category = SearchMediaCategory.from(apiMediaType: item.mediaType)
 
         return HStack(spacing: 16) {
-            Group {
-                if let color = item.placeholderColor {
-                    color
-                } else {
-                    Image(item.imageName)
-                        .resizable()
-                        .scaledToFill()
-                }
-            }
-            .frame(width: 64, height: 80)
-            .clipShape(RoundedRectangle(cornerRadius: 17.78, style: .continuous))
+            MediaPosterImage(
+                url: item.imageURL,
+                width: 64,
+                height: 80,
+                fallbackColor: category?.dotColor.opacity(0.3) ?? Color.nook.searchShimmerBase
+            )
             .shadow(color: .black.opacity(0.1), radius: 1.5, x: 0, y: 1)
             .shadow(color: .black.opacity(0.1), radius: 1, x: 0, y: -0.5)
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack(alignment: .center, spacing: 4) {
-                    Text(item.category.uppercaseLabel)
-                        .font(NookFont.tabLabel)
-                        .tracking(0.5)
-                        .foregroundStyle(item.category.dotColor)
+                    if let cat = category {
+                        Text(cat.uppercaseLabel)
+                            .font(NookFont.tabLabel)
+                            .tracking(0.5)
+                            .foregroundStyle(cat.dotColor)
+                    }
 
-                    Circle()
-                        .fill(Color.nook.searchSectionLabel)
-                        .frame(width: 3, height: 3)
+                    if item.year != nil {
+                        Circle()
+                            .fill(Color.nook.searchSectionLabel)
+                            .frame(width: 3, height: 3)
 
-                    Text(item.year)
-                        .font(NookFont.tabLabel)
-                        .tracking(0.5)
-                        .foregroundStyle(Color.nook.searchSectionLabel)
+                        Text(item.year ?? "")
+                            .font(NookFont.tabLabel)
+                            .tracking(0.5)
+                            .foregroundStyle(Color.nook.searchSectionLabel)
+                    }
                 }
 
                 Text(item.title)
@@ -1404,34 +1414,31 @@ private struct AddMediaToNookSheet: View {
                     .foregroundStyle(Color.nook.searchBarText)
                     .lineLimit(1)
 
-                HStack(spacing: 6) {
-                    Image("star-fill")
-                        .renderingMode(.template)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: 12, height: 12)
-                        .foregroundStyle(Color.nook.reviewRating)
+                if let score = item.score {
+                    HStack(spacing: 6) {
+                        Image("star-fill")
+                            .renderingMode(.template)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 12, height: 12)
+                            .foregroundStyle(Color.nook.reviewRating)
 
-                    Text(String(format: "%.1f", item.rating))
-                        .font(NookFont.captionBold)
-                        .foregroundStyle(Color.nook.reviewRating)
-
-                    Text(item.genres)
-                        .font(NookFont.caption.italic())
-                        .foregroundStyle(Color.nook.searchSectionLabel)
-                        .lineLimit(1)
+                        Text(String(format: "%.1f", score))
+                            .font(NookFont.captionBold)
+                            .foregroundStyle(Color.nook.reviewRating)
+                    }
                 }
             }
 
             Spacer(minLength: 8)
 
-            addButton(for: item, isAdded: isAdded)
+            nookAddButton(for: item, isAdded: isAdded)
         }
         .frame(height: 80)
     }
 
     @ViewBuilder
-    private func addButton(for item: SearchResultItem, isAdded: Bool) -> some View {
+    private func nookAddButton(for item: MediaSearchResult, isAdded: Bool) -> some View {
         if #available(iOS 26, *) {
             Button {
                 toggleItem(item, isAdded: isAdded)
@@ -1487,7 +1494,7 @@ private struct AddMediaToNookSheet: View {
         }
     }
 
-    private func toggleItem(_ item: SearchResultItem, isAdded: Bool) {
+    private func toggleItem(_ item: MediaSearchResult, isAdded: Bool) {
         let generator = UIImpactFeedbackGenerator(style: .light)
         generator.prepare()
 
@@ -1513,52 +1520,7 @@ private struct AddMediaToNookSheet: View {
             .padding(.bottom, 24)
     }
 
-    // MARK: - Search Logic
-
-    private func handleSearchTextChange(_ text: String) {
-        searchTask?.cancel()
-
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-
-        if trimmed.isEmpty {
-            withAnimation(.easeOut(duration: 0.2)) {
-                searchState = .idle
-                searchResults = []
-            }
-            return
-        }
-
-        withAnimation(.easeOut(duration: 0.15)) {
-            searchState = .loading
-        }
-
-        searchTask = Task {
-            try? await Task.sleep(for: .milliseconds(400))
-            guard !Task.isCancelled else { return }
-            await performSearch(query: trimmed)
-        }
-    }
-
-    private func performSearch(query: String) async {
-        let allMock = SearchView.mockAllMedia
-        let lowerQuery = query.lowercased()
-
-        let matched = allMock.filter { item in
-            item.title.lowercased().contains(lowerQuery)
-                || item.genres.lowercased().contains(lowerQuery)
-                || item.category.label.lowercased().contains(lowerQuery)
-        }
-
-        try? await Task.sleep(for: .milliseconds(300))
-        guard !Task.isCancelled else { return }
-
-        await MainActor.run {
-            withAnimation(.easeOut(duration: 0.25)) {
-                searchResults = matched
-                searchState = matched.isEmpty ? .noResults : .results
-            }
-        }
-    }
+    // MARK: - Load Interests
 
     private func loadUserInterests() async {
         guard let user = try? await supabase.auth.session.user else { return }
@@ -1582,8 +1544,14 @@ private struct AddMediaToNookSheet: View {
                     interests.contains($0.rawValue)
                 }
             }
+            if viewModel.selectedFilter == nil {
+                viewModel.selectedFilter = userInterests.first ?? .movies
+            }
         } catch {
             userInterests = SearchMediaCategory.allCases
+            if viewModel.selectedFilter == nil {
+                viewModel.selectedFilter = userInterests.first ?? .movies
+            }
         }
     }
 }

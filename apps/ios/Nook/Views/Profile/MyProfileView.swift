@@ -6,6 +6,7 @@ struct MyProfileView: View {
     @State private var profile = UserProfile.sampleOwn
     @State private var selectedTab: ProfileTab = .tracked
     @State private var showEditProfile = false
+    @State private var recentTracked: [TrackedMediaItem] = []
 
     var body: some View {
         ZStack(alignment: .top) {
@@ -298,8 +299,21 @@ struct MyProfileView: View {
 
     private var trackedContent: some View {
         VStack(spacing: 16) {
-            ForEach(profile.recentActivity) { activity in
-                ProfileActivityCard(activity: activity)
+            if recentTracked.isEmpty {
+                ForEach(profile.recentActivity) { activity in
+                    ProfileActivityCard(activity: activity)
+                }
+            } else {
+                ForEach(recentTracked.prefix(5)) { item in
+                    let status = TrackingStatus.from(dbValue: item.status)
+                    ProfileActivityCard(activity: ProfileActivity(
+                        label: status?.label.uppercased() ?? item.status.uppercased(),
+                        title: item.title,
+                        imageName: "",
+                        placeholderColor: nil,
+                        rating: item.score.map { $0 / 2.0 }
+                    ))
+                }
             }
         }
     }
@@ -364,25 +378,60 @@ struct MyProfileView: View {
 
     private func loadProfile() async {
         guard let user = try? await supabase.auth.session.user else { return }
-        if let name = user.userMetadata["full_name"]?.value as? String {
+        let profileService = ProfileService()
+
+        do {
+            let data = try await profileService.getProfile(userId: user.id)
+            let stats = try await profileService.getStats(userId: user.id)
+
+            let displayName = data.fullName
+                ?? (user.userMetadata["full_name"]?.value as? String)
+                ?? "User"
+            let usernameDisplay = data.username.map { "@\($0)" }
+                ?? "@\(displayName.lowercased().replacingOccurrences(of: " ", with: ""))"
+
             profile = UserProfile(
                 id: user.id.uuidString,
-                displayName: name,
-                username: "@\(name.lowercased().replacingOccurrences(of: " ", with: ""))",
-                bio: profile.bio,
-                avatarURL: (user.userMetadata["avatar_url"]?.value as? String).flatMap {
-                    URL(string: $0)
-                },
+                displayName: displayName,
+                username: usernameDisplay,
+                bio: data.bio ?? "",
+                avatarURL: data.avatarURL,
                 followersCount: profile.followersCount,
                 followingCount: profile.followingCount,
-                trackedMedia: profile.trackedMedia,
-                reviewsWritten: profile.reviewsWritten,
-                curatedNooks: profile.curatedNooks,
-                clubs: profile.clubs,
+                trackedMedia: stats.trackedCount,
+                reviewsWritten: stats.reviewCount,
+                curatedNooks: stats.nookCount,
+                clubs: stats.clubCount,
                 tasteIdentity: profile.tasteIdentity,
                 recentActivity: profile.recentActivity,
                 isCurrentUser: true
             )
+
+            // Load recent tracked items
+            let trackingService = TrackingService()
+            recentTracked = (try? await trackingService.getLibrary(userId: user.id)) ?? []
+        } catch {
+            // Fall back to auth metadata
+            if let name = user.userMetadata["full_name"]?.value as? String {
+                profile = UserProfile(
+                    id: user.id.uuidString,
+                    displayName: name,
+                    username: "@\(name.lowercased().replacingOccurrences(of: " ", with: ""))",
+                    bio: profile.bio,
+                    avatarURL: (user.userMetadata["avatar_url"]?.value as? String).flatMap {
+                        URL(string: $0)
+                    },
+                    followersCount: profile.followersCount,
+                    followingCount: profile.followingCount,
+                    trackedMedia: profile.trackedMedia,
+                    reviewsWritten: profile.reviewsWritten,
+                    curatedNooks: profile.curatedNooks,
+                    clubs: profile.clubs,
+                    tasteIdentity: profile.tasteIdentity,
+                    recentActivity: profile.recentActivity,
+                    isCurrentUser: true
+                )
+            }
         }
     }
 

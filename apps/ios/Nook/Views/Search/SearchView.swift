@@ -167,7 +167,7 @@ struct SearchView: View {
             }
             .sheet(isPresented: Binding(
                 get: { trackingItemID != nil },
-                set: { if !$0 { trackingItemID = nil } }
+                set: { if !$0 { persistSearchTracking(); trackingItemID = nil } }
             )) {
                 if let item = findTrackingItem() {
                     TrackingSheetView(
@@ -389,6 +389,35 @@ struct SearchView: View {
         trackingItemID = item.id
 
         generator.impactOccurred()
+    }
+
+    private func persistSearchTracking() {
+        guard sheetIsTracking,
+              let status = sheetStatus,
+              let item = findTrackingItem() else { return }
+
+        Task {
+            guard let userId = try? await supabase.auth.session.user.id else { return }
+
+            // Ensure media_item exists in DB by calling media-detail Edge Function
+            let mediaAPI = MediaAPIService()
+            let detail = try? await mediaAPI.detail(
+                source: item.source,
+                sourceId: item.mediaId,
+                mediaType: item.mediaType
+            )
+
+            guard let dbId = detail?.dbId else { return }
+
+            let trackingService = TrackingService()
+            try? await trackingService.track(
+                userId: userId,
+                mediaItemId: dbId,
+                status: status.dbValue,
+                progress: sheetEpisode,
+                score: sheetScore.map { Double($0) }
+            )
+        }
     }
 
     private func findTrackingItem() -> MediaSearchResult? {
@@ -712,12 +741,6 @@ struct APISearchResultRow: View {
             .buttonStyle(.plain)
         }
     }
-}
-
-// MARK: - Legacy Mock Data (used by CreateNookSheet until Prompt 9)
-
-extension SearchView {
-    static let mockAllMedia: [SearchResultItem] = []
 }
 
 // MARK: - Preview

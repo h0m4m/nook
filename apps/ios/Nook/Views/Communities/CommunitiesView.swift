@@ -75,12 +75,25 @@ enum ClubCategory: CaseIterable, Identifiable {
         case .games: Color(hex: 0xE4C7BA, alpha: 0.3)
         }
     }
+
+    static func from(dbValue: String) -> ClubCategory {
+        switch dbValue {
+        case "movies": .movies
+        case "tv", "tvShows": .tvShows
+        case "anime": .anime
+        case "manga": .manga
+        case "books": .books
+        case "games": .games
+        default: .movies
+        }
+    }
 }
 
 // MARK: - Club Model
 
 struct ClubItem: Identifiable, Hashable {
     let id = UUID()
+    let dbId: UUID?
     let name: String
     let memberCount: String
     let description: String
@@ -102,7 +115,8 @@ struct ClubItem: Identifiable, Hashable {
         description: String,
         category: ClubCategory,
         bannerColor: Color,
-        isJoined: Bool = false
+        isJoined: Bool = false,
+        dbId: UUID? = nil
     ) {
         self.name = name
         self.memberCount = memberCount
@@ -110,25 +124,38 @@ struct ClubItem: Identifiable, Hashable {
         self.category = category
         self.bannerColor = bannerColor
         self.isJoined = isJoined
+        self.dbId = dbId
+    }
+
+    init(from row: ClubRow, isJoined: Bool) {
+        self.dbId = row.id
+        self.name = row.name
+        self.memberCount = "\(row.memberCount) Members"
+        self.description = row.description ?? ""
+        self.category = ClubCategory.from(dbValue: row.category)
+        self.bannerColor = ClubCategory.from(dbValue: row.category).dotColor.opacity(0.3)
+        self.isJoined = isJoined
     }
 }
 
 // MARK: - Clubs View
 
 struct ClubsView: View {
+    @State private var viewModel = CommunitiesViewModel()
     @State private var showMyClubs = false
     @State private var selectedCategory: ClubCategory? = nil
     @State private var isSearchActive = false
     @State private var searchText = ""
-    @State private var clubs: [ClubItem] = ClubsView.mockClubs
     @FocusState private var isSearchFocused: Bool
+
+    private var clubs: [ClubItem] {
+        let myClubIds = Set(viewModel.myClubs.map { $0.id })
+        let allRows: [ClubRow] = showMyClubs ? viewModel.myClubs : viewModel.publicClubs
+        return allRows.map { ClubItem(from: $0, isJoined: myClubIds.contains($0.id)) }
+    }
 
     private var filteredClubs: [ClubItem] {
         var results = clubs
-
-        if showMyClubs {
-            results = results.filter { $0.isJoined }
-        }
 
         if let category = selectedCategory {
             results = results.filter { $0.category == category }
@@ -154,6 +181,12 @@ struct ClubsView: View {
                     isSearchFocused: $isSearchFocused
                 )
             )
+            .task {
+                await viewModel.loadClubs()
+            }
+            .refreshable {
+                await viewModel.loadClubs()
+            }
     }
 
     private var scrollContent: some View {
@@ -321,14 +354,18 @@ struct ClubsView: View {
     // MARK: - Actions
 
     private func toggleJoined(_ club: ClubItem) {
-        guard let index = clubs.firstIndex(where: { $0.id == club.id }) else { return }
+        guard let dbId = club.dbId else { return }
         let generator = UIImpactFeedbackGenerator(style: .light)
         generator.prepare()
-
-        withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
-            clubs[index].isJoined.toggle()
-        }
         generator.impactOccurred()
+
+        Task {
+            if club.isJoined {
+                await viewModel.leaveClub(clubId: dbId)
+            } else {
+                await viewModel.joinClub(clubId: dbId)
+            }
+        }
     }
 }
 

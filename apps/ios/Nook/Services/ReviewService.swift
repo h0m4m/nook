@@ -3,8 +3,19 @@ import Supabase
 
 final class ReviewService: Sendable {
     func getReviewsForMedia(mediaItemId: UUID, page: Int = 1) async throws -> [Review] {
-        // TODO: Implement in Prompt 8
-        return []
+        let limit = 10
+        let offset = (page - 1) * limit
+
+        let rows: [ReviewRow] = try await supabase
+            .from("reviews")
+            .select("*, user_profile:user_profiles!user_id(id, full_name, username, avatar_url), media_item:media_items!media_item_id(id, source, source_id, media_type, title, image_url, year)")
+            .eq("media_item_id", value: mediaItemId.uuidString)
+            .order("created_at", ascending: false)
+            .range(from: offset, to: offset + limit - 1)
+            .execute()
+            .value
+
+        return rows.map { Review(from: $0) }
     }
 
     func createReview(
@@ -13,39 +24,155 @@ final class ReviewService: Sendable {
         body: String,
         rating: Double,
         isSpoiler: Bool
-    ) async throws -> Review {
-        // TODO: Implement in Prompt 8
-        fatalError("Not implemented")
+    ) async throws {
+        let userId = try await supabase.auth.session.user.id
+
+        struct ReviewInsert: Encodable {
+            let user_id: String
+            let media_item_id: String
+            let title: String?
+            let body: String
+            let rating: Double
+            let is_spoiler: Bool
+        }
+
+        struct ReviewResult: Decodable {
+            let id: UUID
+        }
+
+        let result: ReviewResult = try await supabase
+            .from("reviews")
+            .insert(ReviewInsert(
+                user_id: userId.uuidString,
+                media_item_id: mediaItemId.uuidString,
+                title: title,
+                body: body,
+                rating: rating,
+                is_spoiler: isSpoiler
+            ))
+            .select("id")
+            .single()
+            .execute()
+            .value
+
+        // Insert activity feed entry
+        struct ActivityInsert: Encodable {
+            let user_id: String
+            let action_type: String
+            let media_item_id: String
+            let reference_id: String
+            let reference_type: String
+        }
+
+        try? await supabase
+            .from("activity_feed")
+            .insert(ActivityInsert(
+                user_id: userId.uuidString,
+                action_type: "reviewed",
+                media_item_id: mediaItemId.uuidString,
+                reference_id: result.id.uuidString,
+                reference_type: "review"
+            ))
+            .execute()
     }
 
     func deleteReview(reviewId: UUID) async throws {
-        // TODO: Implement in Prompt 8
+        try await supabase
+            .from("reviews")
+            .delete()
+            .eq("id", value: reviewId.uuidString)
+            .execute()
     }
 
     func likeReview(reviewId: UUID) async throws {
-        // TODO: Implement in Prompt 8
+        let userId = try await supabase.auth.session.user.id
+
+        struct LikeInsert: Encodable {
+            let user_id: String
+            let review_id: String
+        }
+
+        try await supabase
+            .from("review_likes")
+            .insert(LikeInsert(
+                user_id: userId.uuidString,
+                review_id: reviewId.uuidString
+            ))
+            .execute()
     }
 
     func unlikeReview(reviewId: UUID) async throws {
-        // TODO: Implement in Prompt 8
+        let userId = try await supabase.auth.session.user.id
+
+        try await supabase
+            .from("review_likes")
+            .delete()
+            .eq("user_id", value: userId.uuidString)
+            .eq("review_id", value: reviewId.uuidString)
+            .execute()
     }
 
     func isReviewLiked(reviewId: UUID) async throws -> Bool {
-        // TODO: Implement in Prompt 8
-        return false
+        let userId = try await supabase.auth.session.user.id
+
+        struct LikeRow: Decodable {
+            let user_id: UUID
+        }
+
+        let rows: [LikeRow] = try await supabase
+            .from("review_likes")
+            .select("user_id")
+            .eq("user_id", value: userId.uuidString)
+            .eq("review_id", value: reviewId.uuidString)
+            .execute()
+            .value
+
+        return !rows.isEmpty
     }
 
     func getComments(reviewId: UUID) async throws -> [ReviewCommentModel] {
-        // TODO: Implement in Prompt 8
-        return []
+        let rows: [ReviewCommentRow] = try await supabase
+            .from("review_comments")
+            .select("*, user_profile:user_profiles!user_id(id, full_name, username, avatar_url)")
+            .eq("review_id", value: reviewId.uuidString)
+            .order("created_at", ascending: true)
+            .execute()
+            .value
+
+        return rows.map { ReviewCommentModel(from: $0) }
     }
 
     func addComment(reviewId: UUID, body: String, parentCommentId: UUID? = nil) async throws {
-        // TODO: Implement in Prompt 8
+        let userId = try await supabase.auth.session.user.id
+
+        struct CommentInsert: Encodable {
+            let review_id: String
+            let user_id: String
+            let parent_comment_id: String?
+            let body: String
+        }
+
+        try await supabase
+            .from("review_comments")
+            .insert(CommentInsert(
+                review_id: reviewId.uuidString,
+                user_id: userId.uuidString,
+                parent_comment_id: parentCommentId?.uuidString,
+                body: body
+            ))
+            .execute()
     }
 
     func getTrendingReviews(limit: Int = 5) async throws -> [Review] {
-        // TODO: Implement in Prompt 8
-        return []
+        let rows: [ReviewRow] = try await supabase
+            .from("reviews")
+            .select("*, user_profile:user_profiles!user_id(id, full_name, username, avatar_url), media_item:media_items!media_item_id(id, source, source_id, media_type, title, image_url, year)")
+            .order("likes_count", ascending: false)
+            .order("created_at", ascending: false)
+            .range(from: 0, to: limit - 1)
+            .execute()
+            .value
+
+        return rows.map { Review(from: $0) }
     }
 }

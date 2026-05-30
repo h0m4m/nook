@@ -31,7 +31,7 @@ struct NookComment: Identifiable {
 // MARK: - Detail View
 
 struct NookDetailView: View {
-    let nook: NookItem
+    @State private var nook: NookItem
     @Environment(\.dismiss) private var dismiss
     @State private var isLiked = false
     @State private var likeCount: Int
@@ -40,10 +40,11 @@ struct NookDetailView: View {
     @State private var replyingTo: String?
     @State private var commentsVisible = false
     @State private var expandedNoteID: UUID?
+    @State private var isLoadingDetail = false
     @FocusState private var isCommentFocused: Bool
 
     init(nook: NookItem) {
-        self.nook = nook
+        self._nook = State(initialValue: nook)
         self._likeCount = State(initialValue: nook.likes)
         self._comments = State(initialValue: Self.mockComments)
     }
@@ -79,6 +80,16 @@ struct NookDetailView: View {
         .navigationBarBackButtonHidden()
         .toolbar(.hidden, for: .navigationBar)
         .modifier(InteractivePopGesture())
+        .task {
+            guard let dbId = nook.dbId else { return }
+            isLoadingDetail = true
+            let nookService = NookService()
+            if let detail = try? await nookService.getNook(nookId: dbId) {
+                nook = NookItem(from: detail)
+                likeCount = 0
+            }
+            isLoadingDetail = false
+        }
     }
 
     // MARK: - Hero
@@ -89,12 +100,23 @@ struct NookDetailView: View {
         ZStack(alignment: .bottom) {
             // Cover image
             Group {
-                if let color = nook.placeholderColor {
+                if let url = nook.imageURL {
+                    AsyncImage(url: url) { phase in
+                        switch phase {
+                        case .success(let image):
+                            image.resizable().scaledToFill()
+                        default:
+                            (nook.placeholderColor ?? Color.nook.foreground)
+                        }
+                    }
+                } else if let color = nook.placeholderColor {
                     color
-                } else {
+                } else if !nook.imageName.isEmpty {
                     Image(nook.imageName)
                         .resizable()
                         .scaledToFill()
+                } else {
+                    Color.nook.foreground
                 }
             }
             .frame(maxWidth: .infinity)
@@ -382,17 +404,28 @@ struct NookDetailView: View {
     private func cardFront(item: NookMediaItem, hasNote: Bool) -> some View {
         GeometryReader { geo in
             Group {
-                if let color = item.placeholderColor {
+                if let url = item.imageURL {
+                    MediaPosterImage(
+                        url: url,
+                        width: geo.size.width,
+                        height: geo.size.height,
+                        cornerRadius: 20
+                    )
+                } else if let color = item.placeholderColor {
                     color
-                } else {
+                        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                } else if !item.imageName.isEmpty {
                     Image(item.imageName)
                         .resizable()
                         .scaledToFill()
                         .frame(width: geo.size.width, height: geo.size.height)
                         .clipped()
+                        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                } else {
+                    Color.nook.searchShimmerBase
+                        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
                 }
             }
-            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: 20, style: .continuous)
                     .strokeBorder(Color(hex: 0xE6E2E0), lineWidth: 1)

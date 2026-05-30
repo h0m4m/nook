@@ -14,6 +14,8 @@ struct EditProfileSheet: View {
     @State private var showPhotoPicker = false
     @State private var isSaving = false
     @State private var errorMessage: String?
+    @State private var usernameError: String?
+    @State private var usernameCheckTask: Task<Void, Never>?
     @FocusState private var focusedField: Field?
 
     private enum Field {
@@ -102,6 +104,9 @@ struct EditProfileSheet: View {
         .task {
             await loadProfile()
         }
+        .onChange(of: username) { _, newValue in
+            validateUsername(newValue)
+        }
     }
 
     // MARK: - Avatar Section
@@ -159,7 +164,18 @@ struct EditProfileSheet: View {
     private var fieldsSection: some View {
         VStack(spacing: 16) {
             fieldGroup(label: "Display Name", placeholder: "Your name", text: $displayName, field: .name)
-            fieldGroup(label: "Username", placeholder: "@username", text: $username, field: .username)
+
+            VStack(alignment: .leading, spacing: 4) {
+                fieldGroup(label: "Username", placeholder: "@username", text: $username, field: .username)
+
+                if let usernameError {
+                    Text(usernameError)
+                        .font(NookFont.caption)
+                        .foregroundStyle(Color.nook.settingsDestructiveText)
+                        .transition(.opacity)
+                }
+            }
+
             bioFieldGroup
         }
     }
@@ -249,30 +265,53 @@ struct EditProfileSheet: View {
     private func loadProfile() async {
         guard let user = try? await supabase.auth.session.user else { return }
 
-        if let name = user.userMetadata["full_name"]?.value as? String {
-            displayName = name
+        let profileService = ProfileService()
+        do {
+            let profile = try await profileService.getProfile(userId: user.id)
+            displayName = profile.fullName ?? ""
+            username = profile.username ?? ""
+            bio = profile.bio ?? ""
+            avatarURL = profile.avatarURL
+        } catch {
+            // Fall back to auth metadata
+            if let name = user.userMetadata["full_name"]?.value as? String {
+                displayName = name
+            }
+        }
+    }
+
+    private func validateUsername(_ value: String) {
+        usernameCheckTask?.cancel()
+        usernameError = nil
+
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+
+        // Regex check: alphanumeric + underscore, 3-20 chars
+        let regex = /^[a-zA-Z0-9_]{3,20}$/
+        if trimmed.wholeMatch(of: regex) == nil {
+            withAnimation(.easeOut(duration: 0.2)) {
+                usernameError = "3-20 characters, letters, numbers, and underscores only"
+            }
+            return
         }
 
-        if let urlString = user.userMetadata["avatar_url"]?.value as? String {
-            avatarURL = URL(string: urlString)
-        }
+        // Debounced availability check
+        usernameCheckTask = Task {
+            try? await Task.sleep(for: .milliseconds(500))
+            guard !Task.isCancelled else { return }
 
-        // Load extended profile from user_profiles
-        struct ProfileRow: Decodable {
-            let username: String?
-            let bio: String?
-        }
+            let profileService = ProfileService()
+            let available = (try? await profileService.checkUsernameAvailable(username: trimmed)) ?? true
+            guard !Task.isCancelled else { return }
 
-        if let row = try? await supabase
-            .from("user_profiles")
-            .select("username, bio")
-            .eq("id", value: user.id.uuidString)
-            .single()
-            .execute()
-            .value as ProfileRow?
-        {
-            username = row.username ?? ""
-            bio = row.bio ?? ""
+            if !available {
+                await MainActor.run {
+                    withAnimation(.easeOut(duration: 0.2)) {
+                        usernameError = "Username is already taken"
+                    }
+                }
+            }
         }
     }
 
@@ -282,26 +321,34 @@ struct EditProfileSheet: View {
 
         Task {
             do {
-                // Update auth metadata (display name)
-                _ = try await supabase.auth.update(
-                    user: UserAttributes(data: ["full_name": .string(displayName)])
-                )
-
-                // Update profile in user_profiles table
                 let userId = try await supabase.auth.session.user.id
+                let profileService = ProfileService()
+                let storageService = StorageService()
 
-                struct ProfileUpdate: Encodable {
-                    let username: String
-                    let bio: String
+                // Upload avatar if changed
+                var newAvatarURL: String?
+                if let avatarImage {
+                    if let jpegData = avatarImage.jpegData(compressionQuality: 0.8) {
+                        let url = try await storageService.uploadAvatar(userId: userId, imageData: jpegData)
+                        newAvatarURL = url.absoluteString
+                    }
                 }
 
-                try await supabase
-                    .from("user_profiles")
-                    .update(ProfileUpdate(username: username, bio: bio))
-                    .eq("id", value: userId.uuidString)
-                    .execute()
+                // Update user_profiles table
+                try await profileService.updateProfile(
+                    userId: userId,
+                    fullName: displayName.isEmpty ? nil : displayName,
+                    username: username.isEmpty ? nil : username,
+                    bio: bio.isEmpty ? nil : bio,
+                    avatarURL: newAvatarURL
+                )
 
-                // TODO: Upload avatar image to Supabase Storage if changed
+                // Also update auth metadata for display name
+                if !displayName.isEmpty {
+                    _ = try? await supabase.auth.update(
+                        user: UserAttributes(data: ["full_name": .string(displayName)])
+                    )
+                }
 
                 await MainActor.run {
                     dismiss()

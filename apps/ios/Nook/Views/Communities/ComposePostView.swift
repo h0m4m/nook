@@ -9,6 +9,7 @@ enum PollDuration: String, CaseIterable {
 
 struct ComposePostView: View {
     let clubName: String
+    var clubId: UUID?
     @Environment(\.dismiss) private var dismiss
     @State private var postBody = ""
     @State private var attachedImages: [UIImage] = []
@@ -486,12 +487,27 @@ private extension ComposePostView {
         guard canPost else { return }
         isPosting = true
 
-        let generator = UINotificationFeedbackGenerator()
-        generator.prepare()
+        Task {
+            do {
+                if let clubId {
+                    let clubService = ClubService()
+                    try await clubService.createPost(
+                        clubId: clubId,
+                        body: postBody.trimmingCharacters(in: .whitespacesAndNewlines)
+                    )
+                }
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            generator.notificationOccurred(.success)
-            dismiss()
+                let generator = UINotificationFeedbackGenerator()
+                generator.notificationOccurred(.success)
+
+                await MainActor.run {
+                    dismiss()
+                }
+            } catch {
+                await MainActor.run {
+                    isPosting = false
+                }
+            }
         }
     }
 }

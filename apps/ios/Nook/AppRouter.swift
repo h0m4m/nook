@@ -120,6 +120,11 @@ final class AppRouter {
             _ = try? await supabase.auth.update(
                 user: UserAttributes(data: ["full_name": .string(fullName)])
             )
+            // Also save to user_profiles
+            if let userId = try? await supabase.auth.session.user.id {
+                let profileService = ProfileService()
+                try? await profileService.updateProfile(userId: userId, fullName: fullName)
+            }
         }
     }
 
@@ -153,6 +158,17 @@ final class AppRouter {
                 nonce: rawNonce
             )
         )
+
+        // Save Google display name to user_profiles
+        if let fullName = result.user.profile?.name, !fullName.isEmpty {
+            _ = try? await supabase.auth.update(
+                user: UserAttributes(data: ["full_name": .string(fullName)])
+            )
+            if let userId = try? await supabase.auth.session.user.id {
+                let profileService = ProfileService()
+                try? await profileService.updateProfile(userId: userId, fullName: fullName)
+            }
+        }
     }
 
     func signOut() async throws {

@@ -119,11 +119,15 @@ struct ClubDetailView: View {
     @State private var isSearchActive = false
     @State private var searchText = ""
     @State private var isMuted = false
+    @State private var detailVM: ClubDetailViewModel?
     @FocusState private var isSearchFocused: Bool
 
     init(club: ClubItem) {
         self.club = club
         self._isJoined = State(initialValue: club.isJoined)
+        if let dbId = club.dbId {
+            self._detailVM = State(initialValue: ClubDetailViewModel(clubId: dbId))
+        }
     }
 
     var body: some View {
@@ -153,8 +157,14 @@ struct ClubDetailView: View {
         .navigationBarBackButtonHidden()
         .toolbar(.hidden, for: .navigationBar)
         .modifier(InteractivePopGesture())
+        .task {
+            await detailVM?.loadClub()
+            if let vm = detailVM {
+                isJoined = vm.isMember
+            }
+        }
         .sheet(isPresented: $showComposeSheet) {
-            ComposePostView(clubName: club.name)
+            ComposePostView(clubName: club.name, clubId: club.dbId)
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
                 .presentationBackground(Color.nook.clubDetailBackground)
@@ -551,10 +561,18 @@ private extension ClubDetailView {
         Button {
             let generator = UIImpactFeedbackGenerator(style: .light)
             generator.prepare()
-            withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
-                isJoined.toggle()
-            }
             generator.impactOccurred()
+
+            Task {
+                if isJoined {
+                    await detailVM?.leaveClub()
+                } else {
+                    await detailVM?.joinClub()
+                }
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
+                    isJoined = detailVM?.isMember ?? !isJoined
+                }
+            }
         } label: {
             HStack(spacing: 4) {
                 if isJoined {

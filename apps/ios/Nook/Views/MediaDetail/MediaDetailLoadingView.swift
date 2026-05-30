@@ -43,7 +43,8 @@ struct MediaDetailLoadingView: View {
             currentEpisode: 0,
             totalEpisodes: viewModel.maxProgress ?? 0,
             trackingStatus: nil,
-            reviews: []
+            reviews: [],
+            dbId: viewModel.dbId
         )
     }
 

@@ -741,8 +741,42 @@ struct CreateClubSheet: View {
     private func createClub() {
         guard canCreate else { return }
         isCreating = true
-        // TODO: Persist club to Supabase
-        dismiss()
+
+        Task {
+            do {
+                let clubService = ClubService()
+
+                let privacyValue: String = switch privacy {
+                case .publicOpen: "public"
+                case .privateHidden: "members_only"
+                }
+
+                let categoryValue = selectedCategories.first?.id ?? "mixed"
+
+                let bannerData = bannerImage?.jpegData(compressionQuality: 0.8)
+                let iconData = iconImage?.jpegData(compressionQuality: 0.8)
+
+                _ = try await clubService.createClub(
+                    name: name.trimmingCharacters(in: .whitespacesAndNewlines),
+                    description: clubDescription.isEmpty ? nil : clubDescription,
+                    category: categoryValue,
+                    privacy: privacyValue,
+                    bannerData: bannerData,
+                    iconData: iconData
+                )
+
+                let generator = UINotificationFeedbackGenerator()
+                generator.notificationOccurred(.success)
+
+                await MainActor.run {
+                    dismiss()
+                }
+            } catch {
+                await MainActor.run {
+                    isCreating = false
+                }
+            }
+        }
     }
 }
 

@@ -8,14 +8,38 @@ struct TrackingItem: Identifiable {
     let progress: String
     let category: MediaCategory
     let imageName: String
+    let imageURL: URL?
     let placeholderColor: Color?
 
-    init(title: String, progress: String, category: MediaCategory, imageName: String, placeholderColor: Color? = nil) {
+    init(title: String, progress: String, category: MediaCategory, imageName: String, imageURL: URL? = nil, placeholderColor: Color? = nil) {
         self.title = title
         self.progress = progress
         self.category = category
         self.imageName = imageName
+        self.imageURL = imageURL
         self.placeholderColor = placeholderColor
+    }
+
+    init(from item: TrackedMediaItem) {
+        self.title = item.title
+        self.imageURL = item.imageURL
+        self.imageName = ""
+        self.placeholderColor = nil
+
+        let progressText: String
+        if item.progress > 0 {
+            progressText = "Progress: \(item.progress)"
+        } else {
+            progressText = TrackingStatus.from(dbValue: item.status)?.label ?? item.status
+        }
+        self.progress = progressText
+
+        switch item.mediaType {
+        case "anime": self.category = .anime
+        case "tv": self.category = .tvShow
+        case "book": self.category = .book
+        default: self.category = .anime
+        }
     }
 }
 
@@ -130,16 +154,29 @@ private struct TrackingCard: View {
 
     private var posterImage: some View {
         Group {
-            if let color = item.placeholderColor {
+            if let url = item.imageURL {
+                MediaPosterImage(
+                    url: url,
+                    width: 180,
+                    height: 240,
+                    cornerRadius: NookRadii.md
+                )
+            } else if let color = item.placeholderColor {
                 color
-            } else {
+                    .frame(width: 180, height: 240)
+                    .clipShape(RoundedRectangle(cornerRadius: NookRadii.md, style: .continuous))
+            } else if !item.imageName.isEmpty {
                 Image(item.imageName)
                     .resizable()
                     .scaledToFill()
+                    .frame(width: 180, height: 240)
+                    .clipShape(RoundedRectangle(cornerRadius: NookRadii.md, style: .continuous))
+            } else {
+                Color.nook.searchShimmerBase
+                    .frame(width: 180, height: 240)
+                    .clipShape(RoundedRectangle(cornerRadius: NookRadii.md, style: .continuous))
             }
         }
-        .frame(width: 180, height: 240)
-        .clipShape(RoundedRectangle(cornerRadius: NookRadii.md, style: .continuous))
     }
 
     private var categoryBadge: some View {

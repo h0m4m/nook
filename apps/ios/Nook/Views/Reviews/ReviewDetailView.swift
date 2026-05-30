@@ -68,6 +68,28 @@ struct ReviewDetailView: View {
         .onTapGesture {
             isCommentFocused = false
         }
+        .task {
+            await loadData()
+        }
+    }
+
+    private func loadData() async {
+        guard let dbId = review.dbId else { return }
+        let service = ReviewService()
+
+        // Check if liked
+        isLiked = (try? await service.isReviewLiked(reviewId: dbId)) ?? false
+
+        // Load comments from DB
+        if let dbComments = try? await service.getComments(reviewId: dbId), !dbComments.isEmpty {
+            comments = dbComments.map { c in
+                ReviewComment(
+                    authorName: c.authorName,
+                    timeAgo: "",
+                    body: c.body
+                )
+            }
+        }
     }
 }
 
@@ -207,10 +229,22 @@ private extension ReviewDetailView {
             Button {
                 let generator = UIImpactFeedbackGenerator(style: .light)
                 generator.prepare()
+                let wasLiked = isLiked
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
                     isLiked.toggle()
                 }
                 generator.impactOccurred()
+
+                if let dbId = review.dbId {
+                    Task {
+                        let service = ReviewService()
+                        if wasLiked {
+                            try? await service.unlikeReview(reviewId: dbId)
+                        } else {
+                            try? await service.likeReview(reviewId: dbId)
+                        }
+                    }
+                }
             } label: {
                 HStack(spacing: 6) {
                     Image(isLiked ? "heart-fill" : "heart")
@@ -528,6 +562,14 @@ private extension ReviewDetailView {
         }
 
         isCommentFocused = false
+
+        // Persist to DB
+        if let dbId = review.dbId {
+            Task {
+                let service = ReviewService()
+                try? await service.addComment(reviewId: dbId, body: text)
+            }
+        }
     }
 
     private func sortComments() {

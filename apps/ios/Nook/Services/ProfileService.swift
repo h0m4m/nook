@@ -3,28 +3,85 @@ import Supabase
 
 final class ProfileService: Sendable {
     func getProfile(userId: UUID) async throws -> UserProfileData {
-        // TODO: Implement in Prompt 7
-        fatalError("Not implemented")
+        struct ProfileRow: Decodable {
+            let id: UUID
+            let full_name: String?
+            let username: String?
+            let bio: String?
+            let avatar_url: String?
+            let interests: [String]?
+        }
+
+        let row: ProfileRow = try await supabase
+            .from("user_profiles")
+            .select("id, full_name, username, bio, avatar_url, interests")
+            .eq("id", value: userId.uuidString)
+            .single()
+            .execute()
+            .value
+
+        return UserProfileData(
+            id: row.id,
+            fullName: row.full_name,
+            username: row.username,
+            bio: row.bio,
+            avatarURL: row.avatar_url.flatMap { URL(string: $0) },
+            interests: row.interests ?? []
+        )
     }
 
     func updateProfile(
         userId: UUID,
-        fullName: String?,
-        username: String?,
-        bio: String?,
-        avatarURL: String?
+        fullName: String? = nil,
+        username: String? = nil,
+        bio: String? = nil,
+        avatarURL: String? = nil
     ) async throws {
-        // TODO: Implement in Prompt 7
+        var updates: [String: AnyEncodable] = [:]
+        if let fullName { updates["full_name"] = AnyEncodable(fullName) }
+        if let username { updates["username"] = AnyEncodable(username) }
+        if let bio { updates["bio"] = AnyEncodable(bio) }
+        if let avatarURL { updates["avatar_url"] = AnyEncodable(avatarURL) }
+
+        guard !updates.isEmpty else { return }
+
+        try await supabase
+            .from("user_profiles")
+            .update(updates)
+            .eq("id", value: userId.uuidString)
+            .execute()
     }
 
     func checkUsernameAvailable(username: String) async throws -> Bool {
-        // TODO: Implement in Prompt 7
-        return true
+        guard let userId = try? await supabase.auth.session.user.id else { return false }
+
+        struct CountRow: Decodable {
+            let id: UUID
+        }
+
+        let rows: [CountRow] = try await supabase
+            .from("user_profiles")
+            .select("id")
+            .eq("username", value: username)
+            .neq("id", value: userId.uuidString)
+            .execute()
+            .value
+
+        return rows.isEmpty
     }
 
     func getStats(userId: UUID) async throws -> UserStats {
-        // TODO: Implement in Prompt 7
-        fatalError("Not implemented")
+        let result: JSONObject = try await supabase
+            .rpc("get_user_stats", params: ["target_user_id": userId.uuidString])
+            .execute()
+            .value
+
+        return UserStats(
+            trackedCount: (result["tracked_count"]?.intValue) ?? 0,
+            reviewCount: (result["review_count"]?.intValue) ?? 0,
+            nookCount: (result["nook_count"]?.intValue) ?? 0,
+            clubCount: (result["club_count"]?.intValue) ?? 0
+        )
     }
 
     func follow(userId: UUID) async throws {
@@ -67,4 +124,31 @@ struct UserStats: Sendable {
     let reviewCount: Int
     let nookCount: Int
     let clubCount: Int
+}
+
+// MARK: - JSON helpers for RPC
+
+typealias JSONObject = [String: JSONPrimitive]
+
+enum JSONPrimitive: Decodable {
+    case int(Int)
+    case double(Double)
+    case string(String)
+    case bool(Bool)
+    case null
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        if let v = try? container.decode(Int.self) { self = .int(v); return }
+        if let v = try? container.decode(Double.self) { self = .double(v); return }
+        if let v = try? container.decode(String.self) { self = .string(v); return }
+        if let v = try? container.decode(Bool.self) { self = .bool(v); return }
+        self = .null
+    }
+
+    var intValue: Int? {
+        if case .int(let v) = self { return v }
+        if case .double(let v) = self { return Int(v) }
+        return nil
+    }
 }

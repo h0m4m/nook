@@ -4,6 +4,10 @@ import SwiftUI
 
 struct StatsView: View {
     @Environment(\.dismiss) private var dismiss
+    @State private var trackedCount = 0
+    @State private var completedCount = 0
+    @State private var categoryStats: [CategoryStat] = []
+    @State private var realRatingData: [RatingStat] = []
 
     var body: some View {
         NavigationStack {
@@ -28,6 +32,62 @@ struct StatsView: View {
             .background(Color.nook.statsBackground)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar(.hidden, for: .navigationBar)
+            .task { await loadStats() }
+        }
+    }
+
+    private func loadStats() async {
+        guard let userId = try? await supabase.auth.session.user.id else { return }
+        let trackingService = TrackingService()
+
+        do {
+            let items = try await trackingService.getLibrary(userId: userId)
+            trackedCount = items.count
+            completedCount = items.filter { $0.status == "completed" }.count
+
+            // Build category breakdown
+            var counts: [String: Int] = [:]
+            for item in items {
+                counts[item.mediaType, default: 0] += 1
+            }
+
+            let colorMap: [String: (Color, Color)] = [
+                "anime": (Color.nook.statsAnime, Color.nook.statsAnimeBg),
+                "tv": (Color.nook.statsTvShow, Color.nook.statsTvShowBg),
+                "book": (Color.nook.statsBook, Color.nook.statsBookBg),
+                "movie": (Color.nook.statsMovie, Color.nook.statsMovieBg),
+                "manga": (Color.nook.statsManga, Color.nook.statsMangaBg),
+            ]
+
+            let labelMap: [String: String] = [
+                "anime": "Anime", "tv": "TV", "book": "Books",
+                "movie": "Movies", "manga": "Manga",
+            ]
+
+            let maxCount = counts.values.max() ?? 1
+            categoryStats = counts
+                .sorted { $0.value > $1.value }
+                .map { key, count in
+                    let colors = colorMap[key] ?? (Color.gray, Color.gray.opacity(0.2))
+                    return CategoryStat(
+                        label: labelMap[key] ?? key.capitalized,
+                        count: count,
+                        fraction: CGFloat(count) / CGFloat(maxCount),
+                        color: colors.0,
+                        background: colors.1
+                    )
+                }
+            // Build rating distribution from user scores
+            var ratingCounts = [Int](repeating: 0, count: 10)
+            for item in items {
+                if let score = item.score {
+                    let bucket = max(1, min(10, Int(score.rounded()))) - 1
+                    ratingCounts[bucket] += 1
+                }
+            }
+            realRatingData = (1...10).map { RatingStat(score: $0, count: ratingCounts[$0 - 1]) }
+        } catch {
+            // Keep defaults
         }
     }
 
@@ -101,28 +161,28 @@ struct StatsView: View {
                 GridItem(.flexible(), spacing: 12),
             ], spacing: 12) {
                 overviewCard(
-                    value: "147",
+                    value: "\(trackedCount)",
                     label: "Tracked",
                     icon: "bookmark-simple-fill",
                     color: Color.nook.profileStatTracked,
                     background: Color.nook.profileStatTrackedBg
                 )
                 overviewCard(
-                    value: "89",
+                    value: "\(completedCount)",
                     label: "Completed",
                     icon: "check-bold",
                     color: Color.nook.libraryStatusActive,
                     background: Color.nook.libraryStatusActive.opacity(0.12)
                 )
                 overviewCard(
-                    value: "1,240",
+                    value: "—",
                     label: "Hours spent",
                     icon: "clock-fill",
                     color: Color.nook.profileStatReviews,
                     background: Color.nook.profileStatReviewsBg
                 )
                 overviewCard(
-                    value: "7.8",
+                    value: "—",
                     label: "Avg. rating",
                     icon: "star-fill",
                     color: Color.nook.reviewRating,
@@ -225,7 +285,8 @@ struct StatsView: View {
                 .foregroundStyle(Color.nook.statsSectionTitle)
 
             VStack(spacing: 10) {
-                ForEach(StatsView.categoryData, id: \.label) { item in
+                let data = categoryStats.isEmpty ? StatsView.categoryData : categoryStats
+                ForEach(data, id: \.label) { item in
                     categoryBar(item: item)
                 }
             }
@@ -275,9 +336,12 @@ struct StatsView: View {
                 .foregroundStyle(Color.nook.statsSectionTitle)
 
             VStack(spacing: 0) {
+                let ratings = realRatingData.isEmpty ? StatsView.ratingData : realRatingData
+                let maxCount = ratings.map(\.count).max() ?? 1
+
                 HStack(alignment: .bottom, spacing: 6) {
-                    ForEach(StatsView.ratingData, id: \.score) { item in
-                        ratingBar(item: item)
+                    ForEach(ratings, id: \.score) { item in
+                        ratingBarDynamic(item: item, maxCount: maxCount)
                     }
                 }
                 .frame(height: 120)
@@ -289,7 +353,7 @@ struct StatsView: View {
                     .padding(.horizontal, 16)
 
                 HStack(spacing: 6) {
-                    ForEach(StatsView.ratingData, id: \.score) { item in
+                    ForEach(ratings, id: \.score) { item in
                         Text("\(item.score)")
                             .font(NookFont.statsBarLabel)
                             .foregroundStyle(Color.nook.statsRatingLabel)
@@ -323,6 +387,23 @@ struct StatsView: View {
                 .fill(item.count > 0 ? Color.nook.statsRatingBarFill : Color.nook.statsRatingBar)
                 .frame(maxWidth: .infinity)
                 .frame(height: max(CGFloat(item.count) / CGFloat(StatsView.maxRatingCount) * 80, 4))
+        }
+    }
+
+    private func ratingBarDynamic(item: RatingStat, maxCount: Int) -> some View {
+        VStack(spacing: 4) {
+            Spacer(minLength: 0)
+
+            if item.count > 0 {
+                Text("\(item.count)")
+                    .font(NookFont.statsBarLabel)
+                    .foregroundStyle(Color.nook.statsSubtitle)
+            }
+
+            RoundedRectangle(cornerRadius: 4)
+                .fill(item.count > 0 ? Color.nook.statsRatingBarFill : Color.nook.statsRatingBar)
+                .frame(maxWidth: .infinity)
+                .frame(height: max(CGFloat(item.count) / CGFloat(max(maxCount, 1)) * 80, 4))
         }
     }
 
@@ -500,7 +581,7 @@ struct StatsView: View {
 
 // MARK: - Data Models
 
-fileprivate struct CategoryStat {
+struct CategoryStat {
     let label: String
     let count: Int
     let fraction: CGFloat
@@ -508,7 +589,7 @@ fileprivate struct CategoryStat {
     let background: Color
 }
 
-fileprivate struct RatingStat {
+struct RatingStat {
     let score: Int
     let count: Int
 }

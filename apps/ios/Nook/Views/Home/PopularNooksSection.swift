@@ -4,10 +4,12 @@ import SwiftUI
 
 struct NookItem: Identifiable, Hashable {
     let id = UUID()
+    let dbId: UUID?
     let title: String
     let description: String
     let curatorName: String
     let imageName: String
+    let imageURL: URL?
     let placeholderColor: Color?
     let likes: Int
     let comments: Int
@@ -20,23 +22,57 @@ struct NookItem: Identifiable, Hashable {
         description: String = "",
         curatorName: String,
         imageName: String,
+        imageURL: URL? = nil,
         placeholderColor: Color? = nil,
         likes: Int = 0,
         comments: Int = 0,
         mediaItems: [NookMediaItem] = [],
         privacy: String = "Public",
-        layout: String = "Grid"
+        layout: String = "Grid",
+        dbId: UUID? = nil
     ) {
         self.title = title
         self.description = description
         self.curatorName = curatorName
         self.imageName = imageName
+        self.imageURL = imageURL
         self.placeholderColor = placeholderColor
         self.likes = likes
         self.comments = comments
         self.mediaItems = mediaItems
         self.privacy = privacy
         self.layout = layout
+        self.dbId = dbId
+    }
+
+    init(from detail: NookDetail) {
+        self.dbId = detail.nook.id
+        self.title = detail.nook.name
+        self.description = detail.nook.description ?? ""
+        self.curatorName = detail.ownerName ?? "Unknown"
+        self.imageName = ""
+        self.imageURL = detail.nook.coverURL
+        self.placeholderColor = nil
+        self.likes = 0
+        self.comments = 0
+        self.mediaItems = detail.items.map { NookMediaItem(from: $0) }
+        self.privacy = detail.nook.privacy.capitalized
+        self.layout = detail.nook.layout.capitalized
+    }
+
+    init(from row: NookRow) {
+        self.dbId = row.id
+        self.title = row.name
+        self.description = row.description ?? ""
+        self.curatorName = ""
+        self.imageName = ""
+        self.imageURL = row.coverUrl.flatMap { URL(string: $0) }
+        self.placeholderColor = nil
+        self.likes = 0
+        self.comments = 0
+        self.mediaItems = []
+        self.privacy = row.privacy.capitalized
+        self.layout = row.layout.capitalized
     }
 }
 
@@ -46,6 +82,7 @@ struct NookMediaItem: Identifiable, Hashable {
     let category: String
     let year: String
     let imageName: String
+    let imageURL: URL?
     let placeholderColor: Color?
     let note: String?
 
@@ -54,6 +91,7 @@ struct NookMediaItem: Identifiable, Hashable {
         category: String,
         year: String,
         imageName: String,
+        imageURL: URL? = nil,
         placeholderColor: Color? = nil,
         note: String? = nil
     ) {
@@ -61,8 +99,19 @@ struct NookMediaItem: Identifiable, Hashable {
         self.category = category
         self.year = year
         self.imageName = imageName
+        self.imageURL = imageURL
         self.placeholderColor = placeholderColor
         self.note = note
+    }
+
+    init(from entry: NookMediaEntry) {
+        self.title = entry.title
+        self.category = entry.mediaType.uppercased()
+        self.year = ""
+        self.imageName = ""
+        self.imageURL = entry.imageURL
+        self.placeholderColor = nil
+        self.note = entry.note
     }
 }
 
@@ -126,12 +175,23 @@ private struct NookCard: View {
         ZStack(alignment: .bottomLeading) {
             // Background image or placeholder
             Group {
-                if let color = item.placeholderColor {
+                if let url = item.imageURL {
+                    AsyncImage(url: url) { phase in
+                        switch phase {
+                        case .success(let image):
+                            image.resizable().scaledToFill()
+                        default:
+                            (item.placeholderColor ?? Color.nook.foreground)
+                        }
+                    }
+                } else if let color = item.placeholderColor {
                     color
-                } else {
+                } else if !item.imageName.isEmpty {
                     Image(item.imageName)
                         .resizable()
                         .scaledToFill()
+                } else {
+                    Color.nook.foreground
                 }
             }
             .frame(width: 354)
