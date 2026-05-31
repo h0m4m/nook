@@ -43,6 +43,7 @@ struct TrackMediaSheet: View {
                     TrackingSheetView(
                         mediaTitle: item.title,
                         totalEpisodes: 0,
+                        category: LibraryMediaCategory.from(apiMediaType: item.mediaType),
                         selectedStatus: $sheetStatus,
                         currentEpisode: $sheetEpisode,
                         userScore: $sheetScore,

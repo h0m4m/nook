@@ -65,6 +65,7 @@
 		CLUBD3TA1L123456789AB01 /* ClubDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CLUBD3TA1L123456789AB02 /* ClubDetailView.swift */; };
 		CR3AT3CLUB123456789AB01 /* CreateClubSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = CR3AT3CLUB123456789AB02 /* CreateClubSheet.swift */; };
 		D5A4DC033A91EFBB52FCB6F4 /* TrackingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C75617DDAFCD1691717FACC3 /* TrackingService.swift */; };
+		TRKS7A7E5ERV1CE000000002 /* TrackingStateService.swift in Sources */ = {isa = PBXBuildFile; fileRef = TRKS7A7E5ERV1CE000000001 /* TrackingStateService.swift */; };
 		D859B805755EB33AA5C5CC2E /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DFC5ACF4DD3EB602132421E /* APIClient.swift */; };
 		DDF31DFAC904631728E8BE97 /* IntroView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD3FD31533A8320839C66978 /* IntroView.swift */; };
 		E1A2B3C4D5E6F7A8B9C0D1E2 /* OnboardingInterestsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1A2B3C4D5E6F7A8B9C0D1E3 /* OnboardingInterestsView.swift */; };
@@ -148,6 +149,7 @@
 		C0NT1NU3TRK1234567890AB02 /* ContinueTrackingSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContinueTrackingSection.swift; sourceTree = "<group>"; };
 		C4D340F8349DB5CFE60D294F /* TrackMediaSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackMediaSheet.swift; sourceTree = "<group>"; };
 		C75617DDAFCD1691717FACC3 /* TrackingService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TrackingService.swift; sourceTree = "<group>"; };
+		TRKS7A7E5ERV1CE000000001 /* TrackingStateService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TrackingStateService.swift; sourceTree = "<group>"; };
 		CAAD1F4F312C0AE01394FB84 /* ReviewService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ReviewService.swift; sourceTree = "<group>"; };
 		CEAD2EC6E8B677C15E76C760 /* arrow-right.svg */ = {isa = PBXFileReference; lastKnownFileType = text; path = "arrow-right.svg"; sourceTree = "<group>"; };
 		CLUBD3TA1L123456789AB02 /* ClubDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClubDetailView.swift; sourceTree = "<group>"; };
@@ -250,6 +252,7 @@
 				5DFC5ACF4DD3EB602132421E /* APIClient.swift */,
 				66A00B794863F01C3F034794 /* MediaAPIService.swift */,
 				C75617DDAFCD1691717FACC3 /* TrackingService.swift */,
+				TRKS7A7E5ERV1CE000000001 /* TrackingStateService.swift */,
 				CAAD1F4F312C0AE01394FB84 /* ReviewService.swift */,
 				8457ECFF77A850DAB3A43B26 /* ClubService.swift */,
 				F6AF20BA9D38FCF037278411 /* NookService.swift */,
@@ -475,7 +478,7 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
-				LastUpgradeCheck = 1600;
+				LastUpgradeCheck = 1640;
 				TargetAttributes = {
 					8E7BD5965AE4DD3F52BB8C83 = {
 						ProvisioningStyle = Automatic;
@@ -584,6 +587,7 @@
 				D859B805755EB33AA5C5CC2E /* APIClient.swift in Sources */,
 				9C6C29F83C85EB077AF8B142 /* MediaAPIService.swift in Sources */,
 				D5A4DC033A91EFBB52FCB6F4 /* TrackingService.swift in Sources */,
+				TRKS7A7E5ERV1CE000000002 /* TrackingStateService.swift in Sources */,
 				CAD3F964A7937F02D2550CC2 /* ReviewService.swift in Sources */,
 				824194E8B9852F0FE526C6E4 /* ClubService.swift in Sources */,
 				77C5FE341F1BB1D2B6F2BF60 /* NookService.swift in Sources */,

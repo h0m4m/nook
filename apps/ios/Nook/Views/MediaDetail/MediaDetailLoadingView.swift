@@ -4,6 +4,7 @@ import SwiftUI
 /// Used when navigating from search results via MediaDetailRoute.
 struct MediaDetailLoadingView: View {
     @State private var viewModel: MediaDetailViewModel
+    @Environment(\.trackingState) private var trackingState
 
     init(route: MediaDetailRoute) {
         self._viewModel = State(initialValue: MediaDetailViewModel(route: route))
@@ -12,7 +13,12 @@ struct MediaDetailLoadingView: View {
     var body: some View {
         Group {
             if viewModel.detail != nil {
-                MediaDetailView(media: makeMediaDetail())
+                MediaDetailView(
+                    media: makeMediaDetail(),
+                    onTracked: {
+                        trackingState.markTracked(viewModel.route.mediaId)
+                    }
+                )
             } else if viewModel.isLoading {
                 loadingState
             } else if let error = viewModel.error {
@@ -28,7 +34,8 @@ struct MediaDetailLoadingView: View {
         MediaDetail(
             title: viewModel.title,
             year: viewModel.year ?? "",
-            genres: viewModel.genres,
+            genres: viewModel.genresSubtext,
+            genresFull: viewModel.genres,
             episodeCount: viewModel.episodeCountDisplay,
             category: viewModel.category ?? .movie,
             rating: viewModel.score ?? 0,

@@ -285,6 +285,7 @@ struct LibraryView: View {
                     TrackingSheetView(
                         mediaTitle: item.title,
                         totalEpisodes: 0,
+                        category: LibraryMediaCategory.from(apiMediaType: item.mediaType),
                         selectedStatus: $sheetStatus,
                         currentEpisode: $sheetEpisode,
                         userScore: $sheetScore,
@@ -335,10 +336,21 @@ struct LibraryView: View {
 
                     LazyVStack(spacing: 24) {
                         ForEach(viewModel.filteredItems) { item in
-                            RealLibraryItemRow(item: item) {
-                                openTrackingSheet(for: item)
+                            NavigationLink(value: MediaDetailRoute(
+                                mediaId: item.sourceId,
+                                source: item.source,
+                                mediaType: item.mediaType,
+                                title: item.title,
+                                imageURL: item.imageURL,
+                                year: item.year,
+                                score: item.score
+                            )) {
+                                RealLibraryItemRow(item: item) {
+                                    openTrackingSheet(for: item)
+                                }
+                                .padding(.horizontal, 24)
                             }
-                            .padding(.horizontal, 24)
+                            .buttonStyle(.plain)
                         }
                     }
                 }

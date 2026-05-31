@@ -11,6 +11,8 @@ final class SearchViewModel {
     var currentPage: Int = 1
     var hasMorePages: Bool = false
     var error: AppError?
+    /// mediaIds that the user has tracked during this session
+    var trackedMediaIds: Set<String> = []
 
     private let mediaAPI: MediaAPIService
     private var searchTask: Task<Void, Never>?

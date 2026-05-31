@@ -142,6 +142,7 @@ struct SearchView: View {
     @State private var sheetIsTracking = false
     @State private var sheetIsRated = false
     @FocusState private var isSearchFocused: Bool
+    @Environment(\.trackingState) private var trackingState
 
     var body: some View {
         scrollContent
@@ -173,6 +174,7 @@ struct SearchView: View {
                     TrackingSheetView(
                         mediaTitle: item.title,
                         totalEpisodes: 0,
+                        category: LibraryMediaCategory.from(apiMediaType: item.mediaType),
                         selectedStatus: $sheetStatus,
                         currentEpisode: $sheetEpisode,
                         userScore: $sheetScore,
@@ -245,7 +247,11 @@ struct SearchView: View {
             LazyVStack(spacing: 24) {
                 ForEach(results) { item in
                     NavigationLink(value: MediaDetailRoute(from: item)) {
-                        APISearchResultRow(item: item) {
+                        APISearchResultRow(
+                            item: item,
+                            isTracked: viewModel.trackedMediaIds.contains(item.mediaId)
+                                || trackingState.trackedMediaIds.contains(item.mediaId)
+                        ) {
                             openTrackingSheet(for: item)
                         }
                     }
@@ -395,6 +401,9 @@ struct SearchView: View {
         guard sheetIsTracking,
               let status = sheetStatus,
               let item = findTrackingItem() else { return }
+
+        // Mark as tracked immediately so the button updates
+        viewModel.trackedMediaIds.insert(item.mediaId)
 
         Task {
             guard let userId = try? await supabase.auth.session.user.id else { return }
@@ -643,6 +652,7 @@ struct SoftScrollEdge: ViewModifier {
 
 struct APISearchResultRow: View {
     let item: MediaSearchResult
+    var isTracked: Bool = false
     let onTapAction: () -> Void
 
     private var category: SearchMediaCategory? {
@@ -711,31 +721,34 @@ struct APISearchResultRow: View {
 
     @ViewBuilder
     private var addButton: some View {
+        let icon = isTracked ? "pencil-simple-line-fill" : "plus-bold"
+        let bgColor = isTracked ? Color.nook.searchAddedButton : Color.nook.searchAddButton
+
         if #available(iOS 26, *) {
             Button(action: onTapAction) {
-                Image("plus-bold")
+                Image(icon)
                     .renderingMode(.template)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .frame(width: 18, height: 18)
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(isTracked ? Color.white : Color.primary)
                     .frame(width: 40, height: 40)
-                    .background(.white, in: Circle())
+                    .background(bgColor, in: Circle())
                     .glassEffect(.regular.interactive(), in: .circle)
             }
             .buttonStyle(.plain)
         } else {
             Button(action: onTapAction) {
                 Circle()
-                    .fill(Color.nook.searchAddButton)
+                    .fill(bgColor)
                     .frame(width: 40, height: 40)
                     .overlay {
-                        Image("plus-bold")
+                        Image(icon)
                             .renderingMode(.template)
                             .resizable()
                             .aspectRatio(contentMode: .fit)
                             .frame(width: 18, height: 18)
-                            .foregroundStyle(Color.nook.searchAddedButton)
+                            .foregroundStyle(isTracked ? Color.white : Color.nook.searchAddedButton)
                     }
             }
             .buttonStyle(.plain)

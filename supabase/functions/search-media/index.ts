@@ -22,7 +22,7 @@ Deno.serve(async (req) => {
 
     // DB-first search: check media_items cache for matches
     const cached = await searchCachedMedia(query, media_type, page);
-    if (cached && cached.results.length >= 10) {
+    if (cached && cached.results.length >= 20) {
       return new Response(JSON.stringify(cached), {
         headers: {
           ...corsHeaders,
@@ -103,7 +103,17 @@ async function searchCachedMedia(
 
     if (error || !data || data.length === 0) return null;
 
-    const results: SearchResult[] = data.map((row: Record<string, unknown>) => ({
+    // Sort by title relevance: exact match → starts with → contains
+    const q = query.toLowerCase();
+    const ranked = (data as Record<string, unknown>[]).slice().sort((a, b) => {
+      const ta = (a.title as string).toLowerCase();
+      const tb = (b.title as string).toLowerCase();
+      const scoreA = ta === q ? 0 : ta.startsWith(q) ? 1 : 2;
+      const scoreB = tb === q ? 0 : tb.startsWith(q) ? 1 : 2;
+      return scoreA - scoreB;
+    });
+
+    const results: SearchResult[] = ranked.map((row) => ({
       media_id: row.source_id as string,
       source: row.source as string,
       media_type: row.media_type as string,

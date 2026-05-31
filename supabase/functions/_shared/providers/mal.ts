@@ -128,7 +128,7 @@ export async function detail(sourceId: string, mediaType: string): Promise<Media
   const isAnime = mediaType === 'anime';
   const kitsuType = isAnime ? 'anime' : 'manga';
 
-  const resp = await fetch(`${BASE_URL}/${kitsuType}/${sourceId}`, {
+  const resp = await fetch(`${BASE_URL}/${kitsuType}/${sourceId}?include=genres`, {
     headers: JSONAPI_HEADERS,
   });
 
@@ -167,23 +167,12 @@ export async function detail(sourceId: string, mediaType: string): Promise<Media
     details.volumes = volumeCount || null;
   }
 
-  // Kitsu doesn't include genres in the main attributes — they're in relationships
-  // We'd need a separate request with ?include=genres, but for now we return empty
-  // and can enhance later
-  let genres: string[] = [];
-  try {
-    const genreResp = await fetch(`${BASE_URL}/${kitsuType}/${sourceId}/genres`, {
-      headers: JSONAPI_HEADERS,
-    });
-    if (genreResp.ok) {
-      const genreData = await genreResp.json();
-      genres = ((genreData.data || []) as Array<Record<string, unknown>>)
-        .map((g) => (g.attributes as Record<string, string>)?.name || '')
-        .filter(Boolean);
-    }
-  } catch {
-    // genres are optional, don't fail the whole detail
-  }
+  // Parse genres from the included sideloaded data (via ?include=genres)
+  const included = (data.included || []) as Array<Record<string, unknown>>;
+  const genres: string[] = included
+    .filter((item) => item.type === 'genres')
+    .map((g) => (g.attributes as Record<string, string>)?.name || '')
+    .filter(Boolean);
 
   const ratingCount = attrs.userCount as number | null;
 

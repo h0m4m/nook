@@ -6,6 +6,17 @@ import * as openlibrary from '../_shared/providers/openlibrary.ts';
 import type { MediaDetail } from '../_shared/types.ts';
 
 const STALENESS_DAYS = 30;
+const AIRING_STALENESS_DAYS = 1;
+
+// Status values from providers that indicate a show is still actively airing
+const AIRING_STATUSES = new Set([
+  // Kitsu (anime/manga)
+  'Airing',
+  // TheTVDB
+  'Continuing',
+  'Returning Series',
+  'Pilot',
+]);
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -145,7 +156,26 @@ async function getCachedDetail(
     const ageMs = Date.now() - updatedAt.getTime();
     const ageDays = ageMs / (1000 * 60 * 60 * 24);
 
-    if (ageDays > STALENESS_DAYS) return null;
+    // Use a shorter staleness window for actively airing shows
+    const status = (data.details as Record<string, unknown>)?.status as string | undefined;
+    const isAiring = status ? AIRING_STATUSES.has(status) : false;
+    const maxAge = isAiring ? AIRING_STALENESS_DAYS : STALENESS_DAYS;
+
+    if (ageDays > maxAge) return null;
+
+    // If genres are missing from a kitsu entry, bust cache so we re-fetch with genres
+    if (data.source === 'kitsu' && (!data.genres || (data.genres as string[]).length === 0)) {
+      return null;
+    }
+
+    // If episode count is missing from a thetvdb TV entry, bust cache so we re-fetch
+    if (
+      data.source === 'thetvdb' &&
+      data.media_type === 'tv' &&
+      !(data.details as Record<string, unknown>)?.episodes
+    ) {
+      return null;
+    }
 
     // Reconstruct the detail response from cached data
     return {

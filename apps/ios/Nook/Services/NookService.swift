@@ -60,7 +60,7 @@ final class NookService: Sendable {
             let reference_type: String
         }
 
-        try? await supabase
+        _ = try? await supabase
             .from("activity_feed")
             .insert(ActivityInsert(
                 user_id: userId.uuidString,

@@ -20,9 +20,20 @@ final class MediaDetailViewModel {
     var score: Double? { detail?.score ?? route.score }
     var scoreCount: Int? { detail?.scoreCount }
     var synopsis: String { detail?.synopsis ?? "" }
+    /// Full genre list for the details tab
     var genres: String { detail?.genres.joined(separator: ", ") ?? "" }
+    /// Truncated to 2 genres for the compact hero subtext
+    var genresSubtext: String {
+        guard let genres = detail?.genres, !genres.isEmpty else { return "" }
+        return genres.prefix(2).joined(separator: ", ")
+    }
     var genresList: [String] { detail?.genres ?? [] }
-    var maxProgress: Int? { detail?.maxProgress }
+    var maxProgress: Int? {
+        if let p = detail?.maxProgress, p > 0 { return p }
+        // Movies have no episode count — treat as 1 so progress shows "1/1"
+        if route.mediaType == "movie" { return 1 }
+        return detail?.maxProgress
+    }
     var sourceUrl: String? { detail?.sourceUrl }
 
     var category: LibraryMediaCategory? {

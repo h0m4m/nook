@@ -14,7 +14,8 @@ struct MediaDetail: Identifiable, Hashable {
     }
     let title: String
     let year: String
-    let genres: String
+    let genres: String        // Truncated (≤2) for hero subtext
+    let genresFull: String    // Full list for details tab
     let episodeCount: String
     let category: LibraryMediaCategory
     let rating: Double
@@ -37,6 +38,7 @@ struct MediaDetail: Identifiable, Hashable {
         title: String,
         year: String,
         genres: String,
+        genresFull: String = "",
         episodeCount: String,
         category: LibraryMediaCategory,
         rating: Double,
@@ -58,6 +60,7 @@ struct MediaDetail: Identifiable, Hashable {
         self.title = title
         self.year = year
         self.genres = genres
+        self.genresFull = genresFull.isEmpty ? genres : genresFull
         self.episodeCount = episodeCount
         self.category = category
         self.rating = rating
@@ -132,6 +135,8 @@ enum MediaDetailTab: String, CaseIterable, Identifiable {
 
 struct MediaDetailView: View {
     let media: MediaDetail
+    /// Called when the user saves tracking. Passes the media's sourceId (or dbId string).
+    var onTracked: (() -> Void)?
     @Environment(\.dismiss) private var dismiss
     @State private var selectedTab: MediaDetailTab = .about
     @State private var dominantColor: Color?
@@ -151,8 +156,9 @@ struct MediaDetailView: View {
     @State private var loadedReviews: [Review] = []
     @State private var isLoadingReviews = false
 
-    init(media: MediaDetail) {
+    init(media: MediaDetail, onTracked: (() -> Void)? = nil) {
         self.media = media
+        self.onTracked = onTracked
         self._isTracking = State(initialValue: media.trackingStatus != nil)
         self._selectedStatus = State(initialValue: media.trackingStatus)
         self._currentEpisode = State(initialValue: media.currentEpisode)
@@ -206,6 +212,7 @@ struct MediaDetailView: View {
             TrackingSheetView(
                 mediaTitle: media.title,
                 totalEpisodes: media.totalEpisodes,
+                category: media.category,
                 selectedStatus: $selectedStatus,
                 currentEpisode: $currentEpisode,
                 userScore: $userScore,
@@ -259,6 +266,25 @@ struct MediaDetailView: View {
         }
     }
 
+    private var studioLabel: String {
+        switch media.category {
+        case .book: "Author"
+        case .manga: "Author"
+        case .game: "Developer"
+        default: "Studio"
+        }
+    }
+
+    /// Short label used in the progress card counter (e.g. "Ep 1", "Pg 142")
+    private var progressCountLabel: String {
+        switch media.category {
+        case .book: "Pg \(currentEpisode)"
+        case .manga: "Ch \(currentEpisode)"
+        case .movie: currentEpisode > 0 ? "Watched" : "Not watched"
+        default: "Ep \(currentEpisode)"
+        }
+    }
+
     private func loadExistingTracking() async {
         guard let dbId = media.dbId,
               let userId = try? await supabase.auth.session.user.id else { return }
@@ -274,6 +300,7 @@ struct MediaDetailView: View {
 
     private func persistTracking() {
         guard isTracking, let status = selectedStatus, let dbId = media.dbId else { return }
+        onTracked?()
         Task {
             guard let userId = try? await supabase.auth.session.user.id else { return }
             let service = TrackingService()
@@ -468,7 +495,9 @@ private extension MediaDetailView {
             // Category badge + rating row
             HStack(spacing: 8) {
                 categoryBadge
-                ratingDisplay
+                if media.rating > 0 {
+                    ratingDisplay
+                }
                 Spacer()
             }
 
@@ -523,22 +552,26 @@ private extension MediaDetailView {
     }
 
     var metadataRow: some View {
-        HStack(spacing: 0) {
-            Text(media.year)
-                .font(NookFont.labelMediumSmall)
-                .foregroundStyle(Color.nook.detailMeta)
+        // Build non-empty parts: year, genres (if present), episode count (non-movies only)
+        let parts: [String] = {
+            var p: [String] = []
+            if !media.year.isEmpty { p.append(media.year) }
+            if !media.genres.isEmpty { p.append(media.genres) }
+            if media.category != .movie, !media.episodeCount.isEmpty {
+                p.append(media.episodeCount)
+            }
+            return p
+        }()
 
-            metaDot
-
-            Text(media.genres)
-                .font(NookFont.labelMediumSmall)
-                .foregroundStyle(Color.nook.detailMeta)
-
-            metaDot
-
-            Text(media.episodeCount)
-                .font(NookFont.labelMediumSmall)
-                .foregroundStyle(Color.nook.detailMeta)
+        return HStack(spacing: 0) {
+            ForEach(Array(parts.enumerated()), id: \.offset) { index, part in
+                Text(part)
+                    .font(NookFont.labelMediumSmall)
+                    .foregroundStyle(Color.nook.detailMeta)
+                if index < parts.count - 1 {
+                    metaDot
+                }
+            }
         }
     }
 
@@ -554,7 +587,11 @@ private extension MediaDetailView {
 
 private extension MediaDetailView {
     var progressCard: some View {
-        VStack(spacing: 0) {
+        let progress: Double = media.totalEpisodes > 0
+            ? Double(currentEpisode) / Double(media.totalEpisodes)
+            : 0
+
+        return VStack(spacing: 0) {
             // Header row
             HStack {
                 Text("Your Progress")
@@ -563,14 +600,24 @@ private extension MediaDetailView {
 
                 Spacer()
 
-                HStack(spacing: 0) {
-                    Text("Ep \(media.currentEpisode)")
-                        .font(NookFont.labelBoldSmall)
-                        .foregroundStyle(Color.nook.detailTabActive)
+                Group {
+                    if media.category == .movie {
+                        Text(progressCountLabel)
+                            .font(NookFont.labelBoldSmall)
+                            .foregroundStyle(Color.nook.detailTabActive)
+                    } else {
+                        HStack(spacing: 0) {
+                            Text(progressCountLabel)
+                                .font(NookFont.labelBoldSmall)
+                                .foregroundStyle(Color.nook.detailTabActive)
 
-                    Text(" / \(media.totalEpisodes)")
-                        .font(NookFont.caption)
-                        .foregroundStyle(Color.nook.detailMeta)
+                            if media.totalEpisodes > 0 {
+                                Text(" / \(media.totalEpisodes)")
+                                    .font(NookFont.caption)
+                                    .foregroundStyle(Color.nook.detailMeta)
+                            }
+                        }
+                    }
                 }
             }
             .padding(.top, 17)
@@ -584,7 +631,7 @@ private extension MediaDetailView {
 
                     RoundedRectangle(cornerRadius: 100, style: .continuous)
                         .fill(Color.nook.detailTabActive)
-                        .frame(width: geo.size.width * media.progress)
+                        .frame(width: geo.size.width * progress)
                 }
             }
             .frame(height: 8)
@@ -595,9 +642,9 @@ private extension MediaDetailView {
             HStack {
                 Spacer()
 
-                if let status = media.trackingStatus {
+                if let status = selectedStatus {
                     Button {
-                        // TODO: Update progress
+                        showTrackingSheet = true
                     } label: {
                         HStack(spacing: 6) {
                             Image("pencil-simple")
@@ -853,30 +900,33 @@ private extension MediaDetailView {
                     .font(NookFont.labelBold)
                     .foregroundStyle(Color.nook.detailTitle)
 
-                detailRow(label: "Studio", value: media.studio)
+                detailRow(label: studioLabel, value: media.studio)
                 detailRow(label: "Director", value: media.director)
                 detailRow(label: "Status", value: media.status)
                 detailRow(label: "Aired", value: media.airedDates)
-                if !media.episodeCount.isEmpty {
+                if media.category != .movie {
                     detailRow(label: progressLabel, value: media.episodeCount)
                 }
-                detailRow(label: "Genre", value: media.genres)
+                detailRow(label: "Genre", value: media.genresFull)
             }
         }
         .padding(24)
         .padding(.bottom, 100)
     }
 
+    @ViewBuilder
     func detailRow(label: String, value: String) -> some View {
-        HStack(alignment: .top) {
-            Text(label)
-                .font(NookFont.labelMediumSmall)
-                .foregroundStyle(Color.nook.detailMeta)
-                .frame(width: 80, alignment: .leading)
+        if !value.isEmpty {
+            HStack(alignment: .top) {
+                Text(label)
+                    .font(NookFont.labelMediumSmall)
+                    .foregroundStyle(Color.nook.detailMeta)
+                    .frame(width: 80, alignment: .leading)
 
-            Text(value)
-                .font(NookFont.labelMediumSmall)
-                .foregroundStyle(Color.nook.detailTitle)
+                Text(value)
+                    .font(NookFont.labelMediumSmall)
+                    .foregroundStyle(Color.nook.detailTitle)
+            }
         }
     }
 }
@@ -1313,6 +1363,7 @@ extension MediaDetailView {
 struct TrackingSheetView: View {
     let mediaTitle: String
     let totalEpisodes: Int
+    let category: LibraryMediaCategory
     @Binding var selectedStatus: TrackingStatus?
     @Binding var currentEpisode: Int
     @Binding var userScore: Int?
@@ -1325,6 +1376,58 @@ struct TrackingSheetView: View {
     private let statuses: [TrackingStatus] = [
         .inProgress, .completed, .planned, .onHold, .dropped,
     ]
+
+    private var progressCountLabel: String {
+        switch category {
+        case .book: "Pg \(currentEpisode)"
+        case .manga: "Ch \(currentEpisode)"
+        case .movie: currentEpisode > 0 ? "Watched" : "Not watched"
+        default: "Ep \(currentEpisode)"
+        }
+    }
+
+    private var progressHeaderLabel: String {
+        if category == .movie { return progressCountLabel }
+        if totalEpisodes == 0 { return "\(progressCountLabel) / ?" }
+        return "\(progressCountLabel) / \(totalEpisodes)"
+    }
+
+    private var progressNumberField: some View {
+        HStack {
+            Button {
+                if currentEpisode > 0 { currentEpisode -= 1 }
+            } label: {
+                Image(systemName: "minus")
+                    .font(.system(size: 16, weight: .medium))
+                    .frame(width: 44, height: 44)
+                    .foregroundStyle(Color.nook.detailTitle)
+            }
+            .buttonStyle(.plain)
+
+            Spacer()
+
+            TextField("0", value: $currentEpisode, format: .number)
+                .keyboardType(.numberPad)
+                .multilineTextAlignment(.center)
+                .font(NookFont.labelBold)
+                .foregroundStyle(Color.nook.detailTitle)
+                .frame(width: 80)
+
+            Spacer()
+
+            Button {
+                currentEpisode += 1
+            } label: {
+                Image(systemName: "plus")
+                    .font(.system(size: 16, weight: .medium))
+                    .frame(width: 44, height: 44)
+                    .foregroundStyle(Color.nook.detailTitle)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 8)
+        .frame(height: 120)
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -1478,18 +1581,29 @@ struct TrackingSheetView: View {
 
                 Spacer()
 
-                Text("Ep \(currentEpisode) / \(totalEpisodes)")
+                Text(progressHeaderLabel)
                     .font(NookFont.labelMediumSmall)
                     .foregroundStyle(Color.nook.detailMeta)
             }
 
-            Picker("Episode", selection: $currentEpisode) {
-                ForEach(0...totalEpisodes, id: \.self) { ep in
-                    Text("\(ep)").tag(ep)
+            if category == .movie {
+                Picker("Watched", selection: $currentEpisode) {
+                    Text("Not watched").tag(0)
+                    Text("Watched").tag(1)
                 }
+                .pickerStyle(.wheel)
+                .frame(height: 120)
+            } else if totalEpisodes > 0 {
+                Picker("Episode", selection: $currentEpisode) {
+                    ForEach(0...totalEpisodes, id: \.self) { ep in
+                        Text("\(ep)").tag(ep)
+                    }
+                }
+                .pickerStyle(.wheel)
+                .frame(height: 120)
+            } else {
+                progressNumberField
             }
-            .pickerStyle(.wheel)
-            .frame(height: 120)
         }
         .padding(24)
     }

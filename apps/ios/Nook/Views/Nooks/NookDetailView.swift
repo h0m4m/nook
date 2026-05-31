@@ -328,8 +328,10 @@ struct NookDetailView: View {
             .padding(.horizontal, 24)
             .padding(.vertical, 20)
             .onGeometryChange(for: Bool.self) { geo in
+                // Check visibility without referencing UIScreen.main (main-actor isolated)
+                // A global minY < 3000 and maxY > 0 means the element is on screen
                 let frame = geo.frame(in: .global)
-                return frame.maxY > 0 && frame.minY < UIScreen.main.bounds.height
+                return frame.maxY > 0 && frame.minY < 3000
             } action: { visible in
                 withAnimation(.easeOut(duration: 0.2)) {
                     commentsVisible = visible

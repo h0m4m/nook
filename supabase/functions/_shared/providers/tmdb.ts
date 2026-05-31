@@ -75,15 +75,17 @@ export async function search(
   const data = await tvdbFetch(`/search?${params}`);
   const items = (data.data as Array<Record<string, unknown>>) || [];
 
-  const results: SearchResult[] = items.map((item) => ({
-    media_id: String(item.tvdb_id),
-    source: 'thetvdb',
-    media_type: mediaType,
-    title: (item.name as string) || '',
-    image_url: (item.image_url as string) || null,
-    year: (item.year as string) || null,
-    score: null,
-  }));
+  const results: SearchResult[] = items
+    .filter((item) => item.primary_language !== 'jpn')
+    .map((item) => ({
+      media_id: String(item.tvdb_id),
+      source: 'thetvdb',
+      media_type: mediaType,
+      title: (item.name as string) || '',
+      image_url: (item.image_url as string) || null,
+      year: (item.year as string) || null,
+      score: null,
+    }));
 
   // TheTVDB search doesn't return total count, estimate from results
   const hasMore = results.length === limit;
@@ -163,14 +165,34 @@ export async function detail(sourceId: string, mediaType: string): Promise<Media
       companies.length > 0 ? companies.slice(0, 3).map((c) => c.name as string) : null;
   }
 
-  // Max progress: 1 for movies, null for TV (we don't have episode count from extended easily)
+  // Episode count for TV series
   let maxProgress: number | null = null;
   if (isMovie) {
     maxProgress = 1;
+  } else {
+    try {
+      let totalEpisodes = 0;
+      let page = 0;
+      const pageSize = 100;
+      while (true) {
+        const epData = await tvdbFetch(`/series/${sourceId}/episodes/official?page=${page}`);
+        const epRecord = epData.data as Record<string, unknown> | null;
+        const episodes = (epRecord?.episodes as Array<unknown>) || [];
+        totalEpisodes += episodes.length;
+        if (episodes.length < pageSize) break;
+        page++;
+      }
+      if (totalEpisodes > 0) {
+        maxProgress = totalEpisodes;
+        details.episodes = totalEpisodes;
+      }
+    } catch {
+      // episode count is optional
+    }
   }
 
-  // TheTVDB doesn't have a standard "score" — it has a popularity score, not a rating
-  // We set score to null since it's not a user rating scale
+  // TheTVDB score is a popularity hint, not a user rating — don't display it
+  const score = null;
 
   return {
     media_id: String(r.id),
@@ -183,7 +205,7 @@ export async function detail(sourceId: string, mediaType: string): Promise<Media
     image_url: (r.image as string) || null,
     synopsis: overview || 'No synopsis available.',
     genres,
-    score: null,
+    score,
     score_count: null,
     max_progress: maxProgress,
     details,

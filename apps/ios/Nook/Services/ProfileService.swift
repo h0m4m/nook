@@ -107,7 +107,7 @@ final class ProfileService: Sendable {
             let type: String
         }
 
-        try? await supabase
+        _ = try? await supabase
             .from("notifications")
             .insert(NotifInsert(
                 user_id: userId.uuidString,
