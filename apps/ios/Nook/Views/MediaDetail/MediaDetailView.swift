@@ -968,7 +968,6 @@ private extension MediaDetailView {
                 }
             }
 
-            viewAllReviewsButton
         }
         .padding(24)
         .padding(.bottom, 100)
@@ -1186,22 +1185,6 @@ private extension MediaDetailView {
         )
     }
 
-    var viewAllReviewsButton: some View {
-        Button {
-            // TODO: View all reviews
-        } label: {
-            Text("View all 4,201 reviews")
-                .font(NookFont.labelBoldSmall)
-                .foregroundStyle(Color.nook.detailViewAllText)
-                .frame(maxWidth: .infinity)
-                .frame(height: 44)
-                .background(
-                    RoundedRectangle(cornerRadius: 12.22, style: .continuous)
-                        .fill(Color.nook.detailViewAllButton)
-                )
-        }
-        .buttonStyle(.plain)
-    }
 }
 
 // MARK: - Clubs Tab (Placeholder)
