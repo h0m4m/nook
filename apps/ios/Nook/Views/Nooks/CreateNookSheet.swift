@@ -12,6 +12,7 @@ struct CreateNookSheet: View {
     @State private var showCropSheet = false
     @State private var mediaItems: [MediaSearchResult] = []
     @State private var mediaNotes: [UUID: String] = [:]
+    @State private var mediaDbIds: [UUID: UUID] = [:] // mediaSearchResult.id → media_items.id
     @State private var showAddMedia = false
     @State private var editingNoteItem: MediaSearchResult?
     @State private var editingNoteText = ""
@@ -740,9 +741,30 @@ struct CreateNookSheet: View {
                     layout: layoutValue
                 )
 
-                // Add media items if any were added
-                // Note: mediaItems are SearchResultItem which don't have dbId yet
-                // This will be fully wired when media items have persistent IDs
+                // Add media items — resolve dbIds by fetching detail for each
+                if !mediaItems.isEmpty {
+                    let mediaAPI = MediaAPIService()
+                    var nookItemsToInsert: [(mediaItemId: UUID, note: String?, sortOrder: Int)] = []
+
+                    for (index, item) in mediaItems.enumerated() {
+                        // Fetch detail to ensure media_item exists and get dbId
+                        if let detail = try? await mediaAPI.detail(
+                            source: item.source,
+                            sourceId: item.mediaId,
+                            mediaType: item.mediaType
+                        ), let dbId = detail.dbId {
+                            nookItemsToInsert.append((
+                                mediaItemId: dbId,
+                                note: mediaNotes[item.id],
+                                sortOrder: index
+                            ))
+                        }
+                    }
+
+                    if !nookItemsToInsert.isEmpty {
+                        try? await nookService.addItems(nookId: nookId, items: nookItemsToInsert)
+                    }
+                }
 
                 let generator = UINotificationFeedbackGenerator()
                 generator.notificationOccurred(.success)

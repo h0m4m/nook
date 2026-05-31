@@ -6,8 +6,14 @@ struct StatsView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var trackedCount = 0
     @State private var completedCount = 0
+    @State private var avgRating: String = "—"
     @State private var categoryStats: [CategoryStat] = []
     @State private var realRatingData: [RatingStat] = []
+    @State private var realGenreData: [GenreStat] = []
+    @State private var realMonthlyData: [MonthlyStat] = []
+    @State private var streakDays = 0
+    @State private var streakStartDate: String = ""
+    @State private var realMilestones: [MilestoneStat] = []
 
     var body: some View {
         NavigationStack {
@@ -79,13 +85,79 @@ struct StatsView: View {
                 }
             // Build rating distribution from user scores
             var ratingCounts = [Int](repeating: 0, count: 10)
+            var totalScore: Double = 0
+            var scoredCount = 0
             for item in items {
                 if let score = item.score {
                     let bucket = max(1, min(10, Int(score.rounded()))) - 1
                     ratingCounts[bucket] += 1
+                    totalScore += score
+                    scoredCount += 1
                 }
             }
             realRatingData = (1...10).map { RatingStat(score: $0, count: ratingCounts[$0 - 1]) }
+
+            // Average rating
+            if scoredCount > 0 {
+                avgRating = String(format: "%.1f", totalScore / Double(scoredCount))
+            }
+
+            // Top genres — aggregate from tracked media items' genres
+            var genreCounts: [String: Int] = [:]
+            for item in items {
+                for genre in item.genres {
+                    genreCounts[genre, default: 0] += 1
+                }
+            }
+            realGenreData = genreCounts
+                .sorted { $0.value > $1.value }
+                .prefix(9)
+                .map { GenreStat(name: $0.key, count: $0.value) }
+
+            // Monthly activity — count tracked items by month (last 6 months)
+            let calendar = Calendar.current
+            let now = Date()
+            let formatter = DateFormatter()
+            formatter.dateFormat = "MMM"
+            var monthlyCounts: [(String, Int)] = []
+            for i in (0..<6).reversed() {
+                guard let monthDate = calendar.date(byAdding: .month, value: -i, to: now) else { continue }
+                let monthStart = calendar.date(from: calendar.dateComponents([.year, .month], from: monthDate))!
+                let monthEnd = calendar.date(byAdding: .month, value: 1, to: monthStart)!
+                let count = items.filter { $0.updatedAt >= monthStart && $0.updatedAt < monthEnd }.count
+                monthlyCounts.append((formatter.string(from: monthDate), count))
+            }
+            realMonthlyData = monthlyCounts.map { MonthlyStat(month: $0.0, count: $0.1) }
+
+            // Streak — consecutive days with tracking activity
+            let sortedDates = Set(items.map { calendar.startOfDay(for: $0.updatedAt) }).sorted(by: >)
+            var streak = 0
+            let today = calendar.startOfDay(for: now)
+            var checkDate = today
+            for date in sortedDates {
+                if date == checkDate {
+                    streak += 1
+                    checkDate = calendar.date(byAdding: .day, value: -1, to: checkDate)!
+                } else if date < checkDate {
+                    break
+                }
+            }
+            streakDays = streak
+            if streak > 0, let startDate = calendar.date(byAdding: .day, value: -(streak - 1), to: today) {
+                let df = DateFormatter()
+                df.dateFormat = "MMM d"
+                streakStartDate = df.string(from: startDate)
+            }
+
+            // Milestones
+            let reviewCount = (try? await ProfileService().getStats(userId: userId))?.reviewCount ?? 0
+            realMilestones = [
+                MilestoneStat(title: "First Steps", description: "Track your first piece of media", achieved: trackedCount >= 1),
+                MilestoneStat(title: "Dedicated Viewer", description: "Complete 50 titles", achieved: completedCount >= 50),
+                MilestoneStat(title: "Century Club", description: "Complete 100 titles", achieved: completedCount >= 100),
+                MilestoneStat(title: "Critic's Eye", description: "Write 25 reviews", achieved: reviewCount >= 25),
+                MilestoneStat(title: "Bookworm", description: "Track 10 books", achieved: counts["book", default: 0] >= 10),
+            ]
         } catch {
             // Keep defaults
         }
@@ -182,7 +254,7 @@ struct StatsView: View {
                     background: Color.nook.profileStatReviewsBg
                 )
                 overviewCard(
-                    value: "—",
+                    value: avgRating,
                     label: "Avg. rating",
                     icon: "star-fill",
                     color: Color.nook.reviewRating,
@@ -250,7 +322,7 @@ struct StatsView: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack(alignment: .firstTextBaseline, spacing: 4) {
-                    Text("23")
+                    Text("\(streakDays)")
                         .font(NookFont.statsHeroValue)
                         .foregroundStyle(Color.nook.statsOverviewValue)
 
@@ -259,7 +331,7 @@ struct StatsView: View {
                         .foregroundStyle(Color.nook.statsSubtitle)
                 }
 
-                Text("You've tracked something every day since May 6")
+                Text(streakDays > 0 ? "You've tracked something every day since \(streakStartDate)" : "Track daily to build a streak!")
                     .font(NookFont.caption)
                     .foregroundStyle(Color.nook.statsSubtitle)
                     .lineLimit(2)
@@ -416,7 +488,7 @@ struct StatsView: View {
                 .foregroundStyle(Color.nook.statsSectionTitle)
 
             FlowLayout(spacing: 8) {
-                ForEach(StatsView.genreData, id: \.name) { genre in
+                ForEach(realGenreData.isEmpty ? StatsView.genreData : realGenreData, id: \.name) { genre in
                     genreTag(name: genre.name, count: genre.count)
                 }
             }
@@ -467,8 +539,11 @@ struct StatsView: View {
             }
 
             VStack(spacing: 0) {
+                let monthlyItems = realMonthlyData.isEmpty ? StatsView.monthlyData : realMonthlyData
+                let maxMonthly = monthlyItems.map(\.count).max() ?? 1
+
                 HStack(alignment: .bottom, spacing: 8) {
-                    ForEach(StatsView.monthlyData, id: \.month) { item in
+                    ForEach(monthlyItems, id: \.month) { item in
                         VStack(spacing: 6) {
                             Spacer(minLength: 0)
 
@@ -478,10 +553,10 @@ struct StatsView: View {
 
                             RoundedRectangle(cornerRadius: 6)
                                 .fill(Color.nook.statsProgressFill.opacity(
-                                    item.count > 0 ? 0.15 + Double(item.count) / Double(StatsView.maxMonthlyCount) * 0.85 : 0.08
+                                    item.count > 0 ? 0.15 + Double(item.count) / Double(max(maxMonthly, 1)) * 0.85 : 0.08
                                 ))
                                 .frame(maxWidth: .infinity)
-                                .frame(height: max(CGFloat(item.count) / CGFloat(StatsView.maxMonthlyCount) * 80, 8))
+                                .frame(height: max(CGFloat(item.count) / CGFloat(max(maxMonthly, 1)) * 80, 8))
                         }
                     }
                 }
@@ -490,7 +565,7 @@ struct StatsView: View {
                 .padding(.top, 16)
 
                 HStack(spacing: 8) {
-                    ForEach(StatsView.monthlyData, id: \.month) { item in
+                    ForEach(realMonthlyData.isEmpty ? StatsView.monthlyData : realMonthlyData, id: \.month) { item in
                         Text(item.month)
                             .font(NookFont.statsBarLabel)
                             .foregroundStyle(Color.nook.statsRatingLabel)
@@ -519,10 +594,11 @@ struct StatsView: View {
                 .foregroundStyle(Color.nook.statsSectionTitle)
 
             VStack(spacing: 0) {
-                ForEach(Array(StatsView.milestoneData.enumerated()), id: \.element.title) { index, milestone in
+                let milestones = realMilestones.isEmpty ? StatsView.milestoneData : realMilestones
+                ForEach(Array(milestones.enumerated()), id: \.element.title) { index, milestone in
                     milestoneRow(milestone: milestone)
 
-                    if index < StatsView.milestoneData.count - 1 {
+                    if index < milestones.count - 1 {
                         Color.nook.statsOverviewDivider
                             .frame(height: 1)
                             .padding(.leading, 66)
@@ -594,17 +670,17 @@ struct RatingStat {
     let count: Int
 }
 
-fileprivate struct GenreStat {
+struct GenreStat {
     let name: String
     let count: Int
 }
 
-fileprivate struct MonthlyStat {
+struct MonthlyStat {
     let month: String
     let count: Int
 }
 
-fileprivate struct MilestoneStat {
+struct MilestoneStat {
     let title: String
     let description: String
     let achieved: Bool

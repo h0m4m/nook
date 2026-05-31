@@ -303,6 +303,14 @@ struct LibraryView: View {
             VStack(alignment: .leading, spacing: 0) {
                 filterChips
 
+                if let error = viewModel.error {
+                    ErrorBanner(message: error.localizedDescription) {
+                        viewModel.error = nil
+                    }
+                    .padding(.horizontal, 24)
+                    .padding(.bottom, 16)
+                }
+
                 if viewModel.isLoading && viewModel.items.isEmpty {
                     VStack(spacing: 24) {
                         ForEach(0..<4, id: \.self) { _ in

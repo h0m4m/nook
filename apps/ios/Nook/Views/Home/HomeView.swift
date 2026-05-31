@@ -8,6 +8,7 @@ struct HomeView: View {
     @State private var continueTracking: [TrackingItem] = []
     @State private var activityFeed: [ActivityFeedItem] = []
     @State private var unreadNotifCount: Int = 0
+    private let badgeTimer = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
     var onAvatarTapped: () -> Void = {}
     var onNotificationsTapped: () -> Void = {}
 
@@ -29,6 +30,9 @@ struct HomeView: View {
                 await loadPopularNooks()
                 await loadUnreadCount()
             }
+            .onReceive(badgeTimer) { _ in
+                Task { await loadUnreadCount() }
+            }
             .refreshable {
                 await loadUserProfile()
                 await loadContinueTracking()
@@ -42,17 +46,41 @@ struct HomeView: View {
     private var scrollContent: some View {
         ScrollView {
             VStack(spacing: 0) {
-                ContinueTrackingSection(items: continueTracking.isEmpty ? ContinueTrackingSection.mockItems : continueTracking)
+                if !continueTracking.isEmpty {
+                    ContinueTrackingSection(items: continueTracking)
+                        .padding(.top, 8)
+                } else {
+                    HomeEmptyCard(
+                        icon: "bookmark-simple-fill",
+                        title: "Start tracking",
+                        subtitle: "Search for media and track your progress"
+                    )
                     .padding(.top, 8)
+                    .padding(.horizontal, 24)
+                }
 
-                ActivityFeedSection(items: activityFeed.isEmpty ? ActivityFeedSection.mockItems : activityFeed)
+                if !activityFeed.isEmpty {
+                    ActivityFeedSection(items: activityFeed)
+                        .padding(.top, 32)
+                } else {
+                    HomeEmptyCard(
+                        icon: "users-three-bold",
+                        title: "Your feed is empty",
+                        subtitle: "Follow people to see their activity here"
+                    )
                     .padding(.top, 32)
+                    .padding(.horizontal, 24)
+                }
 
-                TrendingReviewsSection(items: trendingReviews.isEmpty ? TrendingReviewsSection.mockItems : trendingReviews)
-                    .padding(.top, 32)
+                if !trendingReviews.isEmpty {
+                    TrendingReviewsSection(items: trendingReviews)
+                        .padding(.top, 32)
+                }
 
-                PopularNooksSection(items: popularNooks.isEmpty ? PopularNooksSection.mockItems : popularNooks)
-                    .padding(.top, 32)
+                if !popularNooks.isEmpty {
+                    PopularNooksSection(items: popularNooks)
+                        .padding(.top, 32)
+                }
             }
             .padding(.bottom, 100)
         }
@@ -147,6 +175,42 @@ private struct HomeTopBar: ViewModifier {
 }
 
 // SoftScrollEdge is defined in SearchView.swift (shared)
+
+// MARK: - Home Empty Card
+
+struct HomeEmptyCard: View {
+    let icon: String
+    let title: String
+    let subtitle: String
+
+    var body: some View {
+        VStack(spacing: 10) {
+            Image(icon)
+                .renderingMode(.template)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 28, height: 28)
+                .foregroundStyle(Color.nook.searchEmptyIcon)
+
+            Text(title)
+                .font(NookFont.labelBold)
+                .foregroundStyle(Color.nook.sectionTitle)
+
+            Text(subtitle)
+                .font(NookFont.bodySmall)
+                .foregroundStyle(Color.nook.cardSubtitle)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 32)
+        .background(Color.nook.card)
+        .clipShape(RoundedRectangle(cornerRadius: NookRadii.lg, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: NookRadii.lg, style: .continuous)
+                .stroke(Color.nook.border, lineWidth: 1)
+        }
+    }
+}
 
 // MARK: - JSON value helper
 

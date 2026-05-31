@@ -84,6 +84,28 @@ struct PostDetailView: View {
         .onTapGesture {
             isCommentFocused = false
         }
+        .task {
+            await loadPostData()
+        }
+    }
+
+    private func loadPostData() async {
+        guard let dbId = post.dbId else { return }
+        let clubService = ClubService()
+
+        // Load comments
+        if let rows = try? await clubService.getComments(postId: dbId) {
+            let loaded = rows.map { row in
+                PostComment(
+                    authorName: row.userProfile?.fullName ?? row.userProfile?.username ?? "Member",
+                    timeAgo: "",
+                    body: row.body
+                )
+            }
+            if !loaded.isEmpty {
+                comments = loaded
+            }
+        }
     }
 }
 
@@ -201,10 +223,22 @@ private extension PostDetailView {
             Button {
                 let generator = UIImpactFeedbackGenerator(style: .light)
                 generator.prepare()
+                let wasLiked = isLiked
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
                     isLiked.toggle()
                 }
                 generator.impactOccurred()
+
+                if let dbId = post.dbId {
+                    Task {
+                        let service = ClubService()
+                        if wasLiked {
+                            try? await service.unlikePost(postId: dbId)
+                        } else {
+                            try? await service.likePost(postId: dbId)
+                        }
+                    }
+                }
             } label: {
                 HStack(spacing: 6) {
                     Image(isLiked ? "heart-fill" : "heart")
@@ -511,7 +545,6 @@ private extension PostDetailView {
 
         withAnimation(.easeOut(duration: 0.25)) {
             if replyingTo != nil {
-                // Add as reply to the first comment (simplified — in production you'd target the specific comment)
                 if !comments.isEmpty {
                     comments[0].replies.append(newComment)
                 }
@@ -523,6 +556,14 @@ private extension PostDetailView {
         }
 
         isCommentFocused = false
+
+        // Persist to DB
+        if let dbId = post.dbId {
+            Task {
+                let service = ClubService()
+                try? await service.addComment(postId: dbId, body: text)
+            }
+        }
     }
 
     private func sortComments() {

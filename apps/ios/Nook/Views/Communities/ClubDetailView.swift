@@ -38,6 +38,7 @@ struct PostPoll {
 
 struct ClubPost: Identifiable, Hashable {
     let id = UUID()
+    let dbId: UUID?
     let authorName: String
     let timeAgo: String
     let body: String
@@ -60,7 +61,8 @@ struct ClubPost: Identifiable, Hashable {
         placeholderColor: Color? = nil,
         likes: String = "0",
         comments: String = "0",
-        poll: PostPoll? = nil
+        poll: PostPoll? = nil,
+        dbId: UUID? = nil
     ) {
         self.authorName = authorName
         self.timeAgo = timeAgo
@@ -71,6 +73,7 @@ struct ClubPost: Identifiable, Hashable {
         self.likes = likes
         self.comments = comments
         self.poll = poll
+        self.dbId = dbId
     }
 }
 

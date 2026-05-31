@@ -99,6 +99,7 @@ struct ClubItem: Identifiable, Hashable {
     let description: String
     let category: ClubCategory
     let bannerColor: Color
+    let bannerURL: URL?
     var isJoined: Bool
 
     static func == (lhs: ClubItem, rhs: ClubItem) -> Bool {
@@ -115,6 +116,7 @@ struct ClubItem: Identifiable, Hashable {
         description: String,
         category: ClubCategory,
         bannerColor: Color,
+        bannerURL: URL? = nil,
         isJoined: Bool = false,
         dbId: UUID? = nil
     ) {
@@ -123,6 +125,7 @@ struct ClubItem: Identifiable, Hashable {
         self.description = description
         self.category = category
         self.bannerColor = bannerColor
+        self.bannerURL = bannerURL
         self.isJoined = isJoined
         self.dbId = dbId
     }
@@ -134,6 +137,7 @@ struct ClubItem: Identifiable, Hashable {
         self.description = row.description ?? ""
         self.category = ClubCategory.from(dbValue: row.category)
         self.bannerColor = ClubCategory.from(dbValue: row.category).dotColor.opacity(0.3)
+        self.bannerURL = row.bannerUrl.flatMap { URL(string: $0) }
         self.isJoined = isJoined
     }
 }
@@ -577,8 +581,22 @@ private struct ClubCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Banner
-            club.bannerColor
-                .frame(height: 120)
+            Group {
+                if let url = club.bannerURL {
+                    AsyncImage(url: url) { phase in
+                        switch phase {
+                        case .success(let image):
+                            image.resizable().scaledToFill()
+                        default:
+                            club.bannerColor
+                        }
+                    }
+                } else {
+                    club.bannerColor
+                }
+            }
+            .frame(height: 120)
+            .clipped()
 
             // Content
             VStack(alignment: .leading, spacing: 8) {
