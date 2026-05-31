@@ -135,6 +135,8 @@ enum MediaDetailTab: String, CaseIterable, Identifiable {
 
 struct MediaDetailView: View {
     let media: MediaDetail
+    /// When true, shimmer placeholders are shown for content that hasn't loaded yet.
+    var isLoading: Bool = false
     /// Called when the user saves tracking. Passes the media's sourceId (or dbId string).
     var onTracked: (() -> Void)?
     @Environment(\.dismiss) private var dismiss
@@ -156,8 +158,9 @@ struct MediaDetailView: View {
     @State private var loadedReviews: [Review] = []
     @State private var isLoadingReviews = false
 
-    init(media: MediaDetail, onTracked: (() -> Void)? = nil) {
+    init(media: MediaDetail, isLoading: Bool = false, onTracked: (() -> Void)? = nil) {
         self.media = media
+        self.isLoading = isLoading
         self.onTracked = onTracked
         self._isTracking = State(initialValue: media.trackingStatus != nil)
         self._selectedStatus = State(initialValue: media.trackingStatus)
@@ -364,7 +367,6 @@ private extension MediaDetailView {
             heroImage
             heroGradient
         }
-        .frame(height: 321)
     }
 
     var heroImage: some View {
@@ -373,27 +375,30 @@ private extension MediaDetailView {
                 AsyncImage(url: url) { phase in
                     switch phase {
                     case .success(let image):
-                        image.resizable().scaledToFill()
+                        image
+                            .resizable()
+                            .aspectRatio(2/3, contentMode: .fit)
                     case .failure:
-                        (media.placeholderColor ?? Color.nook.foreground)
+                        Color.nook.foreground
+                            .aspectRatio(2/3, contentMode: .fit)
                     case .empty:
-                        (media.placeholderColor ?? Color.nook.foreground)
+                        Color.nook.foreground
+                            .aspectRatio(2/3, contentMode: .fit)
                     @unknown default:
-                        (media.placeholderColor ?? Color.nook.foreground)
+                        Color.nook.foreground
+                            .aspectRatio(2/3, contentMode: .fit)
                     }
                 }
-            } else if let color = media.placeholderColor {
-                color
             } else if !media.imageName.isEmpty {
                 Image(media.imageName)
                     .resizable()
-                    .scaledToFill()
+                    .aspectRatio(2/3, contentMode: .fit)
             } else {
                 Color.nook.foreground
+                    .aspectRatio(2/3, contentMode: .fit)
             }
         }
         .frame(maxWidth: .infinity)
-        .frame(height: 321)
         .clipped()
     }
 
@@ -460,18 +465,22 @@ private extension MediaDetailView {
                 .padding(.top, 32)
                 .padding(.horizontal, 24)
 
-            progressCard
-                .padding(.top, 24)
-                .padding(.horizontal, 24)
+            if isLoading {
+                loadingContentSkeleton
+            } else {
+                progressCard
+                    .padding(.top, 24)
+                    .padding(.horizontal, 24)
 
-            actionButtons
-                .padding(.top, 8)
-                .padding(.horizontal, 24)
+                actionButtons
+                    .padding(.top, 8)
+                    .padding(.horizontal, 24)
 
-            tabBar
-                .padding(.top, 12)
+                tabBar
+                    .padding(.top, 12)
 
-            tabContent
+                tabContent
+            }
         }
         .background(
             Color.nook.detailBackground
@@ -485,6 +494,53 @@ private extension MediaDetailView {
         )
         .offset(y: -32)
     }
+
+    /// Shimmer placeholders shown while full detail is loading.
+    var loadingContentSkeleton: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Progress card shimmer
+            RoundedRectangle(cornerRadius: NookRadii.md, style: .continuous)
+                .fill(Color.nook.searchShimmerBase)
+                .frame(maxWidth: .infinity)
+                .frame(height: 100)
+                .opacity(0.4)
+                .padding(.top, 24)
+                .padding(.horizontal, 24)
+
+            // Action buttons shimmer
+            HStack(spacing: 0) {
+                ForEach(0..<4, id: \.self) { _ in
+                    VStack(spacing: 6) {
+                        Circle()
+                            .fill(Color.nook.searchShimmerBase)
+                            .frame(width: 48, height: 48)
+                            .opacity(0.4)
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(Color.nook.searchShimmerBase)
+                            .frame(width: 36, height: 10)
+                            .opacity(0.4)
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+            }
+            .padding(.top, 16)
+            .padding(.horizontal, 24)
+
+            // Synopsis shimmer
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(0..<5, id: \.self) { i in
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(Color.nook.searchShimmerBase)
+                        .frame(maxWidth: i == 4 ? 180 : .infinity)
+                        .frame(height: 13)
+                        .opacity(0.4)
+                }
+            }
+            .padding(.top, 32)
+            .padding(.horizontal, 24)
+            .padding(.bottom, 100)
+        }
+    }
 }
 
 // MARK: - Media Info (badge, rating, title, metadata)
@@ -494,22 +550,37 @@ private extension MediaDetailView {
         VStack(alignment: .leading, spacing: 0) {
             // Category badge + rating row
             HStack(spacing: 8) {
-                categoryBadge
-                if media.rating > 0 {
-                    ratingDisplay
+                if isLoading {
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .fill(Color.nook.searchShimmerBase)
+                        .frame(width: 60, height: 24)
+                        .opacity(0.6)
+                } else {
+                    categoryBadge
+                    if media.rating > 0 {
+                        ratingDisplay
+                    }
                 }
                 Spacer()
             }
 
-            // Title
+            // Title — shown immediately from route preview data
             Text(media.title)
                 .font(NookFont.headingMediumBold)
                 .foregroundStyle(Color.nook.detailTitle)
                 .padding(.top, 12)
 
             // Metadata row
-            metadataRow
-                .padding(.top, 8)
+            if isLoading {
+                RoundedRectangle(cornerRadius: 4, style: .continuous)
+                    .fill(Color.nook.searchShimmerBase)
+                    .frame(width: 160, height: 12)
+                    .opacity(0.5)
+                    .padding(.top, 10)
+            } else {
+                metadataRow
+                    .padding(.top, 8)
+            }
         }
     }
 
@@ -1187,18 +1258,14 @@ private extension MediaDetailView {
 
 }
 
-// MARK: - Clubs Tab (Placeholder)
+// MARK: - Clubs Tab
 
 private extension MediaDetailView {
     var clubsTab: some View {
-        VStack(spacing: 16) {
-            Text("Clubs discussing this media")
-                .font(NookFont.label)
-                .foregroundStyle(Color.nook.detailMeta)
-                .frame(maxWidth: .infinity, minHeight: 200)
-        }
-        .padding(24)
-        .padding(.bottom, 100)
+        tabEmptyState(
+            title: "No clubs yet",
+            subtitle: "Clubs discussing this title will appear here"
+        )
     }
 }
 
@@ -1206,139 +1273,31 @@ private extension MediaDetailView {
 
 private extension MediaDetailView {
     var similarTab: some View {
-        LazyVGrid(
-            columns: [
-                GridItem(.flexible(), spacing: 16),
-                GridItem(.flexible(), spacing: 16),
-            ],
-            spacing: 24
-        ) {
-            ForEach(Self.mockSimilarItems) { item in
-                similarCard(item)
-            }
+        tabEmptyState(
+            title: "No recommendations yet",
+            subtitle: "Similar titles will appear here once available"
+        )
+    }
+}
+
+// MARK: - Tab Empty State
+
+private extension MediaDetailView {
+    func tabEmptyState(title: String, subtitle: String) -> some View {
+        VStack(spacing: 8) {
+            Text(title)
+                .font(NookFont.labelBold)
+                .foregroundStyle(Color.nook.detailMeta)
+            Text(subtitle)
+                .font(NookFont.bodySmall)
+                .foregroundStyle(Color.nook.detailMeta.opacity(0.7))
+                .multilineTextAlignment(.center)
         }
-        .padding(24)
+        .frame(maxWidth: .infinity)
+        .padding(.top, 60)
+        .padding(.horizontal, 24)
         .padding(.bottom, 100)
     }
-
-    func similarCard(_ item: SimilarItem) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Group {
-                if let color = item.placeholderColor {
-                    color
-                } else {
-                    Image(item.imageName)
-                        .resizable()
-                        .scaledToFill()
-                }
-            }
-            .frame(maxWidth: .infinity)
-            .aspectRatio(3 / 4, contentMode: .fill)
-            .clipShape(RoundedRectangle(cornerRadius: NookRadii.md, style: .continuous))
-
-            // Category badge
-            Text(item.category.label)
-                .font(NookFont.tabLabel)
-                .tracking(0.5)
-                .textCase(.uppercase)
-                .foregroundStyle(item.category.textColor)
-                .padding(.horizontal, 6.5)
-                .padding(.vertical, 5)
-                .background(
-                    RoundedRectangle(cornerRadius: 6.39, style: .continuous)
-                        .fill(item.category.backgroundColor)
-                )
-                .padding(.top, 10)
-
-            Text(item.title)
-                .font(NookFont.labelBoldSmall)
-                .foregroundStyle(Color.nook.detailTitle)
-                .lineLimit(1)
-                .padding(.top, 6)
-
-            HStack(spacing: 4) {
-                Image("star-fill")
-                    .renderingMode(.template)
-                    .resizable()
-                    .frame(width: 10, height: 10)
-                    .foregroundStyle(Color.nook.detailRatingText)
-
-                Text(String(format: "%.1f", item.rating))
-                    .font(NookFont.captionBold)
-                    .foregroundStyle(Color.nook.detailRatingText)
-
-                Text(item.year)
-                    .font(NookFont.caption)
-                    .foregroundStyle(Color.nook.detailMeta)
-            }
-            .padding(.top, 4)
-        }
-    }
-}
-
-// MARK: - Similar Item Model
-
-struct SimilarItem: Identifiable {
-    let id = UUID()
-    let title: String
-    let category: LibraryMediaCategory
-    let rating: Double
-    let year: String
-    let imageName: String
-    let placeholderColor: Color?
-}
-
-extension MediaDetailView {
-    static let mockSimilarItems: [SimilarItem] = [
-        SimilarItem(
-            title: "Whisper of the Wind",
-            category: .anime,
-            rating: 8.9,
-            year: "2023",
-            imageName: "mock-similar-1",
-            placeholderColor: Color(hex: 0xB8D4E3)
-        ),
-        SimilarItem(
-            title: "Starfall Chronicles",
-            category: .anime,
-            rating: 8.2,
-            year: "2024",
-            imageName: "mock-similar-2",
-            placeholderColor: Color(hex: 0xE3C4A8)
-        ),
-        SimilarItem(
-            title: "The Last Garden",
-            category: .anime,
-            rating: 9.1,
-            year: "2023",
-            imageName: "mock-similar-3",
-            placeholderColor: Color(hex: 0xA8D5BA)
-        ),
-        SimilarItem(
-            title: "Iron Bloom",
-            category: .anime,
-            rating: 7.8,
-            year: "2024",
-            imageName: "mock-similar-4",
-            placeholderColor: Color(hex: 0xD4A8C4)
-        ),
-        SimilarItem(
-            title: "Echoes of Silence",
-            category: .anime,
-            rating: 8.6,
-            year: "2022",
-            imageName: "mock-similar-5",
-            placeholderColor: Color(hex: 0xC4C8E3)
-        ),
-        SimilarItem(
-            title: "Dawnbreak",
-            category: .anime,
-            rating: 8.4,
-            year: "2024",
-            imageName: "mock-similar-6",
-            placeholderColor: Color(hex: 0xE3D4A8)
-        ),
-    ]
 }
 
 // MARK: - Tracking Sheet
