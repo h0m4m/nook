@@ -33,6 +33,19 @@ final class ReviewService: Sendable {
         return rows.first.map { Review(from: $0) }
     }
 
+    func getReviewsByUser(userId: UUID, limit: Int = 10) async throws -> [Review] {
+        let rows: [ReviewRow] = try await supabase
+            .from("reviews")
+            .select("*, user_profile:user_profiles!reviews_user_id_user_profiles_fkey(id, full_name, username, avatar_url), media_item:media_items!reviews_media_item_id_fkey(id, source, source_id, media_type, title, image_url, year)")
+            .eq("user_id", value: userId.uuidString)
+            .order("created_at", ascending: false)
+            .range(from: 0, to: limit - 1)
+            .execute()
+            .value
+
+        return rows.map { Review(from: $0) }
+    }
+
     func createReview(
         mediaItemId: UUID,
         title: String?,

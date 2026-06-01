@@ -47,6 +47,7 @@ struct MediaDetailLoadingView: View {
             totalEpisodes: viewModel.maxProgress ?? 0,
             trackingStatus: nil,
             reviews: [],
+            recommendations: viewModel.recommendations,
             dbId: viewModel.dbId
         )
     }

@@ -10,6 +10,7 @@ func markdownAttributed(_ text: String) -> AttributedString {
 struct ReviewComment: Identifiable, Hashable {
     let id = UUID()
     let dbId: UUID?
+    let userId: UUID?
     let authorName: String
     let createdAt: Date?
     let body: String
@@ -20,6 +21,7 @@ struct ReviewComment: Identifiable, Hashable {
 
     init(
         dbId: UUID? = nil,
+        userId: UUID? = nil,
         authorName: String,
         createdAt: Date? = nil,
         body: String,
@@ -29,6 +31,7 @@ struct ReviewComment: Identifiable, Hashable {
         replies: [ReviewComment] = []
     ) {
         self.dbId = dbId
+        self.userId = userId
         self.authorName = authorName
         self.createdAt = createdAt
         self.body = body
@@ -82,9 +85,6 @@ struct ReviewDetailView: View {
         .modifier(InteractivePopGesture())
         .navigationDestination(for: ReviewComment.self) { comment in
             CommentThreadView(root: comment)
-        }
-        .onTapGesture {
-            isCommentFocused = false
         }
         .task {
             await loadData()
@@ -144,9 +144,18 @@ private extension ReviewDetailView {
                 .padding(.horizontal, 24)
 
             // Media context card
-            mediaContextCard
+            if let route = review.mediaDetailRoute {
+                NavigationLink(value: route) {
+                    mediaContextCard
+                }
+                .buttonStyle(.plain)
                 .padding(.top, 16)
                 .padding(.horizontal, 24)
+            } else {
+                mediaContextCard
+                    .padding(.top, 16)
+                    .padding(.horizontal, 24)
+            }
 
             // Review title
             Text(review.title)
@@ -173,26 +182,33 @@ private extension ReviewDetailView {
 
     var reviewHeader: some View {
         HStack(alignment: .top, spacing: 12) {
-            // Avatar
-            Circle()
-                .fill(Color.nook.secondary)
-                .frame(width: 44, height: 44)
-                .overlay(
-                    Image(systemName: "person.fill")
-                        .font(.system(size: 18))
-                        .foregroundStyle(Color.nook.mutedForeground)
+            // Avatar + name — tappable to go to profile
+            let profileLink: UserProfile? = review.reviewerUserId.map { userId in
+                UserProfile(
+                    id: userId.uuidString,
+                    displayName: review.reviewerName,
+                    username: "",
+                    bio: "",
+                    avatarURL: nil,
+                    followersCount: 0,
+                    followingCount: 0,
+                    trackedMedia: 0,
+                    reviewsWritten: 0,
+                    curatedNooks: 0,
+                    clubs: 0,
+                    tasteIdentity: [],
+                    recentActivity: [],
+                    isCurrentUser: false
                 )
+            }
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(review.reviewerName)
-                    .font(NookFont.labelSmall)
-                    .foregroundStyle(Color.nook.reviewDetailTitle)
-
-                if let date = review.createdAt {
-                    Text(relativeTime(from: date))
-                        .font(NookFont.caption)
-                        .foregroundStyle(Color.nook.reviewDetailMeta)
+            if let profile = profileLink {
+                NavigationLink(value: profile) {
+                    reviewerInfo
                 }
+                .buttonStyle(.plain)
+            } else {
+                reviewerInfo
             }
 
             Spacer()
@@ -215,6 +231,31 @@ private extension ReviewDetailView {
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
                     .fill(Color.nook.detailRatingBadge)
             )
+        }
+    }
+
+    private var reviewerInfo: some View {
+        HStack(spacing: 12) {
+            Circle()
+                .fill(Color.nook.secondary)
+                .frame(width: 44, height: 44)
+                .overlay(
+                    Image(systemName: "person.fill")
+                        .font(.system(size: 18))
+                        .foregroundStyle(Color.nook.mutedForeground)
+                )
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(review.reviewerName)
+                    .font(NookFont.labelSmall)
+                    .foregroundStyle(Color.nook.reviewDetailTitle)
+
+                if let date = review.createdAt {
+                    Text(relativeTime(from: date))
+                        .font(NookFont.caption)
+                        .foregroundStyle(Color.nook.reviewDetailMeta)
+                }
+            }
         }
     }
 
@@ -270,7 +311,7 @@ private extension ReviewDetailView {
         .padding(14)
         .background(
             RoundedRectangle(cornerRadius: NookRadii.sm, style: .continuous)
-                .fill(Color.nook.reviewDetailMediaCard)
+                .fill(Color.white)
                 .overlay(
                     RoundedRectangle(cornerRadius: NookRadii.sm, style: .continuous)
                         .strokeBorder(Color.nook.reviewDetailMediaCardBorder, lineWidth: 1)
@@ -514,6 +555,61 @@ private extension ReviewDetailView {
         )
     }
 
+    @ViewBuilder
+    private func commentAvatar(_ comment: ReviewComment, depth: Int) -> some View {
+        let avatar = Circle()
+            .fill(Color.nook.secondary)
+            .frame(width: depth == 0 ? 36 : 28, height: depth == 0 ? 36 : 28)
+            .overlay(
+                Image(systemName: "person.fill")
+                    .font(.system(size: depth == 0 ? 14 : 11))
+                    .foregroundStyle(Color.nook.mutedForeground)
+            )
+
+        if let profile = userProfile(for: comment) {
+            NavigationLink(value: profile) { avatar }
+                .buttonStyle(.plain)
+        } else {
+            avatar
+        }
+    }
+
+    @ViewBuilder
+    private func commentAuthorLink(_ comment: ReviewComment) -> some View {
+        if let profile = userProfile(for: comment) {
+            NavigationLink(value: profile) {
+                Text(comment.authorName)
+                    .font(NookFont.captionBold)
+                    .foregroundStyle(Color.nook.reviewDetailTitle)
+            }
+            .buttonStyle(.plain)
+        } else {
+            Text(comment.authorName)
+                .font(NookFont.captionBold)
+                .foregroundStyle(Color.nook.reviewDetailTitle)
+        }
+    }
+
+    private func userProfile(for comment: ReviewComment) -> UserProfile? {
+        guard let userId = comment.userId else { return nil }
+        return UserProfile(
+            id: userId.uuidString,
+            displayName: comment.authorName,
+            username: "",
+            bio: "",
+            avatarURL: nil,
+            followersCount: 0,
+            followingCount: 0,
+            trackedMedia: 0,
+            reviewsWritten: 0,
+            curatedNooks: 0,
+            clubs: 0,
+            tasteIdentity: [],
+            recentActivity: [],
+            isCurrentUser: false
+        )
+    }
+
     private func totalReplyCount(_ comment: ReviewComment) -> Int {
         comment.replies.reduce(0) { $0 + 1 + totalReplyCount($1) }
     }
@@ -542,21 +638,12 @@ private extension ReviewDetailView {
                     .frame(width: 2)
             }
 
-            Circle()
-                .fill(Color.nook.secondary)
-                .frame(width: depth == 0 ? 36 : 28, height: depth == 0 ? 36 : 28)
-                .overlay(
-                    Image(systemName: "person.fill")
-                        .font(.system(size: depth == 0 ? 14 : 11))
-                        .foregroundStyle(Color.nook.mutedForeground)
-                )
+            commentAvatar(comment, depth: depth)
 
             VStack(alignment: .leading, spacing: 6) {
                 // Name + time
                 HStack(spacing: 6) {
-                    Text(comment.authorName)
-                        .font(NookFont.captionBold)
-                        .foregroundStyle(Color.nook.reviewDetailTitle)
+                    commentAuthorLink(comment)
 
                     if let date = comment.createdAt {
                         Text(relativeTime(from: date))
@@ -779,6 +866,7 @@ private extension ReviewDetailView {
         for c in dbComments {
             commentById[c.id] = ReviewComment(
                 dbId: c.id,
+                userId: c.userId,
                 authorName: c.authorName,
                 createdAt: c.createdAt,
                 body: c.body,

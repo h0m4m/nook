@@ -5,9 +5,13 @@ import SwiftUI
 struct ReviewItem: Identifiable, Hashable {
     let id = UUID()
     let dbId: UUID?
+    let reviewerUserId: UUID?
     let reviewerName: String
     let mediaTitle: String
     let mediaImageURL: URL?
+    let mediaSource: String?
+    let mediaSourceId: String?
+    let mediaType: String?
     let createdAt: Date?
     let rating: Double
     let title: String
@@ -25,7 +29,11 @@ struct ReviewItem: Identifiable, Hashable {
         body: String,
         likes: String,
         comments: String,
-        dbId: UUID? = nil
+        dbId: UUID? = nil,
+        reviewerUserId: UUID? = nil,
+        mediaSource: String? = nil,
+        mediaSourceId: String? = nil,
+        mediaType: String? = nil
     ) {
         self.reviewerName = reviewerName
         self.mediaTitle = mediaTitle
@@ -37,19 +45,39 @@ struct ReviewItem: Identifiable, Hashable {
         self.likes = likes
         self.comments = comments
         self.dbId = dbId
+        self.reviewerUserId = reviewerUserId
+        self.mediaSource = mediaSource
+        self.mediaSourceId = mediaSourceId
+        self.mediaType = mediaType
     }
 
     init(from review: Review) {
         self.dbId = review.id
+        self.reviewerUserId = review.userId
         self.reviewerName = review.authorName
         self.mediaTitle = review.mediaTitle ?? ""
         self.mediaImageURL = review.mediaImageURL
+        self.mediaSource = review.mediaSource
+        self.mediaSourceId = review.mediaSourceId
+        self.mediaType = review.mediaType
         self.createdAt = review.createdAt
         self.rating = review.rating
         self.title = review.title ?? ""
         self.body = review.body
         self.likes = "\(review.likesCount)"
         self.comments = "0"
+    }
+
+    /// Build a MediaDetailRoute for navigating to the media detail page.
+    var mediaDetailRoute: MediaDetailRoute? {
+        guard let source = mediaSource, let sourceId = mediaSourceId, let type = mediaType else { return nil }
+        return MediaDetailRoute(
+            mediaId: sourceId,
+            source: source,
+            mediaType: type,
+            title: mediaTitle,
+            imageURL: mediaImageURL
+        )
     }
 }
 

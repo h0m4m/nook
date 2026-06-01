@@ -204,6 +204,15 @@ struct ProfileMenuView: View {
         .fullScreenCover(isPresented: $showMyProfile) {
             NavigationStack {
                 MyProfileView()
+                    .navigationDestination(for: ReviewItem.self) { review in
+                        ReviewDetailView(review: review)
+                    }
+                    .navigationDestination(for: MediaDetailRoute.self) { route in
+                        MediaDetailLoadingView(route: route)
+                    }
+                    .navigationDestination(for: UserProfile.self) { user in
+                        OtherProfileView(profile: user)
+                    }
             }
         }
         .sheet(isPresented: $showSettings) {

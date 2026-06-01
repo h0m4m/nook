@@ -32,6 +32,7 @@ struct MediaDetail: Identifiable, Hashable {
     let totalEpisodes: Int
     let trackingStatus: TrackingStatus?
     let reviews: [MediaReview]
+    let recommendations: [MediaSearchResult]
     let dbId: UUID?
 
     init(
@@ -55,6 +56,7 @@ struct MediaDetail: Identifiable, Hashable {
         totalEpisodes: Int,
         trackingStatus: TrackingStatus? = .inProgress,
         reviews: [MediaReview] = [],
+        recommendations: [MediaSearchResult] = [],
         dbId: UUID? = nil
     ) {
         self.title = title
@@ -77,6 +79,7 @@ struct MediaDetail: Identifiable, Hashable {
         self.totalEpisodes = totalEpisodes
         self.trackingStatus = trackingStatus
         self.reviews = reviews
+        self.recommendations = recommendations
         self.dbId = dbId
     }
 
@@ -795,10 +798,17 @@ private extension MediaDetailView {
 // MARK: - Tab Bar
 
 private extension MediaDetailView {
+    var visibleTabs: [MediaDetailTab] {
+        MediaDetailTab.allCases.filter { tab in
+            if tab == .similar && media.category == .book { return false }
+            return true
+        }
+    }
+
     var tabBar: some View {
         VStack(spacing: 0) {
             HStack(spacing: 0) {
-                ForEach(MediaDetailTab.allCases) { tab in
+                ForEach(visibleTabs) { tab in
                     tabButton(tab)
                 }
                 Spacer()
@@ -931,18 +941,7 @@ private extension MediaDetailView {
                 .padding(.top, 40)
             } else {
                 ForEach(loadedReviews) { review in
-                    NavigationLink(value: ReviewItem(
-                        reviewerName: review.authorName,
-                        mediaTitle: media.title,
-                        mediaImageURL: media.imageURL,
-                        createdAt: review.createdAt,
-                        rating: review.rating,
-                        title: review.title ?? "",
-                        body: review.body,
-                        likes: "\(review.likesCount)",
-                        comments: "0",
-                        dbId: review.id
-                    )) {
+                    NavigationLink(value: ReviewItem(from: review)) {
                         loadedReviewCard(review)
                     }
                     .buttonStyle(.plain)
@@ -1015,7 +1014,7 @@ private extension MediaDetailView {
                         .frame(width: 10, height: 10)
                         .foregroundStyle(Color.nook.detailRatingText)
 
-                    Text(String(format: "%.1f", review.rating))
+                    Text(ProfileReviewCard.ratingLabel(for: review.rating))
                         .font(NookFont.captionBold)
                         .foregroundStyle(Color.nook.detailRatingText)
                 }
@@ -1107,7 +1106,7 @@ private extension MediaDetailView {
                         .frame(width: 10, height: 10)
                         .foregroundStyle(Color.nook.detailRatingText)
 
-                    Text(String(format: "%.1f", review.rating))
+                    Text(ProfileReviewCard.ratingLabel(for: review.rating))
                         .font(NookFont.captionBold)
                         .foregroundStyle(Color.nook.detailRatingText)
                 }
@@ -1192,10 +1191,80 @@ private extension MediaDetailView {
 
 private extension MediaDetailView {
     var similarTab: some View {
-        tabEmptyState(
-            title: "No recommendations yet",
-            subtitle: "Similar titles will appear here once available"
-        )
+        Group {
+            if media.recommendations.isEmpty {
+                tabEmptyState(
+                    title: "No recommendations yet",
+                    subtitle: "Similar titles will appear here once available"
+                )
+            } else {
+                LazyVGrid(
+                    columns: [GridItem(.flexible()), GridItem(.flexible())],
+                    spacing: 16
+                ) {
+                    ForEach(media.recommendations) { item in
+                        NavigationLink(value: MediaDetailRoute(from: item)) {
+                            similarCard(item)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 16)
+                .padding(.bottom, 100)
+            }
+        }
+    }
+
+    func similarCard(_ item: MediaSearchResult) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            GeometryReader { geo in
+                MediaPosterImage(
+                    url: item.imageURL,
+                    width: geo.size.width,
+                    height: 220,
+                    cornerRadius: 12
+                )
+            }
+            .frame(height: 220)
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(item.title)
+                    .font(NookFont.labelBold)
+                    .foregroundStyle(Color.nook.detailTitle)
+                    .lineLimit(2)
+
+                HStack(spacing: 4) {
+                    if let year = item.year {
+                        Text(year)
+                            .font(NookFont.caption)
+                            .foregroundStyle(Color.nook.detailMeta)
+                    }
+
+                    if item.year != nil, item.score != nil {
+                        Circle()
+                            .fill(Color.nook.detailMeta)
+                            .frame(width: 3, height: 3)
+                    }
+
+                    if let score = item.score {
+                        HStack(spacing: 3) {
+                            Image("star-fill")
+                                .renderingMode(.template)
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(width: 10, height: 10)
+                                .foregroundStyle(Color.nook.reviewRating)
+
+                            Text(String(format: "%.1f", score))
+                                .font(NookFont.captionBold)
+                                .foregroundStyle(Color.nook.reviewRating)
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 

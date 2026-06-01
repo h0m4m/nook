@@ -81,6 +81,9 @@ struct Review: Identifiable, Hashable, Sendable {
     let authorAvatarURL: URL?
     let mediaTitle: String?
     let mediaImageURL: URL?
+    let mediaSource: String?
+    let mediaSourceId: String?
+    let mediaType: String?
     let title: String?
     let body: String
     let rating: Double
@@ -97,6 +100,9 @@ struct Review: Identifiable, Hashable, Sendable {
         self.authorAvatarURL = row.userProfile?.avatarUrl.flatMap { URL(string: $0) }
         self.mediaTitle = row.mediaItem?.title
         self.mediaImageURL = row.mediaItem?.imageUrl.flatMap { URL(string: $0) }
+        self.mediaSource = row.mediaItem?.source
+        self.mediaSourceId = row.mediaItem?.sourceId
+        self.mediaType = row.mediaItem?.mediaType
         self.title = row.title
         self.body = row.body
         self.rating = row.rating

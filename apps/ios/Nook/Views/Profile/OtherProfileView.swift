@@ -7,6 +7,7 @@ struct OtherProfileView: View {
     @State private var isFollowing = false
     @State private var followerCount: Int = 0
     @State private var followingCount: Int = 0
+    @State private var userReviews: [Review] = []
 
     var body: some View {
         ZStack(alignment: .top) {
@@ -46,6 +47,9 @@ struct OtherProfileView: View {
         isFollowing = (try? await profileService.isFollowing(userId: userId)) ?? false
         followerCount = (try? await profileService.getFollowerCount(userId: userId)) ?? profile.followersCount
         followingCount = (try? await profileService.getFollowingCount(userId: userId)) ?? profile.followingCount
+
+        let reviewService = ReviewService()
+        userReviews = (try? await reviewService.getReviewsByUser(userId: userId)) ?? []
     }
 
     // MARK: - Navigation Buttons (MediaDetail-style overlay)
@@ -353,19 +357,32 @@ struct OtherProfileView: View {
 
     private var reviewsContent: some View {
         VStack(spacing: 12) {
-            ForEach(0..<2) { i in
-                ProfileReviewCard(
-                    reviewerName: profile.displayName,
-                    mediaTitle: i == 0 ? "Frieren" : "Chainsaw Man",
-                    content: i == 0
-                        ? "\"A masterwork of fantasy storytelling. Frieren redefines what a journey anime can be.\""
-                        : "\"Raw, visceral, and surprisingly emotional. Fujimoto is a genius.\"",
-                    rating: i == 0 ? 5.0 : 4.5,
-                    likes: i == 0 ? "89" : "56",
-                    comments: i == 0 ? "23" : "12",
-                    placeholderColor: i == 0
-                        ? Color(hex: 0xA8C4D4) : Color(hex: 0xD4A8A8)
-                )
+            if userReviews.isEmpty {
+                VStack(spacing: 8) {
+                    Text("No reviews yet")
+                        .font(NookFont.labelBold)
+                        .foregroundStyle(Color.nook.detailMeta)
+                    Text("Reviews will appear here")
+                        .font(NookFont.bodySmall)
+                        .foregroundStyle(Color.nook.detailMeta.opacity(0.7))
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.top, 24)
+            } else {
+                ForEach(userReviews) { review in
+                    NavigationLink(value: ReviewItem(from: review)) {
+                        ProfileReviewCard(
+                            reviewerName: review.authorName,
+                            mediaTitle: review.mediaTitle ?? "",
+                            content: review.body,
+                            rating: review.rating,
+                            likes: "\(review.likesCount)",
+                            comments: "0",
+                            placeholderColor: Color(hex: 0xC4956E)
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
             }
         }
     }

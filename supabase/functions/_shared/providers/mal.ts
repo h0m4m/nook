@@ -176,6 +176,9 @@ export async function detail(sourceId: string, mediaType: string): Promise<Media
 
   const ratingCount = attrs.userCount as number | null;
 
+  // Fetch similar titles — combine direct relationships + category-based discovery
+  const recommendations = await fetchSimilar(sourceId, mediaType, kitsuType);
+
   return {
     media_id: String(data.data.id),
     source: 'kitsu',
@@ -189,6 +192,145 @@ export async function detail(sourceId: string, mediaType: string): Promise<Media
     score_count: ratingCount,
     max_progress: maxProgress,
     details,
-    related: null,
+    related: recommendations.length > 0 ? { recommendations } : null,
   };
+}
+
+/**
+ * Smart similar-content discovery for Kitsu.
+ *
+ * Strategy:
+ * 1. Fetch direct media-relationships (sequels, prequels, side stories,
+ *    adaptations, spin-offs) with the destination media sideloaded.
+ * 2. If we still have fewer than 4, fetch the item's categories and search
+ *    for other highly-rated titles in the same categories to fill the gap.
+ *
+ * Results are capped at 4 and deduplicated against the current item.
+ */
+async function fetchSimilar(
+  sourceId: string,
+  mediaType: string,
+  kitsuType: string,
+): Promise<SearchResult[]> {
+  const results: SearchResult[] = [];
+  const seenIds = new Set<string>([sourceId]);
+
+  // --- Phase 1: Direct relationships ---
+  try {
+    const relResp = await fetch(
+      `${BASE_URL}/${kitsuType}/${sourceId}/media-relationships?include=destination&page[limit]=10`,
+      { headers: JSONAPI_HEADERS },
+    );
+
+    if (relResp.ok) {
+      const relData = await relResp.json();
+      const included = (relData.included || []) as Array<Record<string, unknown>>;
+
+      // Build a lookup of included media by type+id
+      const mediaMap = new Map<string, Record<string, unknown>>();
+      for (const item of included) {
+        if (item.type === 'anime' || item.type === 'manga') {
+          mediaMap.set(`${item.type}:${item.id}`, item);
+        }
+      }
+
+      // Walk relationships and resolve destinations
+      const rels = (relData.data || []) as Array<Record<string, unknown>>;
+      for (const rel of rels) {
+        if (results.length >= 4) break;
+
+        const dest = (rel.relationships as Record<string, unknown>)?.destination as
+          | Record<string, unknown>
+          | undefined;
+        const destData = (dest?.data as Record<string, unknown>) || null;
+        if (!destData) continue;
+
+        const key = `${destData.type}:${destData.id}`;
+        const media = mediaMap.get(key);
+        if (!media || seenIds.has(String(media.id))) continue;
+
+        const attrs = media.attributes as Record<string, unknown>;
+        const img = imageUrl(attrs.posterImage as Record<string, unknown>);
+        if (!img) continue; // skip items with no poster
+
+        seenIds.add(String(media.id));
+        results.push({
+          media_id: String(media.id),
+          source: 'kitsu',
+          media_type: mediaType,
+          title: getTitle(attrs),
+          image_url: img,
+          year: getYear(attrs.startDate as string),
+          score: getScore(attrs.averageRating as string),
+        });
+      }
+    }
+  } catch {
+    // Non-critical — continue to phase 2
+  }
+
+  // --- Phase 2: Category-based discovery (fill remaining slots) ---
+  if (results.length < 4) {
+    try {
+      // Get categories for this item
+      const catResp = await fetch(`${BASE_URL}/${kitsuType}/${sourceId}/categories?page[limit]=3`, {
+        headers: JSONAPI_HEADERS,
+      });
+
+      if (catResp.ok) {
+        const catData = await catResp.json();
+        const categories = (catData.data || []) as Array<Record<string, unknown>>;
+
+        if (categories.length > 0) {
+          // Pick the most specific category (smallest totalMediaCount)
+          const sorted = [...categories].sort((a, b) => {
+            const countA =
+              ((a.attributes as Record<string, unknown>)?.totalMediaCount as number) || Infinity;
+            const countB =
+              ((b.attributes as Record<string, unknown>)?.totalMediaCount as number) || Infinity;
+            return countA - countB;
+          });
+
+          const catSlug = (sorted[0].attributes as Record<string, unknown>)?.slug as string;
+          if (catSlug) {
+            const needed = 4 - results.length;
+            // Fetch popular titles in this category, sorted by rating
+            const discoverResp = await fetch(
+              `${BASE_URL}/${kitsuType}?filter[categories]=${catSlug}&sort=-averageRating&page[limit]=${needed + 5}`,
+              { headers: JSONAPI_HEADERS },
+            );
+
+            if (discoverResp.ok) {
+              const discoverData = await discoverResp.json();
+              const items = (discoverData.data || []) as Array<Record<string, unknown>>;
+
+              for (const item of items) {
+                if (results.length >= 4) break;
+                if (seenIds.has(String(item.id))) continue;
+
+                const attrs = item.attributes as Record<string, unknown>;
+                const img = imageUrl(attrs.posterImage as Record<string, unknown>);
+                if (!img) continue;
+
+                seenIds.add(String(item.id));
+                results.push({
+                  media_id: String(item.id),
+                  source: 'kitsu',
+                  media_type: mediaType,
+                  title: getTitle(attrs),
+                  image_url: img,
+                  year: getYear(attrs.startDate as string),
+                  score: getScore(attrs.averageRating as string),
+                });
+              }
+            }
+          }
+        }
+      }
+    } catch {
+      // Non-critical
+    }
+  }
+
+  return results;
 }

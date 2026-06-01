@@ -194,6 +194,9 @@ export async function detail(sourceId: string, mediaType: string): Promise<Media
   // TheTVDB score is a popularity hint, not a user rating — don't display it
   const score = null;
 
+  // Fetch similar titles via genre-based search
+  const recommendations = await fetchSimilar(sourceId, mediaType, genres);
+
   return {
     media_id: String(r.id),
     source: 'thetvdb',
@@ -209,6 +212,51 @@ export async function detail(sourceId: string, mediaType: string): Promise<Media
     score_count: null,
     max_progress: maxProgress,
     details,
-    related: null,
+    related: recommendations.length > 0 ? { recommendations } : null,
   };
+}
+
+/**
+ * Find similar titles by searching for the primary genre and filtering out the
+ * current item. TheTVDB doesn't have a dedicated recommendations endpoint, so
+ * genre-based search is the best proxy.
+ */
+async function fetchSimilar(
+  currentId: string,
+  mediaType: string,
+  genres: string[],
+): Promise<SearchResult[]> {
+  if (genres.length === 0) return [];
+
+  try {
+    const tvdbType = mediaType === 'tv' ? 'series' : 'movie';
+    // Search by the first (most specific) genre
+    const params = new URLSearchParams({
+      query: genres[0],
+      type: tvdbType,
+      limit: '12',
+    });
+
+    const data = await tvdbFetch(`/search?${params}`);
+    const items = (data.data as Array<Record<string, unknown>>) || [];
+
+    return items
+      .filter(
+        (item) =>
+          String(item.tvdb_id) !== currentId && item.primary_language !== 'jpn' && item.image_url,
+      )
+      .slice(0, 4)
+      .map((item) => ({
+        media_id: String(item.tvdb_id),
+        source: 'thetvdb',
+        media_type: mediaType,
+        title: (item.name as string) || '',
+        image_url: (item.image_url as string) || null,
+        year: (item.year as string) || null,
+        score: null,
+      }));
+  } catch {
+    // Recommendations are non-critical — don't fail the detail request
+    return [];
+  }
 }

@@ -7,6 +7,7 @@ struct MyProfileView: View {
     @State private var selectedTab: ProfileTab = .tracked
     @State private var showEditProfile = false
     @State private var recentTracked: [TrackedMediaItem] = []
+    @State private var userReviews: [Review] = []
 
     var body: some View {
         ZStack(alignment: .top) {
@@ -323,19 +324,32 @@ struct MyProfileView: View {
 
     private var reviewsContent: some View {
         VStack(spacing: 12) {
-            ForEach(0..<2) { i in
-                ProfileReviewCard(
-                    reviewerName: profile.displayName,
-                    mediaTitle: i == 0 ? "Iron & Ember" : "The Cloud Weaver",
-                    content: i == 0
-                        ? "\"An incredible journey that redefines what cozy RPGs can be. The world-building is top-notch.\""
-                        : "\"Beautiful animation and a story that keeps you guessing. Every episode is a masterpiece.\"",
-                    rating: i == 0 ? 4.0 : 4.5,
-                    likes: i == 0 ? "24" : "18",
-                    comments: i == 0 ? "8" : "5",
-                    placeholderColor: i == 0
-                        ? Color(hex: 0xC4956E) : Color(hex: 0xD4C4A8)
-                )
+            if userReviews.isEmpty {
+                VStack(spacing: 8) {
+                    Text("No reviews yet")
+                        .font(NookFont.labelBold)
+                        .foregroundStyle(Color.nook.detailMeta)
+                    Text("Your reviews will appear here")
+                        .font(NookFont.bodySmall)
+                        .foregroundStyle(Color.nook.detailMeta.opacity(0.7))
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.top, 24)
+            } else {
+                ForEach(userReviews) { review in
+                    NavigationLink(value: ReviewItem(from: review)) {
+                        ProfileReviewCard(
+                            reviewerName: review.authorName,
+                            mediaTitle: review.mediaTitle ?? "",
+                            content: review.body,
+                            rating: review.rating,
+                            likes: "\(review.likesCount)",
+                            comments: "0",
+                            placeholderColor: Color(hex: 0xC4956E)
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
             }
         }
     }
@@ -411,6 +425,10 @@ struct MyProfileView: View {
             // Load recent tracked items
             let trackingService = TrackingService()
             recentTracked = (try? await trackingService.getLibrary(userId: user.id)) ?? []
+
+            // Load user's reviews
+            let reviewService = ReviewService()
+            userReviews = (try? await reviewService.getReviewsByUser(userId: user.id)) ?? []
         } catch {
             // Fall back to auth metadata
             if let name = user.userMetadata["full_name"]?.value as? String {
@@ -671,11 +689,14 @@ struct ProfileReviewCard: View {
                             Text("reviewed")
                                 .font(.custom("PlusJakartaSans-Regular", size: 10, relativeTo: .caption2))
                                 .foregroundStyle(Color.nook.cardSubtitle)
+                                .layoutPriority(1)
 
                             Text(mediaTitle)
                                 .font(.custom("PlusJakartaSans-SemiBold", size: 10, relativeTo: .caption2))
                                 .foregroundStyle(Color.nook.cardTitle)
+                                .lineLimit(1)
                         }
+                        .lineLimit(1)
                     }
                 }
 
@@ -688,7 +709,7 @@ struct ProfileReviewCard: View {
                         .frame(width: 10, height: 10)
                         .foregroundStyle(Color.nook.detailRatingText)
 
-                    Text(String(format: "%.1f", rating))
+                    Text(Self.ratingLabel(for: rating))
                         .font(NookFont.captionBold)
                         .foregroundStyle(Color.nook.detailRatingText)
                 }
@@ -752,6 +773,22 @@ struct ProfileReviewCard: View {
         .overlay {
             RoundedRectangle(cornerRadius: NookRadii.lg, style: .continuous)
                 .stroke(Color.nook.profileActivityCardBorder, lineWidth: 1)
+        }
+    }
+
+    static func ratingLabel(for rating: Double) -> String {
+        switch Int(rating) {
+        case 10: "Masterpiece"
+        case 9: "Excellent"
+        case 8: "Great"
+        case 7: "Good"
+        case 6: "Decent"
+        case 5: "Average"
+        case 4: "Below Avg"
+        case 3: "Poor"
+        case 2: "Terrible"
+        case 1: "Appalling"
+        default: "\(Int(rating))"
         }
     }
 }
