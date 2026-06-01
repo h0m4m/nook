@@ -186,7 +186,7 @@ final class ClubService: Sendable {
     func getMembers(clubId: UUID) async throws -> [ClubMemberRow] {
         try await supabase
             .from("club_members")
-            .select("*, user_profile:user_profiles!user_id(id, full_name, username, avatar_url)")
+            .select("*, user_profile:user_profiles!club_members_user_id_user_profiles_fkey(id, full_name, username, avatar_url)")
             .eq("club_id", value: clubId.uuidString)
             .order("joined_at", ascending: true)
             .execute()
@@ -218,7 +218,7 @@ final class ClubService: Sendable {
 
         let rows: [ClubPostRow] = try await supabase
             .from("club_posts")
-            .select("*, user_profile:user_profiles!user_id(id, full_name, username, avatar_url)")
+            .select("*, user_profile:user_profiles!club_posts_user_id_user_profiles_fkey(id, full_name, username, avatar_url)")
             .eq("club_id", value: clubId.uuidString)
             .order("is_pinned", ascending: false)
             .order("created_at", ascending: false)
@@ -260,7 +260,7 @@ final class ClubService: Sendable {
     func getComments(postId: UUID) async throws -> [ClubPostCommentRow] {
         try await supabase
             .from("club_post_comments")
-            .select("*, user_profile:user_profiles!user_id(id, full_name, username, avatar_url)")
+            .select("*, user_profile:user_profiles!club_post_comments_user_id_user_profiles_fkey(id, full_name, username, avatar_url)")
             .eq("post_id", value: postId.uuidString)
             .order("created_at", ascending: true)
             .execute()

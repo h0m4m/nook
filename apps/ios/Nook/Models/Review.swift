@@ -52,6 +52,7 @@ struct ReviewCommentRow: Codable, Sendable {
     let userId: UUID
     let parentCommentId: UUID?
     let body: String
+    let likesCount: Int
     let createdAt: Date
     let updatedAt: Date
     let userProfile: ReviewAuthor?
@@ -62,6 +63,7 @@ struct ReviewCommentRow: Codable, Sendable {
         case userId = "user_id"
         case parentCommentId = "parent_comment_id"
         case body
+        case likesCount = "likes_count"
         case createdAt = "created_at"
         case updatedAt = "updated_at"
         case userProfile = "user_profile"
@@ -112,6 +114,7 @@ struct ReviewCommentModel: Identifiable, Hashable, Sendable {
     let authorName: String
     let authorAvatarURL: URL?
     let body: String
+    let likesCount: Int
     let createdAt: Date
 
     init(from row: ReviewCommentRow) {
@@ -122,6 +125,7 @@ struct ReviewCommentModel: Identifiable, Hashable, Sendable {
         self.authorName = row.userProfile?.fullName ?? row.userProfile?.username ?? "Anonymous"
         self.authorAvatarURL = row.userProfile?.avatarUrl.flatMap { URL(string: $0) }
         self.body = row.body
+        self.likesCount = row.likesCount
         self.createdAt = row.createdAt
     }
 }

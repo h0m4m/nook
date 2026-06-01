@@ -39,13 +39,16 @@ final class TrackingService: Sendable {
 
         try await supabase
             .from("tracked_media")
-            .upsert(TrackUpsert(
-                user_id: userId.uuidString,
-                media_item_id: mediaItemId.uuidString,
-                status: status,
-                progress: progress,
-                score: score
-            ))
+            .upsert(
+                TrackUpsert(
+                    user_id: userId.uuidString,
+                    media_item_id: mediaItemId.uuidString,
+                    status: status,
+                    progress: progress,
+                    score: score
+                ),
+                onConflict: "user_id,media_item_id"
+            )
             .execute()
 
         await libraryCache.invalidate(userId)

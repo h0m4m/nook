@@ -25,7 +25,7 @@ final class ActivityFeedService: Sendable {
 
         let rows: [ActivityFeedRow] = try await supabase
             .from("activity_feed")
-            .select("*, user_profile:user_profiles!user_id(id, full_name, username, avatar_url), media_item:media_items!media_item_id(id, source, source_id, media_type, title, image_url, year)")
+            .select("*, user_profile:user_profiles!activity_feed_user_id_user_profiles_fkey(id, full_name, username, avatar_url), media_item:media_items!media_item_id(id, source, source_id, media_type, title, image_url, year)")
             .in("user_id", values: followedIds)
             .order("created_at", ascending: false)
             .range(from: offset, to: offset + limit - 1)

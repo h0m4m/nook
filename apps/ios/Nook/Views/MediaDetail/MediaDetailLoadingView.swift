@@ -18,7 +18,8 @@ struct MediaDetailLoadingView: View {
             isLoading: viewModel.isLoading,
             onTracked: {
                 trackingState.markTracked(viewModel.route.mediaId)
-            }
+            },
+            resolvedDbId: viewModel.dbId
         )
         .task {
             await viewModel.loadDetail()

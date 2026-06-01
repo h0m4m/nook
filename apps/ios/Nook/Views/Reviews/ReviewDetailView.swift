@@ -1,26 +1,34 @@
 import SwiftUI
 
+/// Parse a Markdown string into an `AttributedString`, falling back to plain text.
+func markdownAttributed(_ text: String) -> AttributedString {
+    (try? AttributedString(markdown: text, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace))) ?? AttributedString(text)
+}
+
 // MARK: - Review Comment Model
 
 struct ReviewComment: Identifiable {
     let id = UUID()
+    let dbId: UUID?
     let authorName: String
-    let timeAgo: String
+    let createdAt: Date?
     let body: String
     var likes: Int
     var isLiked: Bool
     var replies: [ReviewComment]
 
     init(
+        dbId: UUID? = nil,
         authorName: String,
-        timeAgo: String,
+        createdAt: Date? = nil,
         body: String,
         likes: Int = 0,
         isLiked: Bool = false,
         replies: [ReviewComment] = []
     ) {
+        self.dbId = dbId
         self.authorName = authorName
-        self.timeAgo = timeAgo
+        self.createdAt = createdAt
         self.body = body
         self.likes = likes
         self.isLiked = isLiked
@@ -34,15 +42,18 @@ struct ReviewDetailView: View {
     let review: ReviewItem
     @Environment(\.dismiss) private var dismiss
     @State private var isLiked = false
+    @State private var likeCount: Int
     @State private var commentText = ""
     @State private var comments: [ReviewComment]
     @FocusState private var isCommentFocused: Bool
-    @State private var replyingTo: String?
+    @State private var replyingToName: String?
+    @State private var replyingToId: UUID?
     @State private var sortOrder: CommentSort = .top
 
     init(review: ReviewItem) {
         self.review = review
-        self._comments = State(initialValue: Self.mockComments)
+        self._likeCount = State(initialValue: Int(review.likes) ?? 0)
+        self._comments = State(initialValue: [])
     }
 
     var body: some View {
@@ -81,15 +92,37 @@ struct ReviewDetailView: View {
         isLiked = (try? await service.isReviewLiked(reviewId: dbId)) ?? false
 
         // Load comments from DB
-        if let dbComments = try? await service.getComments(reviewId: dbId), !dbComments.isEmpty {
-            comments = dbComments.map { c in
-                ReviewComment(
-                    authorName: c.authorName,
-                    timeAgo: "",
-                    body: c.body
-                )
-            }
+        await reloadComments()
+    }
+    private func ratingLabel(for rating: Double) -> String {
+        let score = Int(rating)
+        switch score {
+        case 10: return "Masterpiece"
+        case 9: return "Excellent"
+        case 8: return "Great"
+        case 7: return "Good"
+        case 6: return "Decent"
+        case 5: return "Average"
+        case 4: return "Below Avg"
+        case 3: return "Poor"
+        case 2: return "Terrible"
+        case 1: return "Appalling"
+        default: return "\(score)"
         }
+    }
+
+    private func relativeTime(from date: Date) -> String {
+        let seconds = Int(Date().timeIntervalSince(date))
+        if seconds < 60 { return "just now" }
+        let minutes = seconds / 60
+        if minutes < 60 { return "\(minutes)m" }
+        let hours = minutes / 60
+        if hours < 24 { return "\(hours)h" }
+        let days = hours / 24
+        if days < 30 { return "\(days)d" }
+        let months = days / 30
+        if months < 12 { return "\(months)mo" }
+        return "\(months / 12)y"
     }
 }
 
@@ -115,8 +148,8 @@ private extension ReviewDetailView {
                 .padding(.top, 20)
                 .padding(.horizontal, 24)
 
-            // Review body
-            Text(review.body)
+            // Review body (supports Markdown formatting)
+            Text(markdownAttributed(review.body))
                 .font(NookFont.label)
                 .foregroundStyle(Color.nook.reviewDetailBody)
                 .lineSpacing(6)
@@ -148,9 +181,11 @@ private extension ReviewDetailView {
                     .font(NookFont.labelSmall)
                     .foregroundStyle(Color.nook.reviewDetailTitle)
 
-                Text("reviewed \(review.mediaTitle)")
-                    .font(NookFont.caption)
-                    .foregroundStyle(Color.nook.reviewDetailMeta)
+                if let date = review.createdAt {
+                    Text(relativeTime(from: date))
+                        .font(NookFont.caption)
+                        .foregroundStyle(Color.nook.reviewDetailMeta)
+                }
             }
 
             Spacer()
@@ -163,7 +198,7 @@ private extension ReviewDetailView {
                     .frame(width: 12, height: 12)
                     .foregroundStyle(Color.nook.detailRatingText)
 
-                Text(String(format: "%.1f", review.rating))
+                Text(ratingLabel(for: review.rating))
                     .font(NookFont.labelBoldSmall)
                     .foregroundStyle(Color.nook.detailRatingText)
             }
@@ -178,18 +213,31 @@ private extension ReviewDetailView {
 
     var mediaContextCard: some View {
         HStack(spacing: 12) {
-            // Media poster placeholder
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color.nook.secondary)
-                .frame(width: 48, height: 68)
-                .overlay(
-                    Image("reel")
-                        .renderingMode(.template)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: 20, height: 20)
-                        .foregroundStyle(Color.nook.mutedForeground)
-                )
+            // Media poster
+            Group {
+                if let url = review.mediaImageURL {
+                    AsyncImage(url: url) { phase in
+                        switch phase {
+                        case .success(let image):
+                            image.resizable().scaledToFill()
+                        default:
+                            Color.nook.secondary
+                        }
+                    }
+                } else {
+                    Color.nook.secondary
+                        .overlay(
+                            Image("reel")
+                                .renderingMode(.template)
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(width: 20, height: 20)
+                                .foregroundStyle(Color.nook.mutedForeground)
+                        )
+                }
+            }
+            .frame(width: 48, height: 68)
+            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(review.mediaTitle)
@@ -232,6 +280,7 @@ private extension ReviewDetailView {
                 let wasLiked = isLiked
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
                     isLiked.toggle()
+                    likeCount += wasLiked ? -1 : 1
                 }
                 generator.impactOccurred()
 
@@ -254,7 +303,7 @@ private extension ReviewDetailView {
                         .foregroundStyle(isLiked ? Color.nook.reviewDetailLikeActive : Color.nook.reviewDetailMeta)
                         .scaleEffect(isLiked ? 1.15 : 1.0)
 
-                    Text(review.likes)
+                    Text("\(likeCount)")
                         .font(NookFont.labelBoldSmall)
                         .foregroundStyle(isLiked ? Color.nook.reviewDetailLikeActive : Color.nook.reviewDetailMeta)
                 }
@@ -272,7 +321,7 @@ private extension ReviewDetailView {
                     .frame(width: 20, height: 20)
                     .foregroundStyle(Color.nook.reviewDetailMeta)
 
-                Text(review.comments)
+                Text("\(comments.count)")
                     .font(NookFont.labelBoldSmall)
                     .foregroundStyle(Color.nook.reviewDetailMeta)
             }
@@ -352,26 +401,32 @@ private extension ReviewDetailView {
 private extension ReviewDetailView {
     var commentsSection: some View {
         LazyVStack(spacing: 0) {
-            ForEach(Array(comments.enumerated()), id: \.element.id) { index, comment in
-                VStack(spacing: 0) {
-                    commentRow(comment, depth: 0, index: index)
-
-                    ForEach(Array(comment.replies.enumerated()), id: \.element.id) { replyIndex, reply in
-                        commentRow(reply, depth: 1, index: index, replyIndex: replyIndex)
-                    }
-                }
+            ForEach(comments) { comment in
+                renderCommentTree(comment, depth: 0)
             }
         }
         .padding(.bottom, 40)
     }
 
-    func commentRow(_ comment: ReviewComment, depth: Int, index: Int, replyIndex: Int? = nil) -> some View {
-        HStack(alignment: .top, spacing: 10) {
+    private func renderCommentTree(_ comment: ReviewComment, depth: Int) -> AnyView {
+        AnyView(
+            VStack(spacing: 0) {
+                commentRow(comment, depth: depth)
+
+                ForEach(comment.replies) { reply in
+                    renderCommentTree(reply, depth: depth + 1)
+                }
+            }
+        )
+    }
+
+    func commentRow(_ comment: ReviewComment, depth: Int) -> some View {
+        let indent = CGFloat(depth) * 24
+        return HStack(alignment: .top, spacing: 10) {
             if depth > 0 {
                 Rectangle()
                     .fill(Color.nook.reviewDetailDivider)
                     .frame(width: 2)
-                    .padding(.leading, 36)
             }
 
             Circle()
@@ -390,9 +445,11 @@ private extension ReviewDetailView {
                         .font(NookFont.captionBold)
                         .foregroundStyle(Color.nook.reviewDetailTitle)
 
-                    Text(comment.timeAgo)
-                        .font(NookFont.caption)
-                        .foregroundStyle(Color.nook.reviewDetailMeta)
+                    if let date = comment.createdAt {
+                        Text(relativeTime(from: date))
+                            .font(NookFont.caption)
+                            .foregroundStyle(Color.nook.reviewDetailMeta)
+                    }
                 }
 
                 // Body
@@ -407,16 +464,21 @@ private extension ReviewDetailView {
                     Button {
                         let generator = UIImpactFeedbackGenerator(style: .light)
                         generator.prepare()
+                        let wasLiked = comment.isLiked
                         withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                            if let ri = replyIndex {
-                                comments[index].replies[ri].isLiked.toggle()
-                                comments[index].replies[ri].likes += comments[index].replies[ri].isLiked ? 1 : -1
-                            } else {
-                                comments[index].isLiked.toggle()
-                                comments[index].likes += comments[index].isLiked ? 1 : -1
-                            }
+                            toggleLike(commentDbId: comment.dbId, wasLiked: wasLiked)
                         }
                         generator.impactOccurred()
+                        if let commentDbId = comment.dbId {
+                            Task {
+                                let service = ReviewService()
+                                if wasLiked {
+                                    try? await service.unlikeComment(commentId: commentDbId)
+                                } else {
+                                    try? await service.likeComment(commentId: commentDbId)
+                                }
+                            }
+                        }
                     } label: {
                         HStack(spacing: 4) {
                             Image(comment.isLiked ? "heart-fill" : "heart")
@@ -436,7 +498,8 @@ private extension ReviewDetailView {
                     // Reply
                     Button {
                         withAnimation(.easeOut(duration: 0.2)) {
-                            replyingTo = comment.authorName
+                            replyingToName = comment.authorName
+                            replyingToId = comment.dbId
                         }
                         isCommentFocused = true
                     } label: {
@@ -450,7 +513,8 @@ private extension ReviewDetailView {
 
             Spacer(minLength: 0)
         }
-        .padding(.horizontal, 24)
+        .padding(.leading, 24 + indent)
+        .padding(.trailing, 24)
         .padding(.vertical, 12)
     }
 }
@@ -464,7 +528,7 @@ private extension ReviewDetailView {
                 .fill(Color.nook.reviewDetailDivider)
                 .frame(height: 1)
 
-            if let replyTo = replyingTo {
+            if let replyTo = replyingToName {
                 HStack {
                     Text("Replying to \(replyTo)")
                         .font(NookFont.caption)
@@ -474,7 +538,8 @@ private extension ReviewDetailView {
 
                     Button {
                         withAnimation(.easeOut(duration: 0.15)) {
-                            replyingTo = nil
+                            replyingToName = nil
+                            replyingToId = nil
                         }
                     } label: {
                         Image("x-bold")
@@ -502,7 +567,7 @@ private extension ReviewDetailView {
                     )
 
                 TextField(
-                    replyingTo != nil ? "Reply..." : "Add a comment...",
+                    replyingToName != nil ? "Reply..." : "Add a comment...",
                     text: $commentText,
                     axis: .vertical
                 )
@@ -539,36 +604,101 @@ private extension ReviewDetailView {
         .background(Color.nook.reviewDetailBackground)
     }
 
+    private func toggleLike(commentDbId: UUID?, wasLiked: Bool) {
+        guard let dbId = commentDbId else { return }
+        for i in comments.indices {
+            if comments[i].dbId == dbId {
+                comments[i].isLiked.toggle()
+                comments[i].likes += wasLiked ? -1 : 1
+                return
+            }
+            for j in comments[i].replies.indices {
+                if comments[i].replies[j].dbId == dbId {
+                    comments[i].replies[j].isLiked.toggle()
+                    comments[i].replies[j].likes += wasLiked ? -1 : 1
+                    return
+                }
+                // Check deeper nesting
+                toggleLikeRecursive(in: &comments[i].replies[j].replies, dbId: dbId, wasLiked: wasLiked)
+            }
+        }
+    }
+
+    private func toggleLikeRecursive(in replies: inout [ReviewComment], dbId: UUID, wasLiked: Bool) {
+        for i in replies.indices {
+            if replies[i].dbId == dbId {
+                replies[i].isLiked.toggle()
+                replies[i].likes += wasLiked ? -1 : 1
+                return
+            }
+            toggleLikeRecursive(in: &replies[i].replies, dbId: dbId, wasLiked: wasLiked)
+        }
+    }
+
     private func sendComment() {
         let text = commentText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
 
-        let newComment = ReviewComment(
-            authorName: "You",
-            timeAgo: "now",
-            body: text
-        )
-
-        withAnimation(.easeOut(duration: 0.25)) {
-            if replyingTo != nil {
-                if !comments.isEmpty {
-                    comments[0].replies.append(newComment)
-                }
-                replyingTo = nil
-            } else {
-                comments.insert(newComment, at: 0)
-            }
-            commentText = ""
-        }
-
+        let parentId = replyingToId
+        commentText = ""
+        replyingToName = nil
+        replyingToId = nil
         isCommentFocused = false
 
-        // Persist to DB
-        if let dbId = review.dbId {
-            Task {
-                let service = ReviewService()
-                try? await service.addComment(reviewId: dbId, body: text)
+        guard let dbId = review.dbId else { return }
+        Task {
+            let service = ReviewService()
+            try? await service.addComment(reviewId: dbId, body: text, parentCommentId: parentId)
+            await reloadComments()
+        }
+    }
+
+    private func reloadComments() async {
+        guard let dbId = review.dbId else { return }
+        let service = ReviewService()
+        guard let dbComments = try? await service.getComments(reviewId: dbId) else { return }
+
+        // Load which comments the current user has liked
+        let likedIds = (try? await service.getLikedCommentIds(reviewId: dbId)) ?? []
+
+        // Build lookup of ReviewComment by ID
+        var commentById: [UUID: ReviewComment] = [:]
+        for c in dbComments {
+            commentById[c.id] = ReviewComment(
+                dbId: c.id,
+                authorName: c.authorName,
+                createdAt: c.createdAt,
+                body: c.body,
+                likes: c.likesCount,
+                isLiked: likedIds.contains(c.id)
+            )
+        }
+
+        // Group children by parent
+        var childrenOf: [UUID: [UUID]] = [:]
+        var rootIds: [UUID] = []
+
+        for c in dbComments {
+            if let parentId = c.parentCommentId {
+                childrenOf[parentId, default: []].append(c.id)
+            } else {
+                rootIds.append(c.id)
             }
+        }
+
+        // Recursively build tree
+        func buildTree(id: UUID) -> ReviewComment? {
+            guard var comment = commentById[id] else { return nil }
+            if let childIds = childrenOf[id] {
+                comment.replies = childIds.compactMap { buildTree(id: $0) }
+            }
+            return comment
+        }
+
+        let tree = rootIds.compactMap { buildTree(id: $0) }
+
+        withAnimation(.easeOut(duration: 0.25)) {
+            comments = tree
         }
     }
 
@@ -577,28 +707,9 @@ private extension ReviewDetailView {
         case .top:
             comments.sort { $0.likes > $1.likes }
         case .newest:
-            comments.sort { lhs, rhs in
-                sortValue(lhs.timeAgo) < sortValue(rhs.timeAgo)
-            }
+            comments.sort { ($0.createdAt ?? .distantPast) > ($1.createdAt ?? .distantPast) }
         case .oldest:
-            comments.sort { lhs, rhs in
-                sortValue(lhs.timeAgo) > sortValue(rhs.timeAgo)
-            }
-        }
-    }
-
-    private func sortValue(_ timeAgo: String) -> Int {
-        let parts = timeAgo.split(separator: " ")
-        guard let num = Int(parts.first ?? "0") else {
-            if timeAgo == "now" { return 0 }
-            return 999
-        }
-        let unit = String(parts.last ?? "m")
-        switch unit {
-        case "m": return num
-        case "h": return num * 60
-        case "d": return num * 1440
-        default: return num
+            comments.sort { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) }
         }
     }
 }
@@ -661,18 +772,6 @@ private struct ReviewDetailTopBar: ViewModifier {
                 }
 
                 Button {
-                    // TODO: Copy link
-                } label: {
-                    Label {
-                        Text("Copy link")
-                            .font(.subheadline)
-                    } icon: {
-                        Image("link")
-                            .renderingMode(.template)
-                    }
-                }
-
-                Button {
                     // TODO: Block user
                 } label: {
                     Label {
@@ -711,58 +810,6 @@ private struct ReviewDetailSoftScrollEdge: ViewModifier {
     }
 }
 
-// MARK: - Mock Comments
-
-extension ReviewDetailView {
-    static let mockComments: [ReviewComment] = [
-        ReviewComment(
-            authorName: "Kai Tanaka",
-            timeAgo: "3h",
-            body: "Couldn't agree more about the third act. The way they tied everything together with the cloud weaving motif was brilliant. Easily my anime of the year.",
-            likes: 34,
-            replies: [
-                ReviewComment(
-                    authorName: "Nadia Petrova",
-                    timeAgo: "2h",
-                    body: "Same here. I went in with low expectations and was completely blown away.",
-                    likes: 12
-                ),
-                ReviewComment(
-                    authorName: "Jin Park",
-                    timeAgo: "1h",
-                    body: "The foreshadowing from episode 3 that pays off in the finale is just *chef's kiss*",
-                    likes: 8
-                ),
-            ]
-        ),
-        ReviewComment(
-            authorName: "Sophia Chen",
-            timeAgo: "2h",
-            body: "Great review! I'd love to hear your thoughts on the soundtrack too. I think it really elevated the emotional beats in ways that don't get enough credit.",
-            likes: 28
-        ),
-        ReviewComment(
-            authorName: "Liam Brooks",
-            timeAgo: "1h",
-            body: "Interesting take on the world-building. I thought the magic system could have been explained a bit more clearly, but the visual storytelling made up for it.",
-            likes: 15,
-            replies: [
-                ReviewComment(
-                    authorName: "Ava Kim",
-                    timeAgo: "45m",
-                    body: "I actually prefer when they show rather than tell with magic systems. Felt more immersive that way.",
-                    likes: 9
-                ),
-            ]
-        ),
-        ReviewComment(
-            authorName: "Marcus Rivera",
-            timeAgo: "45m",
-            body: "9.5 is a bold rating but honestly it's deserved. This show set a new bar for the genre.",
-            likes: 41
-        ),
-    ]
-}
 
 // MARK: - Preview
 

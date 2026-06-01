@@ -139,9 +139,13 @@ struct MediaDetailView: View {
     var isLoading: Bool = false
     /// Called when the user saves tracking. Passes the media's sourceId (or dbId string).
     var onTracked: (() -> Void)?
+    /// Overrides media.dbId — passed separately so it can update after the API call resolves.
+    var resolvedDbId: UUID?
+
+    /// The authoritative DB identifier — prefers the overridden value.
+    private var dbId: UUID? { resolvedDbId ?? media.dbId }
     @Environment(\.dismiss) private var dismiss
     @State private var selectedTab: MediaDetailTab = .about
-    @State private var dominantColor: Color?
     @State private var isTracking: Bool
     @State private var isRated = false
     @State private var isReviewed = false
@@ -151,63 +155,68 @@ struct MediaDetailView: View {
     @State private var selectedStatus: TrackingStatus?
     @State private var currentEpisode: Int
     @State private var userScore: Int?
-    @State private var reviewRating: Int = 0
     @State private var reviewTitle: String = ""
     @State private var reviewBody: String = ""
     @State private var containsSpoilers: Bool = false
     @State private var loadedReviews: [Review] = []
     @State private var isLoadingReviews = false
+    @State private var reviewsLoadToken = UUID()
 
-    init(media: MediaDetail, isLoading: Bool = false, onTracked: (() -> Void)? = nil) {
+    /// Single source of truth for rating — both tracking sheet score and review sheet rating use this.
+    private var reviewRatingBinding: Binding<Int> {
+        Binding(
+            get: { userScore ?? 0 },
+            set: { newValue in
+                userScore = newValue > 0 ? newValue : nil
+                isRated = newValue > 0
+            }
+        )
+    }
+
+    init(media: MediaDetail, isLoading: Bool = false, onTracked: (() -> Void)? = nil, resolvedDbId: UUID? = nil) {
         self.media = media
         self.isLoading = isLoading
         self.onTracked = onTracked
+        self.resolvedDbId = resolvedDbId
         self._isTracking = State(initialValue: media.trackingStatus != nil)
         self._selectedStatus = State(initialValue: media.trackingStatus)
         self._currentEpisode = State(initialValue: media.currentEpisode)
     }
 
     var body: some View {
-        ZStack(alignment: .top) {
-            ScrollView(showsIndicators: false) {
-                VStack(spacing: 0) {
-                    heroSection
-                    contentCard
+        ScrollView(showsIndicators: false) {
+            VStack(spacing: 0) {
+                headerRow
+                    .padding(.horizontal, 16)
+                    .padding(.top, 16)
+                    .padding(.bottom, 20)
+
+                if isLoading {
+                    loadingContentSkeleton
+                } else {
+                    progressCard
+                        .padding(.top, 20)
+                        .padding(.horizontal, 16)
+
+                    actionButtons
+                        .padding(.top, 8)
+                        .padding(.horizontal, 16)
+
+                    tabBar
+                        .padding(.top, 12)
+
+                    tabContent
                 }
             }
-            .ignoresSafeArea(edges: [.top, .bottom])
-
-            navigationButtons
         }
+        .modifier(DetailTopBar(onDismiss: { dismiss() }))
         .background(Color.nook.detailBackground.ignoresSafeArea())
-        .background(
-            VStack(spacing: 0) {
-                overscrollColor
-                    .frame(height: 400)
-                Spacer(minLength: 0)
-            }
-            .ignoresSafeArea()
-        )
         .navigationBarBackButtonHidden()
         .toolbar(.hidden, for: .navigationBar)
         .modifier(InteractivePopGesture())
-        .modifier(SoftDetailScrollEdge())
-        .task {
-            if let url = media.imageURL {
-                let color = await Task.detached {
-                    await Self.extractDominantColor(fromURL: url)
-                }.value
-                dominantColor = color
-            } else if !media.imageName.isEmpty {
-                let name = media.imageName
-                let color = await Task.detached {
-                    Self.extractDominantColor(from: name)
-                }.value
-                dominantColor = color
-            }
-
-            // Check if already tracking this media
+        .task(id: resolvedDbId) {
             await loadExistingTracking()
+            await loadExistingReview()
         }
         .sheet(isPresented: $showTrackingSheet, onDismiss: {
             persistTracking()
@@ -227,11 +236,12 @@ struct MediaDetailView: View {
             .presentationBackground(Color.nook.detailBackground)
         }
         .sheet(isPresented: $showReviewSheet, onDismiss: {
-            Task { await loadReviews() }
+            reviewsLoadToken = UUID()
         }) {
             ReviewSheetView(
                 media: media,
-                rating: $reviewRating,
+                mediaDbId: dbId,
+                rating: reviewRatingBinding,
                 title: $reviewTitle,
                 reviewText: $reviewBody,
                 containsSpoilers: $containsSpoilers,
@@ -241,23 +251,6 @@ struct MediaDetailView: View {
             .presentationDragIndicator(.visible)
             .presentationBackground(Color.nook.detailBackground)
         }
-    }
-
-    private var overscrollColor: Color {
-        dominantColor ?? media.placeholderColor ?? Color.nook.foreground
-    }
-
-    nonisolated static func extractDominantColor(fromURL url: URL) async -> Color? {
-        guard let (data, _) = try? await URLSession.shared.data(from: url),
-              let uiImage = UIImage(data: data),
-              let cgImage = uiImage.cgImage else { return nil }
-        return extractDominantColorFromCGImage(cgImage)
-    }
-
-    nonisolated static func extractDominantColor(from imageName: String) -> Color? {
-        guard let uiImage = UIImage(named: imageName),
-              let cgImage = uiImage.cgImage else { return nil }
-        return extractDominantColorFromCGImage(cgImage)
     }
 
     private var progressLabel: String {
@@ -289,10 +282,15 @@ struct MediaDetailView: View {
     }
 
     private func loadExistingTracking() async {
-        guard let dbId = media.dbId,
-              let userId = try? await supabase.auth.session.user.id else { return }
+        print("[MediaDetail] loadExistingTracking — dbId=\(String(describing: dbId)), resolvedDbId=\(String(describing: resolvedDbId)), media.dbId=\(String(describing: media.dbId))")
+        guard let dbId = dbId,
+              let userId = try? await supabase.auth.session.user.id else {
+            print("[MediaDetail] loadExistingTracking — skipped (no dbId or userId)")
+            return
+        }
         let service = TrackingService()
         if let existing = try? await service.getTrackingForMedia(userId: userId, mediaItemId: dbId) {
+            print("[MediaDetail] loadExistingTracking — found tracking: status=\(existing.status), progress=\(existing.progress), score=\(String(describing: existing.score))")
             selectedStatus = TrackingStatus.from(dbValue: existing.status)
             currentEpisode = existing.progress
             userScore = existing.score.map { Int($0) }
@@ -301,200 +299,131 @@ struct MediaDetailView: View {
         }
     }
 
+    private func loadExistingReview() async {
+        print("[MediaDetail] loadExistingReview — dbId=\(String(describing: dbId))")
+        guard let dbId = dbId else {
+            print("[MediaDetail] loadExistingReview — skipped (no dbId)")
+            return
+        }
+        let service = ReviewService()
+        do {
+            if let existing = try await service.getUserReview(mediaItemId: dbId) {
+                print("[MediaDetail] loadExistingReview — found review: rating=\(existing.rating), title=\(String(describing: existing.title))")
+                // userScore is the single source of truth for rating — only set if tracking didn't already load one
+                if userScore == nil && existing.rating > 0 {
+                    userScore = Int(existing.rating)
+                    isRated = true
+                }
+                reviewTitle = existing.title ?? ""
+                reviewBody = existing.body
+                containsSpoilers = existing.isSpoiler
+                isReviewed = true
+            } else {
+                print("[MediaDetail] loadExistingReview — no existing review found")
+            }
+        } catch {
+            print("[MediaDetail] loadExistingReview — ERROR: \(error)")
+        }
+    }
+
     private func persistTracking() {
-        guard isTracking, let status = selectedStatus, let dbId = media.dbId else { return }
+        guard isTracking, let status = selectedStatus, let dbId = dbId else {
+            print("[MediaDetail] persistTracking — skipped (isTracking=\(isTracking), status=\(String(describing: selectedStatus)), dbId=\(String(describing: dbId)))")
+            return
+        }
+        print("[MediaDetail] persistTracking — saving status=\(status.dbValue), progress=\(currentEpisode), score=\(String(describing: userScore)), dbId=\(dbId)")
         onTracked?()
         Task {
             guard let userId = try? await supabase.auth.session.user.id else { return }
             let service = TrackingService()
-            try? await service.track(
-                userId: userId,
-                mediaItemId: dbId,
-                status: status.dbValue,
-                progress: currentEpisode,
-                score: userScore.map { Double($0) }
-            )
+            do {
+                try await service.track(
+                    userId: userId,
+                    mediaItemId: dbId,
+                    status: status.dbValue,
+                    progress: currentEpisode,
+                    score: userScore.map { Double($0) }
+                )
+                print("[MediaDetail] persistTracking — saved successfully")
+            } catch {
+                print("[MediaDetail] persistTracking — ERROR: \(error)")
+            }
         }
     }
 
-    nonisolated static func extractDominantColorFromCGImage(_ cgImage: CGImage) -> Color? {
-        let width = cgImage.width
-        let sampleHeight = min(cgImage.height / 4, 80)
-
-        guard let cropped = cgImage.cropping(to: CGRect(x: 0, y: 0, width: width, height: sampleHeight)) else { return nil }
-
-        let bitmapSize = 4
-        let colorSpace = CGColorSpaceCreateDeviceRGB()
-        var pixelData = [UInt8](repeating: 0, count: bitmapSize * bitmapSize * 4)
-
-        guard let context = CGContext(
-            data: &pixelData,
-            width: bitmapSize,
-            height: bitmapSize,
-            bitsPerComponent: 8,
-            bytesPerRow: bitmapSize * 4,
-            space: colorSpace,
-            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
-        ) else { return nil }
-
-        context.draw(cropped, in: CGRect(x: 0, y: 0, width: bitmapSize, height: bitmapSize))
-
-        var totalR: Double = 0
-        var totalG: Double = 0
-        var totalB: Double = 0
-        let pixelCount = bitmapSize * bitmapSize
-
-        for i in 0..<pixelCount {
-            let offset = i * 4
-            totalR += Double(pixelData[offset])
-            totalG += Double(pixelData[offset + 1])
-            totalB += Double(pixelData[offset + 2])
-        }
-
-        return Color(
-            red: totalR / Double(pixelCount) / 255.0,
-            green: totalG / Double(pixelCount) / 255.0,
-            blue: totalB / Double(pixelCount) / 255.0
-        )
-    }
 }
 
-// MARK: - Hero Section
+// MARK: - Top Bar + Header Row
 
 private extension MediaDetailView {
-    var heroSection: some View {
-        ZStack(alignment: .top) {
-            heroImage
-            heroGradient
-        }
-    }
+    var headerRow: some View {
+        HStack(alignment: .top, spacing: 16) {
+            // Poster
+            Group {
+                if let url = media.imageURL {
+                    MediaPosterImage(url: url, width: 100, height: 150, cornerRadius: 10)
+                } else if !media.imageName.isEmpty {
+                    Image(media.imageName)
+                        .resizable()
+                        .aspectRatio(2/3, contentMode: .fill)
+                        .frame(width: 100, height: 150)
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                } else {
+                    Color.nook.searchShimmerBase
+                        .frame(width: 100, height: 150)
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                }
+            }
+            .shadow(color: .black.opacity(0.15), radius: 8, y: 4)
 
-    var heroImage: some View {
-        Group {
-            if let url = media.imageURL {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image
-                            .resizable()
-                            .aspectRatio(2/3, contentMode: .fit)
-                    case .failure:
-                        Color.nook.foreground
-                            .aspectRatio(2/3, contentMode: .fit)
-                    case .empty:
-                        Color.nook.foreground
-                            .aspectRatio(2/3, contentMode: .fit)
-                    @unknown default:
-                        Color.nook.foreground
-                            .aspectRatio(2/3, contentMode: .fit)
+            // Info
+            VStack(alignment: .leading, spacing: 6) {
+                if isLoading {
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .fill(Color.nook.searchShimmerBase)
+                        .frame(width: 60, height: 22)
+                        .opacity(0.6)
+                } else {
+                    categoryBadge
+                }
+
+                Text(media.title)
+                    .font(NookFont.headingSmall)
+                    .foregroundStyle(Color.nook.detailTitle)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                if isLoading {
+                    RoundedRectangle(cornerRadius: 4, style: .continuous)
+                        .fill(Color.nook.searchShimmerBase)
+                        .frame(width: 140, height: 12)
+                        .opacity(0.5)
+                } else {
+                    metadataRow
+
+                    if media.rating > 0 {
+                        ratingDisplay
+                            .padding(.top, 2)
+                    }
+
+                    let genreList = media.genres.components(separatedBy: ", ").filter { !$0.isEmpty }
+                    if !genreList.isEmpty {
+                        FlowLayout(spacing: 6) {
+                            ForEach(genreList, id: \.self) { genre in
+                                genreBadge(genre)
+                            }
+                        }
+                        .padding(.top, 6)
                     }
                 }
-            } else if !media.imageName.isEmpty {
-                Image(media.imageName)
-                    .resizable()
-                    .aspectRatio(2/3, contentMode: .fit)
-            } else {
-                Color.nook.foreground
-                    .aspectRatio(2/3, contentMode: .fit)
             }
-        }
-        .frame(maxWidth: .infinity)
-        .clipped()
-    }
-
-    var heroGradient: some View {
-        EmptyView()
-    }
-
-    var navigationButtons: some View {
-        HStack {
-            navButton(icon: "caret-left-bold") {
-                dismiss()
-            }
-
-            Spacer()
-
-            navButton(icon: "export") {
-                // TODO: More options
-            }
-        }
-        .padding(.horizontal, 16)
-    }
-
-    @ViewBuilder
-    func navButton(icon: String, action: @escaping () -> Void) -> some View {
-        if #available(iOS 26, *) {
-            Button(action: action) {
-                Image(icon)
-                    .renderingMode(.template)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 20, height: 20)
-                    .foregroundStyle(.primary)
-                    .frame(width: 40, height: 40)
-                    .contentShape(Circle())
-                    .glassEffect(.regular, in: .circle)
-            }
-            .buttonStyle(.plain)
-            .frame(width: 48, height: 48)
-            .contentShape(Rectangle())
-        } else {
-            Button(action: action) {
-                Image(icon)
-                    .renderingMode(.template)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 20, height: 20)
-                    .foregroundStyle(.primary)
-                    .frame(width: 40, height: 40)
-                    .background(.ultraThinMaterial, in: Circle())
-            }
-            .buttonStyle(.plain)
-            .frame(width: 48, height: 48)
-            .contentShape(Rectangle())
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 }
 
-// MARK: - Content Card
+// MARK: - Loading Skeleton
 
 private extension MediaDetailView {
-    var contentCard: some View {
-        VStack(spacing: 0) {
-            mediaInfo
-                .padding(.top, 32)
-                .padding(.horizontal, 24)
-
-            if isLoading {
-                loadingContentSkeleton
-            } else {
-                progressCard
-                    .padding(.top, 24)
-                    .padding(.horizontal, 24)
-
-                actionButtons
-                    .padding(.top, 8)
-                    .padding(.horizontal, 24)
-
-                tabBar
-                    .padding(.top, 12)
-
-                tabContent
-            }
-        }
-        .background(
-            Color.nook.detailBackground
-                .clipShape(
-                    UnevenRoundedRectangle(
-                        topLeadingRadius: NookRadii.lg,
-                        topTrailingRadius: NookRadii.lg
-                    )
-                )
-                .shadow(color: .black.opacity(0.05), radius: 15, y: -8)
-        )
-        .offset(y: -32)
-    }
-
     /// Shimmer placeholders shown while full detail is loading.
     var loadingContentSkeleton: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -504,8 +433,8 @@ private extension MediaDetailView {
                 .frame(maxWidth: .infinity)
                 .frame(height: 100)
                 .opacity(0.4)
-                .padding(.top, 24)
-                .padding(.horizontal, 24)
+                .padding(.top, 20)
+                .padding(.horizontal, 16)
 
             // Action buttons shimmer
             HStack(spacing: 0) {
@@ -524,7 +453,7 @@ private extension MediaDetailView {
                 }
             }
             .padding(.top, 16)
-            .padding(.horizontal, 24)
+            .padding(.horizontal, 16)
 
             // Synopsis shimmer
             VStack(alignment: .leading, spacing: 8) {
@@ -537,53 +466,15 @@ private extension MediaDetailView {
                 }
             }
             .padding(.top, 32)
-            .padding(.horizontal, 24)
+            .padding(.horizontal, 16)
             .padding(.bottom, 100)
         }
     }
 }
 
-// MARK: - Media Info (badge, rating, title, metadata)
+// MARK: - Media Info components (badge, rating, metadata)
 
 private extension MediaDetailView {
-    var mediaInfo: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // Category badge + rating row
-            HStack(spacing: 8) {
-                if isLoading {
-                    RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .fill(Color.nook.searchShimmerBase)
-                        .frame(width: 60, height: 24)
-                        .opacity(0.6)
-                } else {
-                    categoryBadge
-                    if media.rating > 0 {
-                        ratingDisplay
-                    }
-                }
-                Spacer()
-            }
-
-            // Title — shown immediately from route preview data
-            Text(media.title)
-                .font(NookFont.headingMediumBold)
-                .foregroundStyle(Color.nook.detailTitle)
-                .padding(.top, 12)
-
-            // Metadata row
-            if isLoading {
-                RoundedRectangle(cornerRadius: 4, style: .continuous)
-                    .fill(Color.nook.searchShimmerBase)
-                    .frame(width: 160, height: 12)
-                    .opacity(0.5)
-                    .padding(.top, 10)
-            } else {
-                metadataRow
-                    .padding(.top, 8)
-            }
-        }
-    }
-
     var categoryBadge: some View {
         Text(media.category.label)
             .font(NookFont.tabLabel)
@@ -623,11 +514,10 @@ private extension MediaDetailView {
     }
 
     var metadataRow: some View {
-        // Build non-empty parts: year, genres (if present), episode count (non-movies only)
+        // Year + episode count only — genres are shown as badges below
         let parts: [String] = {
             var p: [String] = []
             if !media.year.isEmpty { p.append(media.year) }
-            if !media.genres.isEmpty { p.append(media.genres) }
             if media.category != .movie, !media.episodeCount.isEmpty {
                 p.append(media.episodeCount)
             }
@@ -651,6 +541,23 @@ private extension MediaDetailView {
             .fill(Color.nook.detailMetaDot)
             .frame(width: 4, height: 4)
             .padding(.horizontal, 8)
+    }
+
+    func genreBadge(_ genre: String) -> some View {
+        Text(genre)
+            .font(NookFont.tabLabel)
+            .tracking(0.3)
+            .foregroundStyle(Color.nook.detailMeta)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(Color.nook.detailProgressCard)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                            .strokeBorder(Color.nook.detailTabBorder, lineWidth: 1)
+                    )
+            )
     }
 }
 
@@ -896,7 +803,7 @@ private extension MediaDetailView {
                 }
                 Spacer()
             }
-            .padding(.horizontal, 24)
+            .padding(.horizontal, 16)
 
             Rectangle()
                 .fill(Color.nook.detailTabBorder)
@@ -981,7 +888,7 @@ private extension MediaDetailView {
                 detailRow(label: "Genre", value: media.genresFull)
             }
         }
-        .padding(24)
+        .padding(16)
         .padding(.bottom, 100)
     }
 
@@ -1027,11 +934,14 @@ private extension MediaDetailView {
                     NavigationLink(value: ReviewItem(
                         reviewerName: review.authorName,
                         mediaTitle: media.title,
+                        mediaImageURL: media.imageURL,
+                        createdAt: review.createdAt,
                         rating: review.rating,
                         title: review.title ?? "",
                         body: review.body,
                         likes: "\(review.likesCount)",
-                        comments: "0"
+                        comments: "0",
+                        dbId: review.id
                     )) {
                         loadedReviewCard(review)
                     }
@@ -1040,18 +950,27 @@ private extension MediaDetailView {
             }
 
         }
-        .padding(24)
+        .padding(16)
         .padding(.bottom, 100)
-        .task {
+        .task(id: reviewsLoadToken) {
             await loadReviews()
         }
     }
 
     private func loadReviews() async {
-        guard let dbId = media.dbId else { return }
+        guard let dbId = dbId else {
+            print("[MediaDetail] loadReviews — skipped (no dbId)")
+            return
+        }
         isLoadingReviews = true
         let service = ReviewService()
-        loadedReviews = (try? await service.getReviewsForMedia(mediaItemId: dbId)) ?? []
+        do {
+            loadedReviews = try await service.getReviewsForMedia(mediaItemId: dbId)
+            print("[MediaDetail] loadReviews — loaded \(loadedReviews.count) reviews")
+        } catch {
+            print("[MediaDetail] loadReviews — ERROR: \(error)")
+            loadedReviews = []
+        }
         isLoadingReviews = false
     }
 
@@ -1122,7 +1041,7 @@ private extension MediaDetailView {
                     .padding(.top, 12)
             }
 
-            Text(review.body)
+            Text(markdownAttributed(review.body))
                 .font(NookFont.bodySmall)
                 .foregroundStyle(Color.nook.detailReviewBody)
                 .lineSpacing(4)
@@ -1295,7 +1214,7 @@ private extension MediaDetailView {
         }
         .frame(maxWidth: .infinity)
         .padding(.top, 60)
-        .padding(.horizontal, 24)
+        .padding(.horizontal, 16)
         .padding(.bottom, 100)
     }
 }
@@ -1657,6 +1576,8 @@ struct TrackingSheetView: View {
 
 struct ReviewSheetView: View {
     let media: MediaDetail
+    /// Resolved DB UUID — may differ from media.dbId if the API response arrived after MediaDetail was created.
+    var mediaDbId: UUID?
     @Binding var rating: Int
     @Binding var title: String
     @Binding var reviewText: String
@@ -1664,6 +1585,7 @@ struct ReviewSheetView: View {
     @Binding var isReviewed: Bool
     @Environment(\.dismiss) private var dismiss
     @FocusState private var focusedField: ReviewField?
+    @State private var showUpdateConfirmation = false
     @State private var richText: AttributedString = ""
     @State private var formatter: RichTextFormatterProtocol = {
         if #available(iOS 26, *) {
@@ -1724,6 +1646,36 @@ struct ReviewSheetView: View {
                     keyboardToolbar
                 }
             }
+            .alert("Update Review", isPresented: $showUpdateConfirmation) {
+                Button("Cancel", role: .cancel) {}
+                Button("Replace", role: .destructive) {
+                    publishReview()
+                }
+            } message: {
+                Text("This will replace your previous review.")
+            }
+        }
+    }
+
+    // MARK: - Publish
+
+    private func publishReview() {
+        Task {
+            let resolvedId = mediaDbId ?? media.dbId
+            let markdownBody = formatter.toMarkdown()
+            if let dbId = resolvedId, (!markdownBody.isEmpty || rating > 0) {
+                let service = ReviewService()
+                try? await service.createReview(
+                    mediaItemId: dbId,
+                    title: title.isEmpty ? nil : title,
+                    body: markdownBody.isEmpty ? "No text" : markdownBody,
+                    rating: Double(rating),
+                    isSpoiler: containsSpoilers
+                )
+            }
+            reviewText = markdownBody
+            isReviewed = !markdownBody.isEmpty || rating > 0
+            dismiss()
         }
     }
 
@@ -1769,22 +1721,13 @@ struct ReviewSheetView: View {
             .buttonStyle(.plain)
 
             Button {
-                Task {
-                    if let dbId = media.dbId, (!reviewText.isEmpty || rating > 0) {
-                        let service = ReviewService()
-                        try? await service.createReview(
-                            mediaItemId: dbId,
-                            title: title.isEmpty ? nil : title,
-                            body: reviewText.isEmpty ? "No text" : reviewText,
-                            rating: Double(rating),
-                            isSpoiler: containsSpoilers
-                        )
-                    }
-                    isReviewed = !reviewText.isEmpty || rating > 0
-                    dismiss()
+                if isReviewed {
+                    showUpdateConfirmation = true
+                } else {
+                    publishReview()
                 }
             } label: {
-                Text("Publish")
+                Text(isReviewed ? "Update" : "Publish")
                     .font(NookFont.labelBoldSmall)
                     .foregroundStyle(.white)
                     .padding(.horizontal, 16)
@@ -2148,9 +2091,14 @@ protocol RichTextFormatterProtocol {
     func toggleItalic()
     func toggleQuote()
     func insertLink()
+    /// Serialize the current content to Markdown for storage.
+    func toMarkdown() -> String
+    /// Load Markdown content into the formatter.
+    func loadMarkdown(_ markdown: String)
 }
 
 final class PlainTextFormatter: RichTextFormatterProtocol {
+    var plainText: String = ""
     var isBold: Bool { false }
     var isItalic: Bool { false }
     var isQuote: Bool { false }
@@ -2158,6 +2106,8 @@ final class PlainTextFormatter: RichTextFormatterProtocol {
     func toggleItalic() {}
     func toggleQuote() {}
     func insertLink() {}
+    func toMarkdown() -> String { plainText }
+    func loadMarkdown(_ markdown: String) { plainText = markdown }
 }
 
 @available(iOS 26, *)
@@ -2212,6 +2162,47 @@ final class RichTextFormatter: RichTextFormatterProtocol {
 
     func insertLink() {
         // No-op, removed
+    }
+
+    func toMarkdown() -> String {
+        guard let ctx = fontContext else { return String(richText.characters) }
+        var result = ""
+        for run in richText.runs {
+            var text = String(richText[run.range].characters)
+            // Strip the visual quote prefix — we'll re-add it as Markdown
+            let isQuoteLine = text.hasPrefix("▎ ")
+            if isQuoteLine {
+                text = String(text.dropFirst(2))
+            }
+            let resolved = (run.font ?? .default).resolve(in: ctx)
+            let bold = resolved.isBold
+            let italic = resolved.isItalic
+            if bold && italic {
+                text = "***\(text)***"
+            } else if bold {
+                text = "**\(text)**"
+            } else if italic {
+                text = "*\(text)*"
+            }
+            if isQuoteLine {
+                text = "> \(text)"
+            }
+            result += text
+        }
+        return result
+    }
+
+    func loadMarkdown(_ markdown: String) {
+        guard !markdown.isEmpty else {
+            richText = ""
+            return
+        }
+        // Use AttributedString's Markdown initializer
+        if let attributed = try? AttributedString(markdown: markdown, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)) {
+            richText = attributed
+        } else {
+            richText = AttributedString(markdown)
+        }
     }
 
     /// Called when new text is inserted — auto-continues quote on new lines.
@@ -2417,16 +2408,111 @@ private struct RichTextEditorView: View {
                 .padding(.top, 8)
                 .padding(.leading, -5)
                 .onChange(of: formatter.richText) { oldValue, newValue in
-                    reviewText = String(newValue.characters)
+                    reviewText = formatter.toMarkdown()
                     formatter.handleTextChange(oldText: oldValue)
                 }
                 .onAppear {
                     formatter.fontContext = fontResolutionContext
+                    // Load existing review body (Markdown) into the rich text formatter
+                    if formatter.richText.characters.isEmpty && !reviewText.isEmpty {
+                        formatter.loadMarkdown(reviewText)
+                    }
                 }
                 .onChange(of: fontResolutionContext) {
                     formatter.fontContext = fontResolutionContext
                 }
         }
+    }
+}
+
+// MARK: - Detail Top Bar
+
+private struct DetailTopBar: ViewModifier {
+    let onDismiss: () -> Void
+
+    func body(content: Content) -> some View {
+        if #available(iOS 26, *) {
+            content.safeAreaBar(edge: .top, spacing: 0) {
+                topBarContent
+                    .padding(.top, 4)
+                    .padding(.bottom, 4)
+            }
+        } else {
+            content.safeAreaInset(edge: .top, spacing: 0) {
+                topBarContent
+                    .background(Color.nook.detailBackground)
+                    .padding(.top, 4)
+                    .padding(.bottom, 4)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var topBarContent: some View {
+        HStack {
+            if #available(iOS 26, *) {
+                Button(action: onDismiss) {
+                    Image("caret-left-bold")
+                        .renderingMode(.template)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 18, height: 18)
+                        .foregroundStyle(.primary)
+                        .frame(width: 34, height: 34)
+                }
+                .buttonStyle(.plain)
+                .glassEffect(.regular.interactive(), in: .circle)
+            } else {
+                Button(action: onDismiss) {
+                    Image("caret-left-bold")
+                        .renderingMode(.template)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 18, height: 18)
+                        .foregroundStyle(Color.nook.detailTitle)
+                        .frame(width: 34, height: 34)
+                        .background(Color.nook.headerIconBackground)
+                        .clipShape(Circle())
+                        .overlay(Circle().stroke(Color.nook.headerIconBorder, lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+            }
+
+            Spacer()
+
+            if #available(iOS 26, *) {
+                Button {
+                    // TODO: More options
+                } label: {
+                    Image("export")
+                        .renderingMode(.template)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 18, height: 18)
+                        .foregroundStyle(.primary)
+                        .frame(width: 34, height: 34)
+                }
+                .buttonStyle(.plain)
+                .glassEffect(.regular.interactive(), in: .circle)
+            } else {
+                Button {
+                    // TODO: More options
+                } label: {
+                    Image("export")
+                        .renderingMode(.template)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 18, height: 18)
+                        .foregroundStyle(Color.nook.detailTitle)
+                        .frame(width: 34, height: 34)
+                        .background(Color.nook.headerIconBackground)
+                        .clipShape(Circle())
+                        .overlay(Circle().stroke(Color.nook.headerIconBorder, lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 20)
     }
 }
 

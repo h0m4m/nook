@@ -7,6 +7,8 @@ struct ReviewItem: Identifiable, Hashable {
     let dbId: UUID?
     let reviewerName: String
     let mediaTitle: String
+    let mediaImageURL: URL?
+    let createdAt: Date?
     let rating: Double
     let title: String
     let body: String
@@ -16,6 +18,8 @@ struct ReviewItem: Identifiable, Hashable {
     init(
         reviewerName: String,
         mediaTitle: String,
+        mediaImageURL: URL? = nil,
+        createdAt: Date? = nil,
         rating: Double,
         title: String,
         body: String,
@@ -25,6 +29,8 @@ struct ReviewItem: Identifiable, Hashable {
     ) {
         self.reviewerName = reviewerName
         self.mediaTitle = mediaTitle
+        self.mediaImageURL = mediaImageURL
+        self.createdAt = createdAt
         self.rating = rating
         self.title = title
         self.body = body
@@ -37,6 +43,8 @@ struct ReviewItem: Identifiable, Hashable {
         self.dbId = review.id
         self.reviewerName = review.authorName
         self.mediaTitle = review.mediaTitle ?? ""
+        self.mediaImageURL = review.mediaImageURL
+        self.createdAt = review.createdAt
         self.rating = review.rating
         self.title = review.title ?? ""
         self.body = review.body
