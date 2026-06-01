@@ -1,6 +1,20 @@
 import Foundation
 import SwiftUI
 
+// MARK: - Search History Item
+
+struct SearchHistoryItem: Codable, Identifiable, Equatable {
+    var id: String { query + ":" + (filter ?? "") }
+    let query: String
+    let filter: String?
+    let timestamp: Date
+
+    var filterCategory: SearchMediaCategory? {
+        guard let filter else { return nil }
+        return SearchMediaCategory(rawValue: filter)
+    }
+}
+
 @MainActor
 @Observable
 final class SearchViewModel {
@@ -13,12 +27,62 @@ final class SearchViewModel {
     var error: AppError?
     /// mediaIds that the user has tracked during this session
     var trackedMediaIds: Set<String> = []
+    /// Recent search history
+    var recentSearches: [SearchHistoryItem] = []
 
     private let mediaAPI: MediaAPIService
     private var searchTask: Task<Void, Never>?
 
+    private static let historyKey = "search_history"
+    private static let maxHistoryItems = 15
+
     init(mediaAPI: MediaAPIService = MediaAPIService()) {
         self.mediaAPI = mediaAPI
+        loadHistory()
+    }
+
+    // MARK: - History
+
+    func saveToHistory() {
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return }
+
+        let item = SearchHistoryItem(
+            query: query,
+            filter: selectedFilter?.rawValue,
+            timestamp: Date()
+        )
+
+        // Remove duplicate if exists
+        recentSearches.removeAll { $0.id == item.id }
+        // Insert at front
+        recentSearches.insert(item, at: 0)
+        // Cap size
+        if recentSearches.count > Self.maxHistoryItems {
+            recentSearches = Array(recentSearches.prefix(Self.maxHistoryItems))
+        }
+        persistHistory()
+    }
+
+    func removeFromHistory(_ item: SearchHistoryItem) {
+        recentSearches.removeAll { $0.id == item.id }
+        persistHistory()
+    }
+
+    func clearHistory() {
+        recentSearches.removeAll()
+        persistHistory()
+    }
+
+    private func loadHistory() {
+        guard let data = UserDefaults.standard.data(forKey: Self.historyKey),
+              let items = try? JSONDecoder().decode([SearchHistoryItem].self, from: data) else { return }
+        recentSearches = items
+    }
+
+    private func persistHistory() {
+        guard let data = try? JSONEncoder().encode(recentSearches) else { return }
+        UserDefaults.standard.set(data, forKey: Self.historyKey)
     }
 
     func search() {

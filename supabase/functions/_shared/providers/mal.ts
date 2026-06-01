@@ -20,12 +20,8 @@ function imageUrl(posterImage: Record<string, unknown> | undefined): string | nu
 }
 
 function getTitle(attrs: Record<string, unknown>): string {
-  return (
-    (attrs.canonicalTitle as string) ||
-    ((attrs.titles as Record<string, string>)?.en as string) ||
-    ((attrs.titles as Record<string, string>)?.en_jp as string) ||
-    ''
-  );
+  const titles = attrs.titles as Record<string, string> | undefined;
+  return titles?.en || (attrs.canonicalTitle as string) || titles?.en_jp || '';
 }
 
 function getScore(averageRating: string | undefined): number | null {

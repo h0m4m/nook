@@ -163,6 +163,11 @@ struct SearchView: View {
                     viewModel.search()
                 }
             }
+            .onChange(of: viewModel.searchState) { _, newState in
+                if newState == .results {
+                    viewModel.saveToHistory()
+                }
+            }
             .task {
                 await loadUserInterests()
             }
@@ -214,11 +219,93 @@ struct SearchView: View {
     // MARK: - Idle (Recent Searches)
 
     private var idleContent: some View {
-        SearchEmptyState(
-            icon: "magnifying-glass-bold",
-            title: "Search for anything",
-            subtitle: "Find movies, shows, anime, books, and manga"
-        )
+        Group {
+            if viewModel.recentSearches.isEmpty {
+                SearchEmptyState(
+                    icon: "magnifying-glass-bold",
+                    title: "Search for anything",
+                    subtitle: "Find movies, shows, anime, books, and manga"
+                )
+            } else {
+                recentSearchesContent
+            }
+        }
+    }
+
+    private var recentSearchesContent: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Text("Recent")
+                    .font(NookFont.tabLabel)
+                    .tracking(1)
+                    .foregroundStyle(Color.nook.searchSectionLabel)
+                Spacer()
+                Button {
+                    withAnimation(.easeOut(duration: 0.2)) {
+                        viewModel.clearHistory()
+                    }
+                } label: {
+                    Text("Clear")
+                        .font(NookFont.tabLabel)
+                        .tracking(1)
+                        .foregroundStyle(Color.nook.searchSectionLabel)
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 24)
+            .padding(.top, 16)
+            .padding(.bottom, 16)
+
+            VStack(spacing: 0) {
+                ForEach(viewModel.recentSearches) { item in
+                    Button {
+                        if let category = item.filterCategory {
+                            viewModel.selectedFilter = category
+                        }
+                        viewModel.searchText = item.query
+                        isSearchFocused = true
+                    } label: {
+                        HStack(spacing: 12) {
+                            Image("clock-countdown-bold")
+                                .renderingMode(.template)
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(width: 16, height: 16)
+                                .foregroundStyle(Color.nook.searchSectionLabel)
+
+                            Text(item.query)
+                                .font(NookFont.labelMediumSmall)
+                                .foregroundStyle(Color.nook.searchBarText)
+                                .lineLimit(1)
+
+                            if let cat = item.filterCategory {
+                                Text(cat.label)
+                                    .font(NookFont.tabLabel)
+                                    .tracking(0.5)
+                                    .foregroundStyle(cat.dotColor)
+                            }
+
+                            Spacer()
+
+                            Button {
+                                withAnimation(.easeOut(duration: 0.2)) {
+                                    viewModel.removeFromHistory(item)
+                                }
+                            } label: {
+                                Image(systemName: "xmark")
+                                    .font(.system(size: 11, weight: .medium))
+                                    .foregroundStyle(Color.nook.searchSectionLabel)
+                                    .frame(width: 28, height: 28)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        .padding(.horizontal, 24)
+                        .padding(.vertical, 14)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
     }
 
     // MARK: - Loading
@@ -694,7 +781,7 @@ struct APISearchResultRow: View {
                 Text(item.title)
                     .font(NookFont.labelBold)
                     .foregroundStyle(Color.nook.searchBarText)
-                    .lineLimit(1)
+                    .lineLimit(2)
 
                 if let score = item.score {
                     HStack(spacing: 6) {
@@ -716,7 +803,7 @@ struct APISearchResultRow: View {
 
             addButton
         }
-        .frame(height: 80)
+        .frame(minHeight: 80)
     }
 
     @ViewBuilder

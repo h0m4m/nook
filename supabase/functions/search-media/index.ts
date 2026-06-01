@@ -22,7 +22,7 @@ Deno.serve(async (req) => {
 
     // DB-first search: check media_items cache for matches
     const cached = await searchCachedMedia(query, media_type, page);
-    if (cached && cached.results.length >= 20) {
+    if (cached && cached.results.length >= 10) {
       return new Response(JSON.stringify(cached), {
         headers: {
           ...corsHeaders,

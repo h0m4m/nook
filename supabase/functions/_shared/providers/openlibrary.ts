@@ -18,7 +18,7 @@ function extractId(path: string | undefined): string | null {
 }
 
 export async function search(query: string, page: number): Promise<SearchResponse> {
-  const limit = 24;
+  const limit = 15;
   const params = new URLSearchParams({
     q: query,
     fields: 'title,key,editions,editions.key,editions.cover_i,editions.title',
@@ -34,6 +34,7 @@ export async function search(query: string, page: number): Promise<SearchRespons
   const data = await resp.json();
 
   const results: SearchResult[] = [];
+  const seenTitles = new Set<string>();
 
   for (const doc of data.docs || []) {
     const editions = doc.editions?.docs;
@@ -47,6 +48,11 @@ export async function search(query: string, page: number): Promise<SearchRespons
     const editionTitle = topEdition.title;
     const displayTitle =
       editionTitle && editionTitle !== title ? `${editionTitle}: ${title}` : title;
+
+    // Deduplicate by normalized title to collapse near-identical works
+    const normalizedTitle = title.toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (seenTitles.has(normalizedTitle)) continue;
+    seenTitles.add(normalizedTitle);
 
     results.push({
       media_id: mediaId,
