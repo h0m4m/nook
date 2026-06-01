@@ -7,7 +7,7 @@ func markdownAttributed(_ text: String) -> AttributedString {
 
 // MARK: - Review Comment Model
 
-struct ReviewComment: Identifiable {
+struct ReviewComment: Identifiable, Hashable {
     let id = UUID()
     let dbId: UUID?
     let authorName: String
@@ -15,6 +15,7 @@ struct ReviewComment: Identifiable {
     let body: String
     var likes: Int
     var isLiked: Bool
+    var isCollapsed: Bool
     var replies: [ReviewComment]
 
     init(
@@ -24,6 +25,7 @@ struct ReviewComment: Identifiable {
         body: String,
         likes: Int = 0,
         isLiked: Bool = false,
+        isCollapsed: Bool = true,
         replies: [ReviewComment] = []
     ) {
         self.dbId = dbId
@@ -32,6 +34,7 @@ struct ReviewComment: Identifiable {
         self.body = body
         self.likes = likes
         self.isLiked = isLiked
+        self.isCollapsed = isCollapsed
         self.replies = replies
     }
 }
@@ -65,6 +68,7 @@ struct ReviewDetailView: View {
                     commentsSection
                 }
             }
+            .scrollDismissesKeyboard(.interactively)
             .modifier(ReviewDetailSoftScrollEdge())
 
             replyBar
@@ -76,6 +80,9 @@ struct ReviewDetailView: View {
         .navigationBarBackButtonHidden()
         .toolbar(.hidden, for: .navigationBar)
         .modifier(InteractivePopGesture())
+        .navigationDestination(for: ReviewComment.self) { comment in
+            CommentThreadView(root: comment)
+        }
         .onTapGesture {
             isCommentFocused = false
         }
@@ -408,20 +415,126 @@ private extension ReviewDetailView {
         .padding(.bottom, 40)
     }
 
+    private static let defaultVisibleReplies = 2
+    private static let maxDepth = 3
+
+    private func engagement(_ c: ReviewComment) -> Int {
+        c.likes + c.replies.count
+    }
+
     private func renderCommentTree(_ comment: ReviewComment, depth: Int) -> AnyView {
-        AnyView(
+        // At max depth, stop rendering children — show "Continue this thread"
+        if depth >= Self.maxDepth {
+            return AnyView(
+                VStack(spacing: 0) {
+                    commentRow(comment, depth: Self.maxDepth)
+
+                    if !comment.replies.isEmpty {
+                        NavigationLink(value: comment) {
+                            HStack(spacing: 6) {
+                                Rectangle()
+                                    .fill(Color.nook.detailTabActive)
+                                    .frame(width: 2, height: 12)
+
+                                Text("Continue this thread →")
+                                    .font(NookFont.captionBold)
+                                    .foregroundStyle(Color.nook.detailTabActive)
+                            }
+                            .padding(.leading, 24 + CGFloat(Self.maxDepth + 1) * 24)
+                            .padding(.vertical, 6)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            )
+        }
+
+        let topReplies = comment.replies
+            .sorted { engagement($0) > engagement($1) }
+        let visibleReplies = comment.isCollapsed
+            ? Array(topReplies.prefix(Self.defaultVisibleReplies))
+            : comment.replies
+        let visibleIds = Set(visibleReplies.map(\.id))
+        let hiddenReplies = comment.replies.filter { !visibleIds.contains($0.id) }
+        let totalHidden = hiddenReplies.reduce(0) { $0 + 1 + totalReplyCount($1) }
+
+        return AnyView(
             VStack(spacing: 0) {
                 commentRow(comment, depth: depth)
 
-                ForEach(comment.replies) { reply in
+                ForEach(visibleReplies) { reply in
                     renderCommentTree(reply, depth: depth + 1)
+                }
+
+                if comment.isCollapsed && totalHidden > 0 {
+                    Button {
+                        withAnimation(.easeOut(duration: 0.2)) {
+                            toggleCollapsed(commentDbId: comment.dbId)
+                        }
+                    } label: {
+                        HStack(spacing: 6) {
+                            Rectangle()
+                                .fill(Color.nook.reviewDetailDivider)
+                                .frame(width: 2, height: 12)
+
+                            Text("View \(totalHidden) more \(totalHidden == 1 ? "reply" : "replies")")
+                                .font(NookFont.captionBold)
+                                .foregroundStyle(Color.nook.detailTabActive)
+                        }
+                        .padding(.leading, 24 + CGFloat(depth + 1) * 24)
+                        .padding(.vertical, 6)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                if !comment.isCollapsed && comment.replies.count > Self.defaultVisibleReplies {
+                    Button {
+                        withAnimation(.easeOut(duration: 0.2)) {
+                            toggleCollapsed(commentDbId: comment.dbId)
+                        }
+                    } label: {
+                        HStack(spacing: 6) {
+                            Rectangle()
+                                .fill(Color.nook.reviewDetailDivider)
+                                .frame(width: 2, height: 12)
+
+                            Text("Hide replies")
+                                .font(NookFont.captionBold)
+                                .foregroundStyle(Color.nook.detailMeta)
+                        }
+                        .padding(.leading, 24 + CGFloat(depth + 1) * 24)
+                        .padding(.vertical, 6)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .buttonStyle(.plain)
                 }
             }
         )
     }
 
+    private func totalReplyCount(_ comment: ReviewComment) -> Int {
+        comment.replies.reduce(0) { $0 + 1 + totalReplyCount($1) }
+    }
+
+    private func toggleCollapsed(commentDbId: UUID?) {
+        guard let dbId = commentDbId else { return }
+        toggleCollapsedRecursive(in: &comments, dbId: dbId)
+    }
+
+    private func toggleCollapsedRecursive(in list: inout [ReviewComment], dbId: UUID) {
+        for i in list.indices {
+            if list[i].dbId == dbId {
+                list[i].isCollapsed.toggle()
+                return
+            }
+            toggleCollapsedRecursive(in: &list[i].replies, dbId: dbId)
+        }
+    }
+
     func commentRow(_ comment: ReviewComment, depth: Int) -> some View {
-        let indent = CGFloat(depth) * 24
+        let indent = CGFloat(min(depth, Self.maxDepth)) * 24
         return HStack(alignment: .top, spacing: 10) {
             if depth > 0 {
                 Rectangle()
@@ -553,7 +666,7 @@ private extension ReviewDetailView {
                 }
                 .padding(.horizontal, 24)
                 .padding(.top, 8)
-                .transition(.opacity.combined(with: .move(edge: .bottom)))
+                .transition(.opacity)
             }
 
             HStack(spacing: 12) {
@@ -695,22 +808,41 @@ private extension ReviewDetailView {
             return comment
         }
 
-        let tree = rootIds.compactMap { buildTree(id: $0) }
+        var tree = rootIds.compactMap { buildTree(id: $0) }
+        sortTopLevel(&tree)
+        collapseAfterTop(&tree, visibleCount: 2)
 
         withAnimation(.easeOut(duration: 0.25)) {
             comments = tree
         }
     }
 
-    private func sortComments() {
-        switch sortOrder {
-        case .top:
-            comments.sort { $0.likes > $1.likes }
-        case .newest:
-            comments.sort { ($0.createdAt ?? .distantPast) > ($1.createdAt ?? .distantPast) }
-        case .oldest:
-            comments.sort { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) }
+    /// Sort top-level comments by the user's chosen sort order.
+    /// Replies are always ordered by engagement (handled at render time).
+    private func sortTopLevel(_ list: inout [ReviewComment]) {
+        let comparator: (ReviewComment, ReviewComment) -> Bool = {
+            switch sortOrder {
+            case .top: return { ($0.likes + $0.replies.count) > ($1.likes + $1.replies.count) }
+            case .newest: return { ($0.createdAt ?? .distantPast) > ($1.createdAt ?? .distantPast) }
+            case .oldest: return { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) }
+            }
+        }()
+        list.sort(by: comparator)
+    }
+
+    /// Collapse comments that have more than `visibleCount` replies.
+    /// `isCollapsed = true` means show only the first N replies + "View X more".
+    /// `isCollapsed = false` means show all replies.
+    private func collapseAfterTop(_ list: inout [ReviewComment], visibleCount: Int) {
+        for i in list.indices {
+            list[i].isCollapsed = list[i].replies.count > visibleCount
+            collapseAfterTop(&list[i].replies, visibleCount: visibleCount)
         }
+    }
+
+    private func sortComments() {
+        sortTopLevel(&comments)
+        collapseAfterTop(&comments, visibleCount: 2)
     }
 }
 
@@ -810,6 +942,133 @@ private struct ReviewDetailSoftScrollEdge: ViewModifier {
     }
 }
 
+
+// MARK: - Comment Thread View (Continue this thread)
+
+struct CommentThreadView: View {
+    let root: ReviewComment
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        ScrollView(showsIndicators: false) {
+            LazyVStack(spacing: 0) {
+                renderTree(root, depth: 0)
+            }
+            .padding(.bottom, 40)
+        }
+        .background(Color.nook.reviewDetailBackground)
+        .modifier(ReviewDetailTopBar(onBack: { dismiss() }))
+        .navigationBarBackButtonHidden()
+        .toolbar(.hidden, for: .navigationBar)
+        .modifier(InteractivePopGesture())
+        .navigationDestination(for: ReviewComment.self) { comment in
+            CommentThreadView(root: comment)
+        }
+    }
+
+    private func renderTree(_ comment: ReviewComment, depth: Int) -> AnyView {
+        if depth >= 3 && !comment.replies.isEmpty {
+            return AnyView(
+                VStack(spacing: 0) {
+                    commentCell(comment, depth: depth)
+                    NavigationLink(value: comment.replies[0]) {
+                        HStack(spacing: 6) {
+                            Rectangle()
+                                .fill(Color.nook.detailTabActive)
+                                .frame(width: 2, height: 12)
+                            Text("Continue this thread →")
+                                .font(NookFont.captionBold)
+                                .foregroundStyle(Color.nook.detailTabActive)
+                        }
+                        .padding(.leading, 24 + CGFloat(min(depth + 1, 3)) * 24)
+                        .padding(.vertical, 6)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .buttonStyle(.plain)
+                }
+            )
+        }
+
+        return AnyView(
+            VStack(spacing: 0) {
+                commentCell(comment, depth: depth)
+                ForEach(comment.replies) { reply in
+                    renderTree(reply, depth: depth + 1)
+                }
+            }
+        )
+    }
+
+    private func commentCell(_ comment: ReviewComment, depth: Int) -> some View {
+        let indent = CGFloat(min(depth, 3)) * 24
+        return HStack(alignment: .top, spacing: 10) {
+            if depth > 0 {
+                Rectangle()
+                    .fill(Color.nook.reviewDetailDivider)
+                    .frame(width: 2)
+            }
+
+            Circle()
+                .fill(Color.nook.secondary)
+                .frame(width: depth == 0 ? 36 : 28, height: depth == 0 ? 36 : 28)
+                .overlay(
+                    Image(systemName: "person.fill")
+                        .font(.system(size: depth == 0 ? 14 : 11))
+                        .foregroundStyle(Color.nook.mutedForeground)
+                )
+
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 6) {
+                    Text(comment.authorName)
+                        .font(NookFont.captionBold)
+                        .foregroundStyle(Color.nook.reviewDetailTitle)
+
+                    if let date = comment.createdAt {
+                        Text(relativeTime(from: date))
+                            .font(NookFont.caption)
+                            .foregroundStyle(Color.nook.reviewDetailMeta)
+                    }
+                }
+
+                Text(comment.body)
+                    .font(NookFont.labelMediumSmall)
+                    .foregroundStyle(Color.nook.reviewDetailTitle)
+                    .lineSpacing(4)
+
+                if comment.likes > 0 {
+                    HStack(spacing: 4) {
+                        Image("heart-fill")
+                            .renderingMode(.template)
+                            .resizable()
+                            .frame(width: 14, height: 14)
+                        Text("\(comment.likes)")
+                            .font(NookFont.caption)
+                    }
+                    .foregroundStyle(Color.nook.reviewDetailMeta)
+                }
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(.leading, 24 + indent)
+        .padding(.trailing, 24)
+        .padding(.vertical, 12)
+    }
+
+    private func relativeTime(from date: Date) -> String {
+        let seconds = Int(Date().timeIntervalSince(date))
+        if seconds < 60 { return "just now" }
+        let minutes = seconds / 60
+        if minutes < 60 { return "\(minutes)m" }
+        let hours = minutes / 60
+        if hours < 24 { return "\(hours)h" }
+        let days = hours / 24
+        if days < 30 { return "\(days)d" }
+        let months = days / 30
+        if months < 12 { return "\(months)mo" }
+        return "\(months / 12)y"
+    }
+}
 
 // MARK: - Preview
 

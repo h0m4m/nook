@@ -73,6 +73,26 @@ final class ReviewService: Sendable {
             .execute()
             .value
 
+        // Clear old comments and likes since the review content changed
+        try? await supabase
+            .from("review_comments")
+            .delete()
+            .eq("review_id", value: result.id.uuidString)
+            .execute()
+
+        try? await supabase
+            .from("review_likes")
+            .delete()
+            .eq("review_id", value: result.id.uuidString)
+            .execute()
+
+        // Reset likes count
+        try? await supabase
+            .from("reviews")
+            .update(["likes_count": 0] as [String: Int])
+            .eq("id", value: result.id.uuidString)
+            .execute()
+
         // Insert activity feed entry
         struct ActivityInsert: Encodable {
             let user_id: String
