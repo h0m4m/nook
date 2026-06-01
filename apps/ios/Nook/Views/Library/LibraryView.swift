@@ -897,7 +897,7 @@ private struct RealLibraryItemRow: View {
                             .frame(width: 12, height: 12)
                             .foregroundStyle(Color.nook.reviewRating)
 
-                        Text(String(format: "%.1f", score))
+                        Text(String(format: "%.0f", score))
                             .font(NookFont.captionBold)
                             .foregroundStyle(Color.nook.reviewRating)
                     }

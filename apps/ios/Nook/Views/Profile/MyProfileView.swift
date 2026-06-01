@@ -777,7 +777,8 @@ struct ProfileReviewCard: View {
     }
 
     static func ratingLabel(for rating: Double) -> String {
-        switch Int(rating) {
+        let score = Int(rating)
+        let label: String = switch score {
         case 10: "Masterpiece"
         case 9: "Excellent"
         case 8: "Great"
@@ -788,8 +789,9 @@ struct ProfileReviewCard: View {
         case 3: "Poor"
         case 2: "Terrible"
         case 1: "Appalling"
-        default: "\(Int(rating))"
+        default: ""
         }
+        return label.isEmpty ? "\(score)" : "\(score) · \(label)"
     }
 }
 

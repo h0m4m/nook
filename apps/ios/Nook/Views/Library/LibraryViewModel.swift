@@ -37,6 +37,22 @@ final class LibraryViewModel {
             }
         }
 
+        switch selectedSort {
+        case .status:
+            let order: [String] = ["in_progress", "planned", "on_hold", "completed", "dropped"]
+            results.sort { (order.firstIndex(of: $0.status) ?? 99) < (order.firstIndex(of: $1.status) ?? 99) }
+        case .alphabetical:
+            results.sort { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
+        case .score:
+            results.sort { ($0.score ?? -1) > ($1.score ?? -1) }
+        case .progress:
+            results.sort { $0.progress > $1.progress }
+        case .airStartDate:
+            results.sort { ($0.year ?? "") > ($1.year ?? "") }
+        case .lastUpdated:
+            results.sort { $0.updatedAt > $1.updatedAt }
+        }
+
         return results
     }
 

@@ -102,20 +102,7 @@ struct ReviewDetailView: View {
         await reloadComments()
     }
     private func ratingLabel(for rating: Double) -> String {
-        let score = Int(rating)
-        switch score {
-        case 10: return "Masterpiece"
-        case 9: return "Excellent"
-        case 8: return "Great"
-        case 7: return "Good"
-        case 6: return "Decent"
-        case 5: return "Average"
-        case 4: return "Below Avg"
-        case 3: return "Poor"
-        case 2: return "Terrible"
-        case 1: return "Appalling"
-        default: return "\(score)"
-        }
+        ProfileReviewCard.ratingLabel(for: rating)
     }
 
     private func relativeTime(from date: Date) -> String {
