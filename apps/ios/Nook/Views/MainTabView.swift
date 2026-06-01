@@ -52,6 +52,7 @@ struct MainTabView: View {
                     switch selectedTab {
                     case .home:
                         HomeView(
+                            router: router,
                             onAvatarTapped: {
                                 showProfileMenu = true
                             },
@@ -88,7 +89,7 @@ struct MainTabView: View {
                 }
                 .navigationDestination(for: UserProfile.self) { user in
                     if user.isCurrentUser {
-                        MyProfileView()
+                        MyProfileView(router: router)
                     } else {
                         OtherProfileView(profile: user)
                     }

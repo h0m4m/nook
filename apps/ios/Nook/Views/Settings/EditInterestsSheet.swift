@@ -180,11 +180,21 @@ struct EditInterestsSheet: View {
                     let interests: [String]
                 }
 
+                let sorted = Array(selectedInterests).sorted()
+
                 try await supabase
                     .from("user_profiles")
-                    .update(InterestsUpdate(interests: Array(selectedInterests).sorted()))
+                    .update(InterestsUpdate(interests: sorted))
                     .eq("id", value: userId.uuidString)
                     .execute()
+
+                // Update local cache so SearchView picks it up instantly
+                let categories = SearchMediaCategory.allCases.filter {
+                    sorted.contains($0.rawValue)
+                }
+                if !categories.isEmpty {
+                    InterestsCache.save(categories)
+                }
 
                 await MainActor.run {
                     dismiss()

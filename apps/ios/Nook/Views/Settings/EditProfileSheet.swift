@@ -4,6 +4,7 @@ import SwiftUI
 
 struct EditProfileSheet: View {
     @Environment(\.dismiss) private var dismiss
+    var onSaved: (() async -> Void)?
 
     @State private var displayName = ""
     @State private var username = ""
@@ -16,6 +17,8 @@ struct EditProfileSheet: View {
     @State private var errorMessage: String?
     @State private var usernameError: String?
     @State private var usernameCheckTask: Task<Void, Never>?
+    @State private var originalUsername = ""
+    @State private var usernameChangedAt: Date?
     @FocusState private var focusedField: Field?
 
     private enum Field {
@@ -24,6 +27,15 @@ struct EditProfileSheet: View {
 
     private var hasChanges: Bool {
         !displayName.isEmpty || !username.isEmpty || !bio.isEmpty || avatarImage != nil
+    }
+
+    private var usernameCooldownActive: Bool {
+        guard let changedAt = usernameChangedAt else { return false }
+        return changedAt.addingTimeInterval(14 * 24 * 60 * 60) > Date()
+    }
+
+    private var usernameCooldownEndDate: Date? {
+        usernameChangedAt?.addingTimeInterval(14 * 24 * 60 * 60)
     }
 
     var body: some View {
@@ -105,7 +117,9 @@ struct EditProfileSheet: View {
             await loadProfile()
         }
         .onChange(of: username) { _, newValue in
-            validateUsername(newValue)
+            if !usernameCooldownActive {
+                validateUsername(newValue)
+            }
         }
     }
 
@@ -166,9 +180,20 @@ struct EditProfileSheet: View {
             fieldGroup(label: "Display Name", placeholder: "Your name", text: $displayName, field: .name)
 
             VStack(alignment: .leading, spacing: 4) {
-                fieldGroup(label: "Username", placeholder: "@username", text: $username, field: .username)
+                fieldGroup(
+                    label: "Username",
+                    placeholder: "@username",
+                    text: $username,
+                    field: .username,
+                    disabled: usernameCooldownActive
+                )
 
-                if let usernameError {
+                if usernameCooldownActive, let endDate = usernameCooldownEndDate {
+                    Text("Can be changed again \(endDate, style: .relative)")
+                        .font(NookFont.caption)
+                        .foregroundStyle(Color.nook.settingsRowSubtitle)
+                        .transition(.opacity)
+                } else if let usernameError {
                     Text(usernameError)
                         .font(NookFont.caption)
                         .foregroundStyle(Color.nook.settingsDestructiveText)
@@ -184,7 +209,8 @@ struct EditProfileSheet: View {
         label: String,
         placeholder: String,
         text: Binding<String>,
-        field: Field
+        field: Field,
+        disabled: Bool = false
     ) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(label)
@@ -199,11 +225,12 @@ struct EditProfileSheet: View {
                     .foregroundStyle(Color.nook.settingsChevron)
             )
             .font(NookFont.bodyMedium)
-            .foregroundStyle(Color.nook.editProfileFieldText)
+            .foregroundStyle(disabled ? Color.nook.settingsRowSubtitle : Color.nook.editProfileFieldText)
             .focused($focusedField, equals: field)
+            .disabled(disabled)
             .padding(.horizontal, 16)
             .frame(height: 48)
-            .background(Color.nook.editProfileFieldBackground)
+            .background(Color.nook.editProfileFieldBackground.opacity(disabled ? 0.6 : 1))
             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
@@ -270,8 +297,10 @@ struct EditProfileSheet: View {
             let profile = try await profileService.getProfile(userId: user.id)
             displayName = profile.fullName ?? ""
             username = profile.username ?? ""
+            originalUsername = profile.username ?? ""
             bio = profile.bio ?? ""
             avatarURL = profile.avatarURL
+            usernameChangedAt = profile.usernameChangedAt
         } catch {
             // Fall back to auth metadata
             if let name = user.userMetadata["full_name"]?.value as? String {
@@ -334,11 +363,15 @@ struct EditProfileSheet: View {
                     }
                 }
 
+                // Only send username if it actually changed and cooldown allows it
+                let usernameToSave: String? = (!username.isEmpty && username != originalUsername && !usernameCooldownActive)
+                    ? username : nil
+
                 // Update user_profiles table
                 try await profileService.updateProfile(
                     userId: userId,
                     fullName: displayName.isEmpty ? nil : displayName,
-                    username: username.isEmpty ? nil : username,
+                    username: usernameToSave,
                     bio: bio.isEmpty ? nil : bio,
                     avatarURL: newAvatarURL
                 )
@@ -349,6 +382,9 @@ struct EditProfileSheet: View {
                         user: UserAttributes(data: ["full_name": .string(displayName)])
                     )
                 }
+
+                // Notify callers to refresh before dismissing
+                await onSaved?()
 
                 await MainActor.run {
                     dismiss()

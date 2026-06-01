@@ -134,7 +134,7 @@ struct SearchResultItem: Identifiable, Hashable {
 
 struct SearchView: View {
     @State private var viewModel = SearchViewModel()
-    @State private var userInterests: [SearchMediaCategory] = SearchMediaCategory.allCases
+    @State private var userInterests: [SearchMediaCategory] = InterestsCache.load()
     @State private var trackingItemID: UUID?
     @State private var sheetStatus: TrackingStatus?
     @State private var sheetEpisode: Int = 0
@@ -522,8 +522,13 @@ struct SearchView: View {
     }
 
     private func loadUserInterests() async {
+        // Set filter immediately from cached interests
+        if viewModel.selectedFilter == nil {
+            viewModel.selectedFilter = userInterests.first
+        }
+
+        // Background refresh from Supabase
         guard let user = try? await supabase.auth.session.user else { return }
-        let userId = user.id
 
         struct ProfileRow: Decodable {
             let interests: [String]?
@@ -533,7 +538,7 @@ struct SearchView: View {
             let row: ProfileRow = try await supabase
                 .from("user_profiles")
                 .select("interests")
-                .eq("id", value: userId.uuidString)
+                .eq("id", value: user.id.uuidString)
                 .single()
                 .execute()
                 .value
@@ -543,18 +548,16 @@ struct SearchView: View {
                     interests.contains($0.rawValue)
                 }
                 if !filtered.isEmpty {
+                    InterestsCache.save(filtered)
                     userInterests = filtered
+                    // Update filter if the current one is no longer in the list
+                    if let current = viewModel.selectedFilter, !filtered.contains(current) {
+                        viewModel.selectedFilter = filtered.first
+                    }
                 }
             }
-            // Default to first interest if no filter selected yet
-            if viewModel.selectedFilter == nil {
-                viewModel.selectedFilter = userInterests.first
-            }
         } catch {
-            // Keep the default (all categories)
-            if viewModel.selectedFilter == nil {
-                viewModel.selectedFilter = userInterests.first
-            }
+            // Cached values are already in use
         }
     }
 }
@@ -570,7 +573,7 @@ private struct SearchTopBar: ViewModifier {
         if let filter = selectedFilter {
             "Search \(filter.label)..."
         } else {
-            "Search movies, books, games..."
+            "Search..."
         }
     }
 
@@ -840,6 +843,24 @@ struct APISearchResultRow: View {
             }
             .buttonStyle(.plain)
         }
+    }
+}
+
+// MARK: - Interests Cache
+
+enum InterestsCache {
+    private static let key = "cached_user_interests"
+
+    static func load() -> [SearchMediaCategory] {
+        guard let raw = UserDefaults.standard.stringArray(forKey: key) else {
+            return SearchMediaCategory.allCases
+        }
+        let categories = raw.compactMap { SearchMediaCategory(rawValue: $0) }
+        return categories.isEmpty ? SearchMediaCategory.allCases : categories
+    }
+
+    static func save(_ categories: [SearchMediaCategory]) {
+        UserDefaults.standard.set(categories.map(\.rawValue), forKey: key)
     }
 }
 

@@ -2,7 +2,7 @@ import Supabase
 import SwiftUI
 
 struct HomeView: View {
-    @State private var avatarURL: URL?
+    var router: AppRouter
     @State private var popularNooks: [NookItem] = []
     @State private var trendingReviews: [ReviewItem] = []
     @State private var continueTracking: [TrackingItem] = []
@@ -16,14 +16,13 @@ struct HomeView: View {
         scrollContent
             .background(Color.nook.background)
             .modifier(HomeTopBar(
-                avatarURL: avatarURL,
+                avatarURL: router.currentUserAvatarURL,
                 notifBadgeCount: unreadNotifCount,
                 onAvatarTapped: onAvatarTapped,
                 onNotificationsTapped: onNotificationsTapped
             ))
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .task {
-                await loadUserProfile()
                 await loadContinueTracking()
                 await loadActivityFeed()
                 await loadTrendingReviews()
@@ -34,7 +33,7 @@ struct HomeView: View {
                 Task { await loadUnreadCount() }
             }
             .refreshable {
-                await loadUserProfile()
+                await router.refreshProfile()
                 await loadContinueTracking()
                 await loadActivityFeed()
                 await loadTrendingReviews()
@@ -85,21 +84,6 @@ struct HomeView: View {
             .padding(.bottom, 100)
         }
         .modifier(SoftScrollEdge())
-    }
-
-    private func loadUserProfile() async {
-        guard let user = try? await supabase.auth.session.user else { return }
-
-        let profileService = ProfileService()
-        if let profile = try? await profileService.getProfile(userId: user.id),
-           let url = profile.avatarURL {
-            avatarURL = url
-            return
-        }
-
-        if let urlString = user.userMetadata["avatar_url"]?.stringValue {
-            avatarURL = URL(string: urlString)
-        }
     }
 
     private func loadActivityFeed() async {
@@ -224,5 +208,5 @@ private extension AnyJSON {
 }
 
 #Preview {
-    HomeView()
+    HomeView(router: AppRouter())
 }

@@ -3,7 +3,7 @@ import Supabase
 
 final class StorageService: Sendable {
     func uploadAvatar(userId: UUID, imageData: Data) async throws -> URL {
-        let path = "\(userId.uuidString)/avatar.jpg"
+        let path = "\(userId.uuidString.lowercased())/avatar.jpg"
 
         _ = try await supabase.storage
             .from("avatars")
@@ -17,7 +17,7 @@ final class StorageService: Sendable {
     }
 
     func uploadImage(bucket: String, userId: UUID, fileName: String, data: Data) async throws -> URL {
-        let path = "\(userId.uuidString)/\(fileName)"
+        let path = "\(userId.uuidString.lowercased())/\(fileName)"
 
         _ = try await supabase.storage
             .from(bucket)

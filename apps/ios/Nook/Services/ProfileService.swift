@@ -10,11 +10,12 @@ final class ProfileService: Sendable {
             let bio: String?
             let avatar_url: String?
             let interests: [String]?
+            let username_changed_at: Date?
         }
 
         let row: ProfileRow = try await supabase
             .from("user_profiles")
-            .select("id, full_name, username, bio, avatar_url, interests")
+            .select("id, full_name, username, bio, avatar_url, interests, username_changed_at")
             .eq("id", value: userId.uuidString)
             .single()
             .execute()
@@ -26,7 +27,8 @@ final class ProfileService: Sendable {
             username: row.username,
             bio: row.bio,
             avatarURL: row.avatar_url.flatMap { URL(string: $0) },
-            interests: row.interests ?? []
+            interests: row.interests ?? [],
+            usernameChangedAt: row.username_changed_at
         )
     }
 
@@ -186,6 +188,25 @@ struct UserProfileData: Sendable {
     let bio: String?
     let avatarURL: URL?
     let interests: [String]
+    let usernameChangedAt: Date?
+
+    init(
+        id: UUID,
+        fullName: String?,
+        username: String?,
+        bio: String?,
+        avatarURL: URL?,
+        interests: [String],
+        usernameChangedAt: Date? = nil
+    ) {
+        self.id = id
+        self.fullName = fullName
+        self.username = username
+        self.bio = bio
+        self.avatarURL = avatarURL
+        self.interests = interests
+        self.usernameChangedAt = usernameChangedAt
+    }
 }
 
 struct UserStats: Sendable {

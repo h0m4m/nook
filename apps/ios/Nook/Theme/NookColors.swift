@@ -262,7 +262,7 @@ struct NookColors {
     let editProfileFieldBorder = Color(hex: 0xE8E5E1)
     let editProfileFieldLabel = Color(hex: 0x827C77)
     let editProfileFieldText = Color(hex: 0x2C2826)
-    let editProfileAvatarOverlay = Color(hex: 0x000000, alpha: 0.35)
+    let editProfileAvatarOverlay = Color(hex: 0x000000, alpha: 0.5)
 
     // Stats page tokens
     let statsBackground = Color(hex: 0xFAFAF9)

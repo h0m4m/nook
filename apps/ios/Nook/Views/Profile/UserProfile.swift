@@ -105,6 +105,7 @@ struct ProfileActivity: Identifiable, Hashable {
     let label: String
     let title: String
     let imageName: String
+    let imageURL: URL?
     let placeholderColor: Color?
     let rating: Double?
     let tags: [String]
@@ -113,6 +114,7 @@ struct ProfileActivity: Identifiable, Hashable {
         label: String,
         title: String,
         imageName: String,
+        imageURL: URL? = nil,
         placeholderColor: Color? = nil,
         rating: Double? = nil,
         tags: [String] = []
@@ -120,6 +122,7 @@ struct ProfileActivity: Identifiable, Hashable {
         self.label = label
         self.title = title
         self.imageName = imageName
+        self.imageURL = imageURL
         self.placeholderColor = placeholderColor
         self.rating = rating
         self.tags = tags
@@ -157,6 +160,27 @@ extension UserProfile {
             isCurrentUser: false
         )
     }
+}
+
+// MARK: - Empty State
+
+extension UserProfile {
+    static let empty = UserProfile(
+        id: "",
+        displayName: "",
+        username: "",
+        bio: "",
+        avatarURL: nil,
+        followersCount: 0,
+        followingCount: 0,
+        trackedMedia: 0,
+        reviewsWritten: 0,
+        curatedNooks: 0,
+        clubs: 0,
+        tasteIdentity: [],
+        recentActivity: [],
+        isCurrentUser: true
+    )
 }
 
 // MARK: - Sample Data

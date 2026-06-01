@@ -3,7 +3,9 @@ import SwiftUI
 
 struct MyProfileView: View {
     @Environment(\.dismiss) private var dismiss
-    @State private var profile = UserProfile.sampleOwn
+    var router: AppRouter?
+    @State private var profile = UserProfile.empty
+    @State private var isLoading = true
     @State private var selectedTab: ProfileTab = .tracked
     @State private var showEditProfile = false
     @State private var recentTracked: [TrackedMediaItem] = []
@@ -11,20 +13,24 @@ struct MyProfileView: View {
 
     var body: some View {
         ZStack(alignment: .top) {
-            ScrollView(.vertical, showsIndicators: false) {
-                VStack(spacing: 0) {
-                    profileHeader
-                    tabBar
-                        .padding(.top, 24)
-                    if selectedTab == .tracked {
-                        statsGrid
+            if isLoading {
+                profileLoadingState
+            } else {
+                ScrollView(.vertical, showsIndicators: false) {
+                    VStack(spacing: 0) {
+                        profileHeader
+                        tabBar
                             .padding(.top, 24)
-                            .transition(.identity)
+                        if selectedTab == .tracked {
+                            statsGrid
+                                .padding(.top, 24)
+                                .transition(.identity)
+                        }
+                        tabContentSection
+                            .padding(.top, selectedTab == .tracked ? 32 : 24)
+                            .padding(.bottom, 40)
+                            .animation(nil, value: selectedTab)
                     }
-                    tabContentSection
-                        .padding(.top, selectedTab == .tracked ? 32 : 24)
-                        .padding(.bottom, 40)
-                        .animation(nil, value: selectedTab)
                 }
             }
 
@@ -35,13 +41,74 @@ struct MyProfileView: View {
         .toolbar(.hidden, for: .navigationBar)
         .modifier(InteractivePopGesture())
         .sheet(isPresented: $showEditProfile) {
-            EditProfileSheet()
-                .presentationDetents([.large])
-                .presentationDragIndicator(.hidden)
-                .presentationBackground(Color.nook.profileBackground)
+            EditProfileSheet(onSaved: {
+                await router?.refreshProfile()
+                await loadProfile()
+            })
+            .presentationDetents([.large])
+            .presentationDragIndicator(.hidden)
+            .presentationBackground(Color.nook.profileBackground)
         }
         .task { await loadProfile() }
         .refreshable { await loadProfile() }
+    }
+
+    // MARK: - Loading State
+
+    private var profileLoadingState: some View {
+        ScrollView(.vertical, showsIndicators: false) {
+            VStack(spacing: 0) {
+                // Header skeleton — matches profileHeader layout
+                VStack(spacing: 12) {
+                    Circle()
+                        .fill(Color.nook.searchShimmerBase)
+                        .frame(width: 112, height: 112)
+                        .padding(.top, 48)
+
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(Color.nook.searchShimmerBase)
+                        .frame(width: 160, height: 22)
+
+                    RoundedRectangle(cornerRadius: 5)
+                        .fill(Color.nook.searchShimmerBase)
+                        .frame(width: 90, height: 14)
+
+                    VStack(spacing: 6) {
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(Color.nook.searchShimmerBase)
+                            .frame(width: 260, height: 13)
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(Color.nook.searchShimmerBase)
+                            .frame(width: 200, height: 13)
+                    }
+                    .padding(.top, 4)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.top, 8)
+
+                // Tab bar skeleton — matches tabBar padding
+                HStack(spacing: 10) {
+                    ForEach(0..<4, id: \.self) { i in
+                        RoundedRectangle(cornerRadius: 20)
+                            .fill(Color.nook.searchShimmerBase)
+                            .frame(width: i == 0 ? 70 : 80, height: 36)
+                    }
+                }
+                .padding(.top, 24)
+
+                // Stats grid skeleton — matches 2-column grid
+                let columns = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
+                LazyVGrid(columns: columns, spacing: 12) {
+                    ForEach(0..<4, id: \.self) { _ in
+                        RoundedRectangle(cornerRadius: NookRadii.md, style: .continuous)
+                            .fill(Color.nook.searchShimmerBase)
+                            .frame(height: 80)
+                    }
+                }
+                .padding(.horizontal, 24)
+                .padding(.top, 24)
+            }
+        }
     }
 
     // MARK: - Navigation Buttons (MediaDetail-style overlay)
@@ -110,7 +177,7 @@ struct MyProfileView: View {
                                 .stroke(Color.nook.profileAvatarBorder, lineWidth: 2)
                         }
                         .overlay {
-                            Image("camera-bold")
+                            Image("pencil-simple-bold")
                                 .renderingMode(.template)
                                 .resizable()
                                 .aspectRatio(contentMode: .fit)
@@ -138,8 +205,6 @@ struct MyProfileView: View {
                 .padding(.horizontal, 40)
                 .padding(.top, 4)
 
-            followerCountsView
-                .padding(.top, 8)
         }
         .frame(maxWidth: .infinity)
         .padding(.top, 8)
@@ -268,20 +333,9 @@ struct MyProfileView: View {
 
     private var tabContentSection: some View {
         VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                Text(selectedTab == .tracked ? "Recently Active" : selectedTab.rawValue)
-                    .font(NookFont.outfitLabel)
-                    .foregroundStyle(Color.nook.profileSectionTitle)
-
-                Spacer()
-
-                Button {} label: {
-                    Text("View All")
-                        .font(NookFont.labelMediumSmall)
-                        .foregroundStyle(Color.nook.profileViewAll)
-                }
-                .buttonStyle(.plain)
-            }
+            Text(selectedTab == .tracked ? "Recently Active" : selectedTab.rawValue)
+                .font(NookFont.outfitLabel)
+                .foregroundStyle(Color.nook.profileSectionTitle)
 
             switch selectedTab {
             case .tracked:
@@ -312,8 +366,8 @@ struct MyProfileView: View {
                         label: status?.label.uppercased() ?? item.status.uppercased(),
                         title: item.title,
                         imageName: "",
-                        placeholderColor: nil,
-                        rating: item.score.map { $0 / 2.0 }
+                        imageURL: item.imageURL,
+                        rating: item.score
                     ))
                 }
             }
@@ -357,36 +411,31 @@ struct MyProfileView: View {
     // MARK: - Nooks Tab
 
     private var nooksContent: some View {
-        VStack(spacing: 12) {
-            ForEach(0..<2) { i in
-                ProfileNookCard(
-                    title: i == 0 ? "Cozy Games to Wind Down" : "Sci-Fi Essentials",
-                    itemCount: i == 0 ? 18 : 32,
-                    likes: i == 0 ? 245 : 512,
-                    placeholderColor: i == 0
-                        ? Color(hex: 0xB8D4C8) : Color(hex: 0xA8C4D4)
-                )
-            }
+        VStack(spacing: 8) {
+            Text("No nooks yet")
+                .font(NookFont.labelBold)
+                .foregroundStyle(Color.nook.detailMeta)
+            Text("Your nooks will appear here")
+                .font(NookFont.bodySmall)
+                .foregroundStyle(Color.nook.detailMeta.opacity(0.7))
         }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 24)
     }
 
     // MARK: - Posts Tab
 
     private var postsContent: some View {
-        VStack(spacing: 12) {
-            ForEach(0..<2) { i in
-                ProfilePostCard(
-                    authorName: profile.displayName,
-                    clubName: i == 0 ? "Anime Collective" : "Cozy Gamers",
-                    content: i == 0
-                        ? "Just finished Frieren and I'm emotionally devastated in the best way possible. That finale..."
-                        : "Anyone else playing the new update? The garden mechanic is exactly what I needed.",
-                    likes: i == 0 ? "42" : "31",
-                    comments: i == 0 ? "15" : "9",
-                    timeAgo: i == 0 ? "2h ago" : "1d ago"
-                )
-            }
+        VStack(spacing: 8) {
+            Text("No posts yet")
+                .font(NookFont.labelBold)
+                .foregroundStyle(Color.nook.detailMeta)
+            Text("Your posts will appear here")
+                .font(NookFont.bodySmall)
+                .foregroundStyle(Color.nook.detailMeta.opacity(0.7))
         }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 24)
     }
 
     // MARK: - Data
@@ -411,24 +460,25 @@ struct MyProfileView: View {
                 username: usernameDisplay,
                 bio: data.bio ?? "",
                 avatarURL: data.avatarURL,
-                followersCount: profile.followersCount,
-                followingCount: profile.followingCount,
+                followersCount: 0,
+                followingCount: 0,
                 trackedMedia: stats.trackedCount,
                 reviewsWritten: stats.reviewCount,
                 curatedNooks: stats.nookCount,
                 clubs: stats.clubCount,
-                tasteIdentity: profile.tasteIdentity,
-                recentActivity: profile.recentActivity,
+                tasteIdentity: [],
+                recentActivity: [],
                 isCurrentUser: true
             )
 
-            // Load recent tracked items
-            let trackingService = TrackingService()
-            recentTracked = (try? await trackingService.getLibrary(userId: user.id)) ?? []
+            // Load recent tracked items and reviews in parallel
+            async let trackedItems = TrackingService().getLibrary(userId: user.id)
+            async let reviews = ReviewService().getReviewsByUser(userId: user.id)
 
-            // Load user's reviews
-            let reviewService = ReviewService()
-            userReviews = (try? await reviewService.getReviewsByUser(userId: user.id)) ?? []
+            recentTracked = (try? await trackedItems) ?? []
+            userReviews = (try? await reviews) ?? []
+
+            isLoading = false
         } catch {
             // Fall back to auth metadata
             if let name = user.userMetadata["full_name"]?.value as? String {
@@ -436,21 +486,21 @@ struct MyProfileView: View {
                     id: user.id.uuidString,
                     displayName: name,
                     username: "@\(name.lowercased().replacingOccurrences(of: " ", with: ""))",
-                    bio: profile.bio,
-                    avatarURL: (user.userMetadata["avatar_url"]?.value as? String).flatMap {
-                        URL(string: $0)
-                    },
-                    followersCount: profile.followersCount,
-                    followingCount: profile.followingCount,
-                    trackedMedia: profile.trackedMedia,
-                    reviewsWritten: profile.reviewsWritten,
-                    curatedNooks: profile.curatedNooks,
-                    clubs: profile.clubs,
-                    tasteIdentity: profile.tasteIdentity,
-                    recentActivity: profile.recentActivity,
+                    bio: "",
+                    avatarURL: (user.userMetadata["avatar_url"]?.value as? String)
+                        .flatMap { URL(string: $0) },
+                    followersCount: 0,
+                    followingCount: 0,
+                    trackedMedia: 0,
+                    reviewsWritten: 0,
+                    curatedNooks: 0,
+                    clubs: 0,
+                    tasteIdentity: [],
+                    recentActivity: [],
                     isCurrentUser: true
                 )
             }
+            isLoading = false
         }
     }
 
@@ -463,6 +513,7 @@ struct MyProfileView: View {
         }
         return "\(count)"
     }
+
 }
 
 // MARK: - Club-Detail-Style Chip Tab Bar
@@ -594,9 +645,13 @@ struct ProfileActivityCard: View {
 
     private var cardContent: some View {
         HStack(spacing: 16) {
-            RoundedRectangle(cornerRadius: 17.78)
-                .fill(activity.placeholderColor ?? Color.nook.secondary)
-                .frame(width: 64, height: 64)
+            MediaPosterImage(
+                url: activity.imageURL,
+                width: 64,
+                height: 64,
+                cornerRadius: 17.78,
+                fallbackColor: activity.placeholderColor ?? Color.nook.secondary
+            )
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(activity.label)
@@ -609,7 +664,7 @@ struct ProfileActivityCard: View {
                     .foregroundStyle(Color.nook.profileActivityTitle)
 
                 if let rating = activity.rating {
-                    ratingStars(rating)
+                    ratingBadge(rating)
                 } else if !activity.tags.isEmpty {
                     tagRow
                 }
@@ -620,22 +675,24 @@ struct ProfileActivityCard: View {
         .padding(13)
     }
 
-    private func ratingStars(_ rating: Double) -> some View {
+    private func ratingBadge(_ rating: Double) -> some View {
         HStack(spacing: 2) {
-            ForEach(0..<5) { index in
-                Image("star-fill")
-                    .renderingMode(.template)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 14, height: 14)
-                    .foregroundStyle(
-                        Double(index) < rating
-                            ? Color.nook.accent
-                            : Color.nook.accent.opacity(0.3)
-                    )
-            }
+            Image("star-fill")
+                .renderingMode(.template)
+                .resizable()
+                .frame(width: 10, height: 10)
+                .foregroundStyle(Color.nook.detailRatingText)
+
+            Text(ProfileReviewCard.ratingLabel(for: rating))
+                .font(NookFont.captionBold)
+                .foregroundStyle(Color.nook.detailRatingText)
         }
-        .padding(.top, 2)
+        .padding(.horizontal, 6.5)
+        .padding(.vertical, 5)
+        .background(
+            RoundedRectangle(cornerRadius: 6.39, style: .continuous)
+                .fill(Color.nook.detailRatingBadge)
+        )
     }
 
     private var tagRow: some View {

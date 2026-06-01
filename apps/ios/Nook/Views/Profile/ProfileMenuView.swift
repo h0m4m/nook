@@ -5,9 +5,6 @@ struct ProfileMenuView: View {
     @Environment(\.dismiss) private var dismiss
     var router: AppRouter
 
-    @State private var displayName: String = ""
-    @State private var email: String = ""
-    @State private var avatarURL: URL?
     @State private var showLogoutConfirmation = false
     @State private var showStats = false
     @State private var showMyProfile = false
@@ -17,7 +14,7 @@ struct ProfileMenuView: View {
 
     var body: some View {
         NavigationStack {
-            ZStack(alignment: .topTrailing) {
+            ZStack(alignment: .topLeading) {
                 ScrollView {
                     VStack(spacing: 20) {
                         profileHeader
@@ -31,7 +28,7 @@ struct ProfileMenuView: View {
 
                 closeButton
                     .padding(.top, 12)
-                    .padding(.trailing, 16)
+                    .padding(.leading, 16)
             }
             .background(Color.nook.profileMenuBackground)
             .navigationBarTitleDisplayMode(.inline)
@@ -46,9 +43,6 @@ struct ProfileMenuView: View {
             } message: {
                 Text("You'll need to sign in again to access your account.")
             }
-        }
-        .task {
-            await loadUserInfo()
         }
     }
 
@@ -92,14 +86,20 @@ struct ProfileMenuView: View {
 
     private var profileHeader: some View {
         VStack(spacing: 12) {
-            AsyncImage(url: avatarURL) { phase in
+            AsyncImage(url: router.currentUserAvatarURL) { phase in
                 switch phase {
                 case .success(let image):
                     image
                         .resizable()
                         .scaledToFill()
                 default:
-                    Color.nook.secondary
+                    Circle()
+                        .fill(Color.nook.accent)
+                        .overlay {
+                            Text(String(router.currentUserDisplayName.prefix(1)).uppercased())
+                                .font(NookFont.labelLarge)
+                                .foregroundStyle(.white)
+                        }
                 }
             }
             .frame(width: 72, height: 72)
@@ -110,12 +110,12 @@ struct ProfileMenuView: View {
             }
 
             VStack(spacing: 4) {
-                Text(displayName.isEmpty ? "Nook User" : displayName)
+                Text(router.currentUserDisplayName.isEmpty ? "Nook User" : router.currentUserDisplayName)
                     .font(NookFont.labelLarge)
                     .foregroundStyle(Color.nook.profileMenuName)
 
-                if !email.isEmpty {
-                    Text(email)
+                if !router.currentUserUsername.isEmpty {
+                    Text(router.currentUserUsername)
                         .font(NookFont.bodySmall)
                         .foregroundStyle(Color.nook.profileMenuEmail)
                 }
@@ -203,7 +203,7 @@ struct ProfileMenuView: View {
         }
         .fullScreenCover(isPresented: $showMyProfile) {
             NavigationStack {
-                MyProfileView()
+                MyProfileView(router: router)
                     .navigationDestination(for: ReviewItem.self) { review in
                         ReviewDetailView(review: review)
                     }
@@ -222,10 +222,12 @@ struct ProfileMenuView: View {
                 .presentationBackground(Color.nook.settingsBackground)
         }
         .sheet(isPresented: $showEditProfile) {
-            EditProfileSheet()
-                .presentationDetents([.large])
-                .presentationDragIndicator(.hidden)
-                .presentationBackground(Color.nook.settingsBackground)
+            EditProfileSheet(onSaved: {
+                await router.refreshProfile()
+            })
+            .presentationDetents([.large])
+            .presentationDragIndicator(.hidden)
+            .presentationBackground(Color.nook.settingsBackground)
         }
         .sheet(isPresented: $showCreateClub) {
             CreateClubSheet()
@@ -325,21 +327,6 @@ struct ProfileMenuView: View {
         }
     }
 
-    // MARK: - Data Loading
-
-    private func loadUserInfo() async {
-        guard let user = try? await supabase.auth.session.user else { return }
-
-        email = user.email ?? ""
-
-        if let name = user.userMetadata["full_name"]?.value as? String {
-            displayName = name
-        }
-
-        if let urlString = user.userMetadata["avatar_url"]?.value as? String {
-            avatarURL = URL(string: urlString)
-        }
-    }
 }
 
 #Preview {

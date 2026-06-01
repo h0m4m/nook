@@ -1303,16 +1303,21 @@ struct TrackingSheetView: View {
     @State private var startDate: Date = .now
     @State private var endDate: Date = .now
 
+    // Local copies so Cancel can discard changes
+    @State private var localStatus: TrackingStatus?
+    @State private var localEpisode: Int = 0
+    @State private var localScore: Int?
+
     private let statuses: [TrackingStatus] = [
         .inProgress, .completed, .planned, .onHold, .dropped,
     ]
 
     private var progressCountLabel: String {
         switch category {
-        case .book: "Pg \(currentEpisode)"
-        case .manga: "Ch \(currentEpisode)"
-        case .movie: currentEpisode > 0 ? "Watched" : "Not watched"
-        default: "Ep \(currentEpisode)"
+        case .book: "Pg \(localEpisode)"
+        case .manga: "Ch \(localEpisode)"
+        case .movie: localEpisode > 0 ? "Watched" : "Not watched"
+        default: "Ep \(localEpisode)"
         }
     }
 
@@ -1325,7 +1330,7 @@ struct TrackingSheetView: View {
     private var progressNumberField: some View {
         HStack {
             Button {
-                if currentEpisode > 0 { currentEpisode -= 1 }
+                if localEpisode > 0 { localEpisode -= 1 }
             } label: {
                 Image(systemName: "minus")
                     .font(.system(size: 16, weight: .medium))
@@ -1336,7 +1341,7 @@ struct TrackingSheetView: View {
 
             Spacer()
 
-            TextField("0", value: $currentEpisode, format: .number)
+            TextField("0", value: $localEpisode, format: .number)
                 .keyboardType(.numberPad)
                 .multilineTextAlignment(.center)
                 .font(NookFont.labelBold)
@@ -1346,7 +1351,7 @@ struct TrackingSheetView: View {
             Spacer()
 
             Button {
-                currentEpisode += 1
+                localEpisode += 1
             } label: {
                 Image(systemName: "plus")
                     .font(.system(size: 16, weight: .medium))
@@ -1377,18 +1382,18 @@ struct TrackingSheetView: View {
         }
         .background(Color.nook.detailBackground)
         .onAppear {
-            if selectedStatus == nil {
-                selectedStatus = .planned
-            }
+            localStatus = selectedStatus ?? .planned
+            localEpisode = currentEpisode
+            localScore = userScore
         }
-        .onChange(of: currentEpisode) { _, newEpisode in
+        .onChange(of: localEpisode) { _, newEpisode in
             withAnimation(.easeOut(duration: 0.2)) {
                 if totalEpisodes > 0 && newEpisode >= totalEpisodes {
-                    selectedStatus = .completed
-                } else if newEpisode > 0 && (selectedStatus == .planned || selectedStatus == nil) {
-                    selectedStatus = .inProgress
-                } else if newEpisode == 0 && selectedStatus == .inProgress {
-                    selectedStatus = .planned
+                    localStatus = .completed
+                } else if newEpisode > 0 && (localStatus == .planned || localStatus == nil) {
+                    localStatus = .inProgress
+                } else if newEpisode == 0 && localStatus == .inProgress {
+                    localStatus = .planned
                 }
             }
         }
@@ -1414,8 +1419,11 @@ struct TrackingSheetView: View {
             Spacer()
 
             Button("Save") {
-                isTracking = selectedStatus != nil || currentEpisode > 0
-                isRated = userScore != nil
+                selectedStatus = localStatus
+                currentEpisode = localEpisode
+                userScore = localScore
+                isTracking = localStatus != nil || localEpisode > 0
+                isRated = localScore != nil
                 dismiss()
             }
             .font(NookFont.labelBoldSmall)
@@ -1446,7 +1454,7 @@ struct TrackingSheetView: View {
 
                 Spacer()
 
-                if let status = selectedStatus {
+                if let status = localStatus {
                     Text(status.label)
                         .font(NookFont.labelMediumSmall)
                         .foregroundStyle(Color.nook.detailMeta)
@@ -1464,18 +1472,18 @@ struct TrackingSheetView: View {
 
     @ViewBuilder
     private func statusChip(_ status: TrackingStatus) -> some View {
-        let isSelected = selectedStatus == status
+        let isSelected = localStatus == status
 
         Button {
             withAnimation(.easeOut(duration: 0.2)) {
-                let newStatus = selectedStatus == status ? nil : status
-                selectedStatus = newStatus
+                let newStatus = localStatus == status ? nil : status
+                localStatus = newStatus
 
                 if totalEpisodes > 0 {
                     if newStatus == .completed {
-                        currentEpisode = totalEpisodes
+                        localEpisode = totalEpisodes
                     } else if newStatus == .planned || newStatus == nil {
-                        currentEpisode = 0
+                        localEpisode = 0
                     }
                 }
             }
@@ -1517,14 +1525,14 @@ struct TrackingSheetView: View {
             }
 
             if category == .movie {
-                Picker("Watched", selection: $currentEpisode) {
+                Picker("Watched", selection: $localEpisode) {
                     Text("Not watched").tag(0)
                     Text("Watched").tag(1)
                 }
                 .pickerStyle(.wheel)
                 .frame(height: 120)
             } else if totalEpisodes > 0 {
-                Picker("Episode", selection: $currentEpisode) {
+                Picker("Episode", selection: $localEpisode) {
                     ForEach(0...totalEpisodes, id: \.self) { ep in
                         Text("\(ep)").tag(ep)
                     }
@@ -1567,7 +1575,7 @@ struct TrackingSheetView: View {
     }
 
     private var scoreSummary: String {
-        guard let score = userScore else { return "Not Yet Scored" }
+        guard let score = localScore else { return "Not Yet Scored" }
         return "\(score) – \(scoreLabel(for: score))"
     }
 
@@ -1589,8 +1597,8 @@ struct TrackingSheetView: View {
 
     private var scoreBinding: Binding<Int> {
         Binding(
-            get: { userScore ?? 0 },
-            set: { userScore = $0 == 0 ? nil : $0 }
+            get: { localScore ?? 0 },
+            set: { localScore = $0 == 0 ? nil : $0 }
         )
     }
 

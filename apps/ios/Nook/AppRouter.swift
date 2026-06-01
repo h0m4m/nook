@@ -16,6 +16,11 @@ final class AppRouter {
     var currentScreen: AppScreen = .intro
     var isLoading = true
 
+    // Current user profile — shared across all views
+    var currentUserAvatarURL: URL?
+    var currentUserDisplayName: String = ""
+    var currentUserUsername: String = ""
+
     private var authListenerTask: Task<Void, Never>?
 
     func startListening() {
@@ -43,6 +48,9 @@ final class AppRouter {
 
     private func navigateAfterAuth() async {
         let hasOnboarded = await checkOnboardingCompleted()
+        if hasOnboarded {
+            await loadCurrentUserProfile()
+        }
         currentScreen = hasOnboarded ? .home : .onboarding
     }
 
@@ -88,6 +96,44 @@ final class AppRouter {
             .execute()
 
         currentScreen = .home
+    }
+
+    func loadCurrentUserProfile() async {
+        guard let user = try? await supabase.auth.session.user else { return }
+
+        let profileService = ProfileService()
+        if let data = try? await profileService.getProfile(userId: user.id) {
+            currentUserDisplayName = data.fullName
+                ?? (user.userMetadata["full_name"]?.value as? String)
+                ?? "User"
+            currentUserUsername = data.username.map { "@\($0)" } ?? ""
+
+            if let dbAvatar = data.avatarURL {
+                currentUserAvatarURL = dbAvatar
+            } else if let socialURL = (user.userMetadata["avatar_url"]?.value as? String) {
+                // Backfill social avatar to DB so it shows on reviews, comments, etc.
+                let highRes = Self.highResAvatarURL(socialURL)
+                currentUserAvatarURL = URL(string: highRes)
+                try? await profileService.updateProfile(userId: user.id, avatarURL: highRes)
+            }
+        } else {
+            currentUserDisplayName = (user.userMetadata["full_name"]?.value as? String) ?? "User"
+            if let urlString = user.userMetadata["avatar_url"]?.value as? String {
+                currentUserAvatarURL = URL(string: Self.highResAvatarURL(urlString))
+            }
+        }
+    }
+
+    func refreshProfile() async {
+        await loadCurrentUserProfile()
+    }
+
+    private static func highResAvatarURL(_ urlString: String) -> String {
+        guard urlString.contains("googleusercontent.com") else { return urlString }
+        if let range = urlString.range(of: #"=s\d+-c"#, options: .regularExpression) {
+            return urlString.replacingCharacters(in: range, with: "=s400-c")
+        }
+        return urlString
     }
 
     func signInWithOTP(email: String) async throws {
