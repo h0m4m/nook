@@ -1,4 +1,5 @@
 import SwiftUI
+import Supabase
 
 /// Parse a Markdown string into an `AttributedString`, falling back to plain text.
 func markdownAttributed(_ text: String) -> AttributedString {
@@ -55,11 +56,17 @@ struct ReviewDetailView: View {
     @State private var replyingToName: String?
     @State private var replyingToId: UUID?
     @State private var sortOrder: CommentSort = .top
+    @State private var currentUserId: UUID?
 
     init(review: ReviewItem) {
         self.review = review
         self._likeCount = State(initialValue: Int(review.likes) ?? 0)
         self._comments = State(initialValue: [])
+    }
+
+    private var canDelete: Bool {
+        guard let authorId = review.reviewerUserId, let me = currentUserId else { return false }
+        return authorId == me
     }
 
     var body: some View {
@@ -78,7 +85,7 @@ struct ReviewDetailView: View {
         }
         .background(Color.nook.reviewDetailBackground)
         .modifier(
-            ReviewDetailTopBar(onBack: { dismiss() })
+            ReviewDetailTopBar(onBack: { dismiss() }, canDelete: canDelete, onDelete: deleteReview)
         )
         .navigationBarBackButtonHidden()
         .toolbar(.hidden, for: .navigationBar)
@@ -95,11 +102,19 @@ struct ReviewDetailView: View {
         guard let dbId = review.dbId else { return }
         let service = ReviewService()
 
+        currentUserId = try? await supabase.auth.session.user.id
+
         // Check if liked
         isLiked = (try? await service.isReviewLiked(reviewId: dbId)) ?? false
 
         // Load comments from DB
         await reloadComments()
+    }
+
+    private func deleteReview() {
+        guard let dbId = review.dbId else { return }
+        Task { try? await ReviewService().deleteReview(reviewId: dbId) }
+        dismiss()
     }
     private func ratingLabel(for rating: Double) -> String {
         ProfileReviewCard.ratingLabel(for: rating)
@@ -925,6 +940,8 @@ private extension ReviewDetailView {
 
 private struct ReviewDetailTopBar: ViewModifier {
     let onBack: () -> Void
+    var canDelete: Bool = false
+    var onDelete: () -> Void = {}
 
     func body(content: Content) -> some View {
         if #available(iOS 26, *) {
@@ -987,6 +1004,18 @@ private struct ReviewDetailTopBar: ViewModifier {
                     } icon: {
                         Image("user-minus")
                             .renderingMode(.template)
+                    }
+                }
+
+                if canDelete {
+                    Button(role: .destructive, action: onDelete) {
+                        Label {
+                            Text("Delete review")
+                                .font(.subheadline)
+                        } icon: {
+                            Image("trash")
+                                .renderingMode(.template)
+                        }
                     }
                 }
             } label: {

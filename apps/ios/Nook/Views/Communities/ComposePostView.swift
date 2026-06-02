@@ -1,23 +1,13 @@
 import PhotosUI
 import SwiftUI
 
-enum PollDuration: String, CaseIterable {
-    case oneDay = "1 Day"
-    case threeDays = "3 Days"
-    case oneWeek = "1 Week"
-
-    var seconds: TimeInterval {
-        switch self {
-        case .oneDay: 86_400
-        case .threeDays: 259_200
-        case .oneWeek: 604_800
-        }
-    }
-}
+/// Polls always run for exactly one day.
+private let pollDurationSeconds: TimeInterval = 86_400
 
 struct ComposePostView: View {
     let clubName: String
     var clubId: UUID?
+    var accent: Color = Color.nook.primary
     @Environment(\.dismiss) private var dismiss
     @State private var postBody = ""
     @State private var attachedImages: [UIImage] = []
@@ -26,7 +16,6 @@ struct ComposePostView: View {
     @State private var isPosting = false
     @State private var showPoll = false
     @State private var pollOptions: [String] = ["", ""]
-    @State private var pollDuration = PollDuration.oneDay
     @FocusState private var isBodyFocused: Bool
     @FocusState private var focusedPollOption: Int?
 
@@ -122,7 +111,7 @@ private extension ComposePostView {
                     .frame(height: 36)
                     .background(
                         Capsule()
-                            .fill(canPost ? Color.nook.primary : Color.nook.primary.opacity(0.4))
+                            .fill(canPost ? accent : accent.opacity(0.4))
                     )
             }
             .buttonStyle(.plain)
@@ -317,7 +306,7 @@ private extension ComposePostView {
                 } label: {
                     Image(systemName: "chart.bar.xaxis")
                         .font(.system(size: 18))
-                        .foregroundStyle(showPoll ? Color.nook.primary : Color.nook.clubDetailTitle)
+                        .foregroundStyle(showPoll ? accent : Color.nook.clubDetailTitle)
                 }
                 .buttonStyle(.plain)
 
@@ -402,38 +391,17 @@ private extension ComposePostView {
             }
             .padding(.horizontal, 16)
 
-            // Duration picker
-            HStack {
-                Text("Duration")
-                    .font(NookFont.labelMediumSmall)
-                    .foregroundStyle(Color.nook.clubDetailTitle)
+            // Polls always run for 1 day.
+            HStack(spacing: 6) {
+                Image(systemName: "clock")
+                    .font(.system(size: 11))
+                    .foregroundStyle(Color.nook.clubDetailMeta)
+
+                Text("Poll closes in 1 day")
+                    .font(NookFont.caption)
+                    .foregroundStyle(Color.nook.clubDetailMeta)
 
                 Spacer()
-
-                Menu {
-                    ForEach(PollDuration.allCases, id: \.self) { duration in
-                        Button {
-                            pollDuration = duration
-                        } label: {
-                            HStack {
-                                Text(duration.rawValue)
-                                if pollDuration == duration {
-                                    Image(systemName: "checkmark")
-                                }
-                            }
-                        }
-                    }
-                } label: {
-                    HStack(spacing: 4) {
-                        Text(pollDuration.rawValue)
-                            .font(NookFont.labelMediumSmall)
-                            .foregroundStyle(Color.nook.clubDetailMeta)
-
-                        Image(systemName: "chevron.down")
-                            .font(.system(size: 10, weight: .semibold))
-                            .foregroundStyle(Color.nook.clubDetailMeta)
-                    }
-                }
             }
             .padding(.horizontal, 16)
             .padding(.top, 16)
@@ -532,7 +500,7 @@ private extension ComposePostView {
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
         guard options.count >= 2 else { return nil }
-        return ClubPollDraft(options: options, closesAt: Date().addingTimeInterval(pollDuration.seconds))
+        return ClubPollDraft(options: options, closesAt: Date().addingTimeInterval(pollDurationSeconds))
     }
 }
 

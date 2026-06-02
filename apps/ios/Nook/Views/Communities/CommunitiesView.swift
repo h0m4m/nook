@@ -100,6 +100,7 @@ struct ClubItem: Identifiable, Hashable {
     let category: ClubCategory
     let bannerColor: Color
     let bannerURL: URL?
+    let themeHex: UInt?
     var isJoined: Bool
 
     static func == (lhs: ClubItem, rhs: ClubItem) -> Bool {
@@ -110,6 +111,21 @@ struct ClubItem: Identifiable, Hashable {
         hasher.combine(id)
     }
 
+    /// Solid accent used for buttons, tabs and other primary surfaces.
+    var accentColor: Color {
+        ClubItem.color(fromHex: themeHex) ?? Color.nook.clubDetailJoinedButton
+    }
+
+    /// Parse a stored 6-digit hex string (e.g. "BA68C8") into a UInt.
+    static func parseHex(_ string: String?) -> UInt? {
+        guard let string, let value = UInt(string.replacingOccurrences(of: "#", with: ""), radix: 16) else { return nil }
+        return value
+    }
+
+    static func color(fromHex hex: UInt?) -> Color? {
+        hex.map { Color(hex: $0) }
+    }
+
     init(
         name: String,
         memberCount: String,
@@ -117,6 +133,7 @@ struct ClubItem: Identifiable, Hashable {
         category: ClubCategory,
         bannerColor: Color,
         bannerURL: URL? = nil,
+        themeHex: UInt? = nil,
         isJoined: Bool = false,
         dbId: UUID? = nil
     ) {
@@ -126,6 +143,7 @@ struct ClubItem: Identifiable, Hashable {
         self.category = category
         self.bannerColor = bannerColor
         self.bannerURL = bannerURL
+        self.themeHex = themeHex
         self.isJoined = isJoined
         self.dbId = dbId
     }
@@ -136,7 +154,9 @@ struct ClubItem: Identifiable, Hashable {
         self.memberCount = "\(row.memberCount) Members"
         self.description = row.description ?? ""
         self.category = ClubCategory.from(dbValue: row.category)
-        self.bannerColor = ClubCategory.from(dbValue: row.category).dotColor.opacity(0.3)
+        self.themeHex = ClubItem.parseHex(row.themeColor)
+        let theme = ClubItem.color(fromHex: ClubItem.parseHex(row.themeColor))
+        self.bannerColor = (theme ?? ClubCategory.from(dbValue: row.category).dotColor).opacity(0.3)
         self.bannerURL = row.bannerUrl.flatMap { URL(string: $0) }
         self.isJoined = isJoined
     }

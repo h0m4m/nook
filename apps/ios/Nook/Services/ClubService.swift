@@ -25,6 +25,7 @@ final class ClubService: Sendable {
         description: String?,
         category: String,
         privacy: String,
+        themeColor: String?,
         bannerData: Data?,
         iconData: Data?
     ) async throws -> UUID {
@@ -59,6 +60,7 @@ final class ClubService: Sendable {
             let description: String?
             let category: String
             let privacy: String
+            let theme_color: String?
             let banner_url: String?
             let icon_url: String?
         }
@@ -75,6 +77,7 @@ final class ClubService: Sendable {
                 description: description,
                 category: category,
                 privacy: privacy,
+                theme_color: themeColor,
                 banner_url: bannerUrl,
                 icon_url: iconUrl
             ))
@@ -400,6 +403,50 @@ final class ClubService: Sendable {
         return rows.map { ClubPostModel(from: $0) }
     }
 
+    // MARK: - Moderation: pin / delete post
+
+    /// Pin or unpin a post (owner/admin only — enforced by RLS).
+    func setPinned(postId: UUID, pinned: Bool) async throws {
+        struct PinUpdate: Encodable { let is_pinned: Bool }
+        try await supabase
+            .from("club_posts")
+            .update(PinUpdate(is_pinned: pinned))
+            .eq("id", value: postId.uuidString)
+            .execute()
+    }
+
+    /// Delete a post (author or owner/admin — enforced by RLS).
+    func deletePost(postId: UUID) async throws {
+        try await supabase
+            .from("club_posts")
+            .delete()
+            .eq("id", value: postId.uuidString)
+            .execute()
+    }
+
+    // MARK: - Member management
+
+    /// Promote/demote a member (owner only — enforced by RLS).
+    func setMemberRole(clubId: UUID, userId: UUID, role: String) async throws {
+        struct RoleUpdate: Encodable { let role: String }
+        try await supabase
+            .from("club_members")
+            .update(RoleUpdate(role: role))
+            .eq("club_id", value: clubId.uuidString)
+            .eq("user_id", value: userId.uuidString)
+            .execute()
+    }
+
+    /// Remove a member from a club (owner/admin only — enforced by RLS).
+    func removeMember(clubId: UUID, userId: UUID) async throws {
+        try await supabase
+            .from("club_members")
+            .delete()
+            .eq("club_id", value: clubId.uuidString)
+            .eq("user_id", value: userId.uuidString)
+            .execute()
+    }
+
     // MARK: - Post Likes
 
     func likePost(postId: UUID) async throws {
@@ -558,17 +605,9 @@ final class ClubService: Sendable {
 
     // MARK: - Polls
 
-    /// Casts (or moves) the current user's vote on a poll. One vote per poll.
+    /// Casts the current user's vote. Votes are final — one vote per poll, no changing.
     func voteOnPoll(pollId: UUID, optionId: UUID) async throws {
         let userId = try await supabase.auth.session.user.id
-
-        // Remove any existing vote so a re-vote moves the count cleanly.
-        try await supabase
-            .from("club_poll_votes")
-            .delete()
-            .eq("poll_id", value: pollId.uuidString)
-            .eq("user_id", value: userId.uuidString)
-            .execute()
 
         struct VoteInsert: Encodable {
             let poll_id: String
@@ -576,6 +615,8 @@ final class ClubService: Sendable {
             let user_id: String
         }
 
+        // Insert only; the (poll_id, user_id) primary key makes a second vote fail,
+        // which enforces "vote locks after casting" at the database level too.
         try await supabase
             .from("club_poll_votes")
             .insert(VoteInsert(

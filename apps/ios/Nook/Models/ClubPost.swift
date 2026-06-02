@@ -161,8 +161,8 @@ struct ClubPostModel: Identifiable, Hashable, Sendable {
     let authorName: String
     let authorAvatarURL: URL?
     let body: String
-    let isPinned: Bool
-    let likesCount: Int
+    var isPinned: Bool
+    var likesCount: Int
     let commentsCount: Int
     let createdAt: Date
     let imageURLs: [URL]

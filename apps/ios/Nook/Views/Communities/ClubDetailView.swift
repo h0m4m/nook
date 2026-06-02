@@ -53,8 +53,15 @@ struct ClubPost: Identifiable, Hashable {
     let comments: String
     let likesCount: Int
     let isLiked: Bool
+    let isPinned: Bool
     let poll: PostPoll?
     let pollModel: ClubPollModel?
+    let themeHex: UInt?
+
+    /// The club accent color carried into the post detail.
+    var accentColor: Color {
+        ClubItem.color(fromHex: themeHex) ?? Color.nook.clubDetailJoinedButton
+    }
 
     static func == (lhs: ClubPost, rhs: ClubPost) -> Bool { lhs.id == rhs.id }
     func hash(into hasher: inout Hasher) { hasher.combine(id) }
@@ -71,8 +78,10 @@ struct ClubPost: Identifiable, Hashable {
         comments: String = "0",
         likesCount: Int = 0,
         isLiked: Bool = false,
+        isPinned: Bool = false,
         poll: PostPoll? = nil,
         pollModel: ClubPollModel? = nil,
+        themeHex: UInt? = nil,
         dbId: UUID? = nil,
         clubId: UUID? = nil,
         userId: UUID? = nil,
@@ -90,8 +99,10 @@ struct ClubPost: Identifiable, Hashable {
         self.comments = comments
         self.likesCount = likesCount
         self.isLiked = isLiked
+        self.isPinned = isPinned
         self.poll = poll
         self.pollModel = pollModel
+        self.themeHex = themeHex
         self.dbId = dbId
         self.clubId = clubId
         self.userId = userId
@@ -99,7 +110,7 @@ struct ClubPost: Identifiable, Hashable {
     }
 
     /// Build a display post from a real `ClubPostModel`.
-    init(from model: ClubPostModel, isLiked: Bool) {
+    init(from model: ClubPostModel, isLiked: Bool, themeHex: UInt? = nil) {
         self.id = model.id
         self.dbId = model.id
         self.clubId = model.clubId
@@ -116,8 +127,10 @@ struct ClubPost: Identifiable, Hashable {
         self.likes = ClubPost.formatCount(model.likesCount)
         self.comments = ClubPost.formatCount(model.commentsCount)
         self.isLiked = isLiked
+        self.isPinned = model.isPinned
         self.poll = nil
         self.pollModel = model.poll
+        self.themeHex = themeHex
     }
 
     static func formatCount(_ count: Int) -> String {
@@ -197,14 +210,11 @@ struct ClubDetailView: View {
 
             headerBar
 
-            VStack {
-                Spacer()
-                HStack {
-                    Spacer()
-                    composeFAB
-                        .padding(.trailing, 20)
-                        .padding(.bottom, 32)
-                }
+            if isMemberNow {
+                composeFAB
+                    .padding(.trailing, 20)
+                    .padding(.bottom, 32)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
             }
         }
         .background(Color.nook.clubDetailBackground.ignoresSafeArea())
@@ -221,7 +231,7 @@ struct ClubDetailView: View {
         .sheet(isPresented: $showComposeSheet, onDismiss: {
             Task { await detailVM?.loadPosts(page: 1) }
         }) {
-            ComposePostView(clubName: club.name, clubId: club.dbId)
+            ComposePostView(clubName: club.name, clubId: club.dbId, accent: accent)
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
                 .presentationBackground(Color.nook.clubDetailBackground)
@@ -241,6 +251,16 @@ struct ClubDetailView: View {
 
     private var overscrollColor: Color {
         dominantColor ?? club.bannerColor
+    }
+
+    /// Club accent — the chosen theme color, used for primary buttons/tabs.
+    var accent: Color {
+        detailVM?.accentColor ?? club.accentColor
+    }
+
+    /// Whether the current user is a member (gates posting/composing).
+    var isMemberNow: Bool {
+        detailVM?.isMember ?? isJoined
     }
 }
 
@@ -590,11 +610,13 @@ private extension ClubDetailView {
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .frame(width: 22, height: 22)
-                    .foregroundStyle(.primary)
-                    .frame(width: 56, height: 56)
+                    .foregroundStyle(.white)
+                    .frame(width: 60, height: 60)
+                    .background(accent, in: Circle())
+                    .contentShape(Circle())
+                    .shadow(color: .black.opacity(0.18), radius: 10, y: 5)
             }
             .buttonStyle(.plain)
-            .glassEffect(.regular.interactive(), in: .circle)
         } else {
             Button {
                 showComposeSheet = true
@@ -605,8 +627,9 @@ private extension ClubDetailView {
                     .aspectRatio(contentMode: .fit)
                     .frame(width: 22, height: 22)
                     .foregroundStyle(.white)
-                    .frame(width: 56, height: 56)
-                    .background(Color.nook.clubDetailJoinedButton, in: Circle())
+                    .frame(width: 60, height: 60)
+                    .background(accent, in: Circle())
+                    .contentShape(Circle())
                     .shadow(color: .black.opacity(0.1), radius: 7.5, y: 5)
                     .shadow(color: .black.opacity(0.1), radius: 3, y: -2)
             }
@@ -697,7 +720,7 @@ private extension ClubDetailView {
             .frame(height: 36)
             .background(
                 Capsule()
-                    .fill(isJoined ? Color.nook.clubDetailJoinedButton : .clear)
+                    .fill(isJoined ? accent : .clear)
             )
             .overlay(
                 Capsule()
@@ -769,7 +792,7 @@ private extension ClubDetailView {
                 .frame(height: 38)
                 .background(
                     Capsule()
-                        .fill(isSelected ? Color.nook.clubDetailJoinedButton : .clear)
+                        .fill(isSelected ? accent : .clear)
                 )
                 .overlay(
                     Capsule()
@@ -813,34 +836,50 @@ private extension ClubDetailView {
 // MARK: - Posts Tab
 
 private extension ClubDetailView {
-    /// Real posts (or mock data when rendered in a preview without a view model).
-    var displayPosts: [ClubPost] {
-        guard let vm = detailVM else { return Self.mockPosts }
-        return vm.feedPosts.map { ClubPost(from: $0, isLiked: vm.isPostLiked($0.id)) }
+    /// Build a navigable display post carrying the club's accent theme.
+    func displayPost(_ model: ClubPostModel) -> ClubPost {
+        ClubPost(from: model, isLiked: detailVM?.isPostLiked(model.id) ?? false, themeHex: club.themeHex)
     }
 
-    var filteredPosts: [ClubPost] {
-        if searchText.isEmpty { return displayPosts }
-        return displayPosts.filter {
-            $0.body.localizedCaseInsensitiveContains(searchText) ||
-            $0.authorName.localizedCaseInsensitiveContains(searchText)
-        }
+    /// Pinned posts shown first (full cards with a badge).
+    var pinnedDisplayPosts: [ClubPost] {
+        (detailVM?.pinnedPosts ?? []).map { displayPost($0) }
     }
+
+    /// Real feed posts (or mock data when rendered in a preview without a view model).
+    var displayPosts: [ClubPost] {
+        guard let vm = detailVM else { return Self.mockPosts }
+        return vm.feedPosts.map { displayPost($0) }
+    }
+
+    func matchesSearch(_ post: ClubPost) -> Bool {
+        searchText.isEmpty ||
+        post.body.localizedCaseInsensitiveContains(searchText) ||
+        post.authorName.localizedCaseInsensitiveContains(searchText)
+    }
+
+    var filteredPinned: [ClubPost] { pinnedDisplayPosts.filter(matchesSearch) }
+    var filteredPosts: [ClubPost] { displayPosts.filter(matchesSearch) }
 
     var postsTab: some View {
         VStack(spacing: 16) {
-            if !isSearchActive {
+            if !isSearchActive && isMemberNow {
                 composeBar
                     .padding(.top, 16)
-
-                pinnedSection
             }
 
             if let vm = detailVM, vm.isLoadingPosts, vm.posts.isEmpty {
                 ProgressView()
                     .frame(maxWidth: .infinity, minHeight: 160)
-            } else if filteredPosts.isEmpty {
+            } else if filteredPinned.isEmpty && filteredPosts.isEmpty {
                 emptyPostsState
+            }
+
+            ForEach(filteredPinned) { post in
+                NavigationLink(value: post) {
+                    postCard(post)
+                }
+                .buttonStyle(.plain)
             }
 
             ForEach(filteredPosts) { post in
@@ -853,20 +892,6 @@ private extension ClubDetailView {
         .padding(.horizontal, 16)
         .padding(.top, isSearchActive ? 16 : 0)
         .padding(.bottom, 100)
-    }
-
-    @ViewBuilder
-    var pinnedSection: some View {
-        if let vm = detailVM {
-            if let pinned = vm.pinnedPost {
-                NavigationLink(value: ClubPost(from: pinned, isLiked: vm.isPostLiked(pinned.id))) {
-                    pinnedCard(from: pinned)
-                }
-                .buttonStyle(.plain)
-            }
-        } else if let pinned = Self.mockPinnedDiscussion {
-            pinnedCard(pinned)
-        }
     }
 
     @ViewBuilder
@@ -1037,7 +1062,25 @@ private extension ClubDetailView {
 private extension ClubDetailView {
     func postCard(_ post: ClubPost) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Header: avatar + name + time
+            // Pinned badge
+            if post.isPinned {
+                HStack(spacing: 6) {
+                    Image("push-pin-fill")
+                        .renderingMode(.template)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 12, height: 12)
+                        .foregroundStyle(accent)
+                    Text("PINNED")
+                        .font(NookFont.captionBold)
+                        .tracking(0.3)
+                        .foregroundStyle(accent)
+                }
+                .padding(.top, 14)
+                .padding(.horizontal, 17)
+            }
+
+            // Header: avatar + name + time + menu
             HStack(spacing: 12) {
                 ClubAvatarView(url: post.authorAvatarURL, size: 40)
 
@@ -1052,8 +1095,10 @@ private extension ClubDetailView {
                 }
 
                 Spacer()
+
+                postMenu(post)
             }
-            .padding(.top, 17)
+            .padding(.top, post.isPinned ? 8 : 17)
             .padding(.horizontal, 17)
 
             // Post body
@@ -1063,7 +1108,7 @@ private extension ClubDetailView {
 
             // Poll (optional)
             if let pollModel = post.pollModel {
-                ClubPollVoteView(poll: pollModel)
+                ClubPollVoteView(poll: pollModel, accent: accent)
                     .padding(.top, 12)
                     .padding(.horizontal, 17)
             } else if let poll = post.poll {
@@ -1096,6 +1141,42 @@ private extension ClubDetailView {
         )
     }
 
+    /// Per-post overflow menu: pin/unpin (moderators) and delete (author or moderator).
+    @ViewBuilder
+    func postMenu(_ post: ClubPost) -> some View {
+        let canModerate = detailVM?.canModerate ?? false
+        let canDelete = detailVM?.canDeletePost(authorId: post.userId) ?? false
+
+        if let dbId = post.dbId, canModerate || canDelete {
+            Menu {
+                if canModerate {
+                    Button {
+                        detailVM?.togglePin(postId: dbId)
+                    } label: {
+                        Label(post.isPinned ? "Unpin" : "Pin to club", image: "push-pin-fill")
+                    }
+                }
+                if canDelete {
+                    Button(role: .destructive) {
+                        detailVM?.deletePost(postId: dbId)
+                    } label: {
+                        Label("Delete Post", image: "trash")
+                    }
+                }
+            } label: {
+                Image("dots-three-bold")
+                    .renderingMode(.template)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 18, height: 18)
+                    .foregroundStyle(Color.nook.clubDetailMeta)
+                    .frame(width: 32, height: 32)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
     func postBodyText(_ post: ClubPost) -> some View {
         Group {
             if post.boldRanges.isEmpty {
@@ -1124,7 +1205,7 @@ private extension ClubDetailView {
                 }
                 result = result + Text(boldText)
                     .font(NookFont.labelBoldSmall)
-                    .foregroundColor(Color.nook.clubDetailJoinedButton)
+                    .foregroundColor(accent)
                 remaining = String(remaining[range.upperBound...])
             }
         }
@@ -1297,7 +1378,7 @@ private extension ClubDetailView {
 private extension ClubDetailView {
     var pollPosts: [ClubPost] {
         guard let vm = detailVM else { return Self.mockPollPosts }
-        return vm.pollPosts.map { ClubPost(from: $0, isLiked: vm.isPostLiked($0.id)) }
+        return vm.pollPosts.map { displayPost($0) }
     }
 
     var pollsTab: some View {
@@ -1327,7 +1408,7 @@ private extension ClubDetailView {
 private extension ClubDetailView {
     var mentionPosts: [ClubPost] {
         guard let vm = detailVM else { return Self.mockMentionPosts }
-        return vm.visibleMentions.map { ClubPost(from: $0, isLiked: vm.isPostLiked($0.id)) }
+        return vm.visibleMentions.map { displayPost($0) }
     }
 
     var mentionsTab: some View {
@@ -1381,20 +1462,20 @@ private extension ClubDetailView {
 
                 Spacer()
 
-                Button {
-                    showInviteSheet = true
-                } label: {
-                    Text("Invite People")
-                        .font(NookFont.labelBoldSmall)
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 16)
-                        .frame(height: 34)
-                        .background(
-                            Capsule()
-                                .fill(Color.nook.clubDetailJoinedButton)
-                        )
+                // Only members can invite others.
+                if isMemberNow {
+                    Button {
+                        showInviteSheet = true
+                    } label: {
+                        Text("Invite People")
+                            .font(NookFont.labelBoldSmall)
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 16)
+                            .frame(height: 34)
+                            .background(Capsule().fill(accent))
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
             }
             .padding(.horizontal, 16)
             .padding(.top, 16)
@@ -1414,7 +1495,10 @@ private extension ClubDetailView {
     }
 
     func memberRow(_ member: ClubMemberRow) -> some View {
-        HStack(spacing: 12) {
+        let isOwnerRole = member.role == "owner"
+        let isAdminRole = member.role == "owner" || member.role == "admin"
+
+        return HStack(spacing: 12) {
             ClubAvatarView(
                 url: member.userProfile?.avatarUrl.flatMap { URL(string: $0) },
                 size: 40
@@ -1428,10 +1512,58 @@ private extension ClubDetailView {
 
             Text(Self.roleLabel(member.role))
                 .font(NookFont.captionSemiBold)
-                .foregroundStyle(Color.nook.clubDetailMeta)
+                .foregroundStyle(isAdminRole ? accent : Color.nook.clubDetailMeta)
+
+            memberManagementMenu(member, isOwnerRole: isOwnerRole)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
+    }
+
+    /// Owner/admin actions on a member row (promote/demote/remove), gated by viewer role.
+    @ViewBuilder
+    func memberManagementMenu(_ member: ClubMemberRow, isOwnerRole: Bool) -> some View {
+        let vm = detailVM
+        let viewerIsOwner = vm?.isOwner ?? false
+        let viewerIsAdmin = vm?.isOwnerOrAdmin ?? false
+        let isSelf = member.userId == vm?.currentUserId
+        // Can't manage the owner or yourself.
+        let canManage = !isOwnerRole && !isSelf && (viewerIsOwner || (viewerIsAdmin && member.role == "member"))
+
+        if canManage {
+            Menu {
+                if viewerIsOwner {
+                    if member.role == "admin" {
+                        Button {
+                            vm?.setMemberRole(userId: member.userId, role: "member")
+                        } label: {
+                            Label("Remove Admin", image: "star")
+                        }
+                    } else {
+                        Button {
+                            vm?.setMemberRole(userId: member.userId, role: "admin")
+                        } label: {
+                            Label("Make Admin", image: "star-fill")
+                        }
+                    }
+                }
+                Button(role: .destructive) {
+                    vm?.removeMember(userId: member.userId)
+                } label: {
+                    Label("Remove from Club", image: "user-minus")
+                }
+            } label: {
+                Image("dots-three-bold")
+                    .renderingMode(.template)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 16, height: 16)
+                    .foregroundStyle(Color.nook.clubDetailMeta)
+                    .frame(width: 28, height: 28)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        }
     }
 
     func mockMemberRow(_ member: ClubMember) -> some View {
@@ -1502,18 +1634,24 @@ struct ClubAvatarView: View {
 
 struct ClubPollVoteView: View {
     let poll: ClubPollModel
+    var accent: Color = Color.nook.clubDetailJoinedButton
     @State private var options: [ClubPollOptionModel]
     @State private var totalVotes: Int
     @State private var myVote: UUID?
+    @State private var didLoadVote = false
     @State private var isVoting = false
 
     private let service = ClubService()
 
-    init(poll: ClubPollModel) {
+    init(poll: ClubPollModel, accent: Color = Color.nook.clubDetailJoinedButton) {
         self.poll = poll
+        self.accent = accent
         self._options = State(initialValue: poll.options)
         self._totalVotes = State(initialValue: poll.totalVotes)
     }
+
+    /// Once you've voted (or the poll closed), it's locked — results only.
+    private var isLocked: Bool { myVote != nil || poll.isClosed }
 
     var body: some View {
         VStack(spacing: 8) {
@@ -1524,7 +1662,7 @@ struct ClubPollVoteView: View {
                     optionRow(option)
                 }
                 .buttonStyle(.plain)
-                .disabled(poll.isClosed || isVoting)
+                .disabled(isLocked || isVoting || !didLoadVote)
             }
 
             HStack(spacing: 4) {
@@ -1536,7 +1674,7 @@ struct ClubPollVoteView: View {
                     .font(NookFont.caption)
                     .foregroundStyle(Color.nook.clubDetailMeta)
 
-                Text(poll.durationLabel)
+                Text(statusLabel)
                     .font(NookFont.caption)
                     .foregroundStyle(Color.nook.clubDetailMeta)
             }
@@ -1545,11 +1683,19 @@ struct ClubPollVoteView: View {
         }
         .task {
             myVote = try? await service.getMyVote(pollId: poll.id)
+            didLoadVote = true
         }
     }
 
+    private var statusLabel: String {
+        if poll.isClosed { return "Final results" }
+        if myVote != nil { return "You voted · \(poll.durationLabel)" }
+        return poll.durationLabel
+    }
+
     private func optionRow(_ option: ClubPollOptionModel) -> some View {
-        let percentage = totalVotes > 0 ? Double(option.votesCount) / Double(totalVotes) : 0
+        // Show percentages only after the user has voted or the poll closed.
+        let percentage = (isLocked && totalVotes > 0) ? Double(option.votesCount) / Double(totalVotes) : 0
         let isMine = myVote == option.id
 
         return GeometryReader { geo in
@@ -1558,7 +1704,7 @@ struct ClubPollVoteView: View {
                     .fill(Color.nook.clubDetailPollBar)
 
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(Color.nook.clubDetailPollBarFill)
+                    .fill(isMine ? accent.opacity(0.25) : Color.nook.clubDetailPollBarFill)
                     .frame(width: max(geo.size.width * percentage, 0))
 
                 HStack(spacing: 6) {
@@ -1568,7 +1714,7 @@ struct ClubPollVoteView: View {
                             .resizable()
                             .aspectRatio(contentMode: .fit)
                             .frame(width: 12, height: 12)
-                            .foregroundStyle(Color.nook.clubDetailJoinedButton)
+                            .foregroundStyle(accent)
                     }
 
                     Text(option.text)
@@ -1577,38 +1723,55 @@ struct ClubPollVoteView: View {
 
                     Spacer()
 
-                    Text("\(Int(percentage * 100))%")
-                        .font(NookFont.captionBold)
-                        .foregroundStyle(Color.nook.clubDetailMeta)
+                    if isLocked {
+                        Text("\(Int(percentage * 100))%")
+                            .font(NookFont.captionBold)
+                            .foregroundStyle(Color.nook.clubDetailMeta)
+                    }
                 }
                 .padding(.horizontal, 14)
             }
+            .overlay(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .strokeBorder(isMine ? accent : Color.clear, lineWidth: 1.5)
+            )
         }
         .frame(height: 40)
     }
 
     private func vote(for option: ClubPollOptionModel) {
-        guard !poll.isClosed, myVote != option.id, !isVoting else { return }
+        // Votes are final: only allow when not already voted and not closed.
+        guard didLoadVote, !isLocked, !isVoting else { return }
         isVoting = true
 
         let generator = UIImpactFeedbackGenerator(style: .light)
         generator.impactOccurred()
 
-        // Optimistically move the vote.
-        let previousVote = myVote
         withAnimation(.easeOut(duration: 0.25)) {
             options = options.map { opt in
-                var votes = opt.votesCount
-                if opt.id == option.id { votes += 1 }
-                if opt.id == previousVote { votes = max(votes - 1, 0) }
+                let votes = opt.id == option.id ? opt.votesCount + 1 : opt.votesCount
                 return ClubPollOptionModel(id: opt.id, text: opt.text, votesCount: votes)
             }
-            if previousVote == nil { totalVotes += 1 }
+            totalVotes += 1
             myVote = option.id
         }
 
         Task {
-            try? await service.voteOnPoll(pollId: poll.id, optionId: option.id)
+            do {
+                try await service.voteOnPoll(pollId: poll.id, optionId: option.id)
+            } catch {
+                // Revert on failure (e.g. already voted on another device).
+                await MainActor.run {
+                    withAnimation {
+                        options = options.map { opt in
+                            let votes = opt.id == option.id ? max(opt.votesCount - 1, 0) : opt.votesCount
+                            return ClubPollOptionModel(id: opt.id, text: opt.text, votesCount: votes)
+                        }
+                        totalVotes = max(totalVotes - 1, 0)
+                        myVote = nil
+                    }
+                }
+            }
             await MainActor.run { isVoting = false }
         }
     }

@@ -743,12 +743,14 @@ struct CreateClubSheet: View {
 
                 let bannerData = bannerImage?.jpegData(compressionQuality: 0.8)
                 let iconData = iconImage?.jpegData(compressionQuality: 0.8)
+                let themeHex = String(format: "%06X", selectedThemeColor.hex)
 
                 _ = try await clubService.createClub(
                     name: name.trimmingCharacters(in: .whitespacesAndNewlines),
                     description: clubDescription.isEmpty ? nil : clubDescription,
                     category: categoryValue,
                     privacy: privacyValue,
+                    themeColor: themeHex,
                     bannerData: bannerData,
                     iconData: iconData
                 )

@@ -11,6 +11,7 @@ struct ClubRow: Codable, Sendable {
     let privacy: String
     let bannerUrl: String?
     let iconUrl: String?
+    let themeColor: String?
     let memberCount: Int
     let createdAt: Date
     let updatedAt: Date
@@ -24,6 +25,7 @@ struct ClubRow: Codable, Sendable {
         case privacy
         case bannerUrl = "banner_url"
         case iconUrl = "icon_url"
+        case themeColor = "theme_color"
         case memberCount = "member_count"
         case createdAt = "created_at"
         case updatedAt = "updated_at"
