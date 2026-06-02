@@ -850,18 +850,18 @@ private struct PostDetailTopBar: ViewModifier {
             Menu {
                 if canModerate {
                     Button(action: onTogglePin) {
-                        Label(isPinned ? "Unpin" : "Pin to club", image: "push-pin-fill")
+                        Label(isPinned ? "Unpin" : "Pin to club", image: "push-pin")
                     }
                 }
                 Button(role: .destructive, action: onReport) {
-                    Label { Text("Report").font(.subheadline) } icon: { Image("flag").renderingMode(.template) }
+                    Label("Report", image: "flag")
                 }
                 Button(action: onBlock) {
-                    Label { Text("Block user").font(.subheadline) } icon: { Image("user-minus").renderingMode(.template) }
+                    Label("Block user", image: "user-minus")
                 }
                 if canDelete {
                     Button(role: .destructive, action: onDelete) {
-                        Label { Text("Delete post").font(.subheadline) } icon: { Image("trash").renderingMode(.template) }
+                        Label("Delete post", image: "trash")
                     }
                 }
             } label: {

@@ -16,7 +16,10 @@ struct ComposePostView: View {
     @State private var isPosting = false
     @State private var showPoll = false
     @State private var pollOptions: [String] = ["", ""]
+    @State private var draftSaved = false
     @FocusState private var isBodyFocused: Bool
+
+    private var draftKey: String { "club-post-draft-\(clubId?.uuidString ?? "preview")" }
     @FocusState private var focusedPollOption: Int?
 
     private var canPost: Bool {
@@ -36,9 +39,13 @@ struct ComposePostView: View {
             .background(Color.nook.clubDetailBackground)
             .navigationBarHidden(true)
             .onAppear {
+                restoreDraftIfNeeded()
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                     isBodyFocused = true
                 }
+            }
+            .onChange(of: postBody) { _, _ in
+                if draftSaved { draftSaved = false }
             }
             .photosPicker(
                 isPresented: $showPhotoPicker,
@@ -266,6 +273,55 @@ private extension ComposePostView {
     }
 }
 
+// MARK: - Toolbar helpers
+
+private extension ComposePostView {
+    func toolbarIconButton(_ icon: String, active: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(icon)
+                .renderingMode(.template)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 22, height: 22)
+                .foregroundStyle(active ? accent : Color.nook.clubDetailTitle)
+                .frame(width: 32, height: 32)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// Insert an "@" at the end of the body to start a mention.
+    func insertMention() {
+        if !postBody.isEmpty && !postBody.hasSuffix(" ") && !postBody.hasSuffix("\n") {
+            postBody += " "
+        }
+        postBody += "@"
+        isBodyFocused = true
+    }
+
+    /// Save the current text as a draft for this club (restored next time).
+    func saveDraft() {
+        let generator = UINotificationFeedbackGenerator()
+        let trimmed = postBody.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty {
+            UserDefaults.standard.removeObject(forKey: draftKey)
+        } else {
+            UserDefaults.standard.set(postBody, forKey: draftKey)
+        }
+        generator.notificationOccurred(.success)
+        withAnimation(.easeOut(duration: 0.2)) { draftSaved = true }
+    }
+
+    func restoreDraftIfNeeded() {
+        guard postBody.isEmpty, let saved = UserDefaults.standard.string(forKey: draftKey), !saved.isEmpty else { return }
+        postBody = saved
+    }
+
+    func clearDraft() {
+        UserDefaults.standard.removeObject(forKey: draftKey)
+    }
+}
+
 // MARK: - Bottom Toolbar
 
 private extension ComposePostView {
@@ -275,7 +331,8 @@ private extension ComposePostView {
                 .fill(Color.nook.detailTabBorder)
                 .frame(height: 1)
 
-            HStack(spacing: 16) {
+            HStack(spacing: 18) {
+                // Photo
                 Button {
                     showPhotoPicker = true
                 } label: {
@@ -296,19 +353,23 @@ private extension ComposePostView {
                 }
                 .buttonStyle(.plain)
 
-                Button {
+                // Poll
+                toolbarIconButton("chart-bar", active: showPoll) {
                     withAnimation(.easeOut(duration: 0.2)) {
                         showPoll.toggle()
-                        if showPoll {
-                            pollOptions = ["", ""]
-                        }
+                        if showPoll { pollOptions = ["", ""] }
                     }
-                } label: {
-                    Image(systemName: "chart.bar.xaxis")
-                        .font(.system(size: 18))
-                        .foregroundStyle(showPoll ? accent : Color.nook.clubDetailTitle)
                 }
-                .buttonStyle(.plain)
+
+                // Mention
+                toolbarIconButton("at", active: false) {
+                    insertMention()
+                }
+
+                // Save draft
+                toolbarIconButton("bookmark", active: draftSaved) {
+                    saveDraft()
+                }
 
                 Spacer()
 
@@ -484,6 +545,7 @@ private extension ComposePostView {
                 generator.notificationOccurred(.success)
 
                 await MainActor.run {
+                    clearDraft()
                     dismiss()
                 }
             } catch {

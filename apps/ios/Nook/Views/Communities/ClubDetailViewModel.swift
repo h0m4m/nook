@@ -34,9 +34,15 @@ final class ClubDetailViewModel {
         role == "owner" || role == "admin"
     }
 
-    /// Accent color for this club, parsed from the stored theme hex.
+    /// Accent color: the explicit theme color, else the club's category color.
     var accentColor: Color {
-        ClubItem.color(fromHex: ClubItem.parseHex(club?.themeColor)) ?? Color.nook.clubDetailJoinedButton
+        if let hex = ClubItem.parseHex(club?.themeColor) {
+            return Color(hex: hex)
+        }
+        if let category = club?.category {
+            return Color(hex: ClubCategory.from(dbValue: category).accentHex)
+        }
+        return Color.nook.clubDetailJoinedButton
     }
 
     /// Can the current user moderate (pin / delete any post)?

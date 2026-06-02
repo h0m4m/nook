@@ -43,6 +43,18 @@ enum ClubCategory: CaseIterable, Identifiable {
         }
     }
 
+    /// Hex used as the club accent when no explicit theme color is set.
+    var accentHex: UInt {
+        switch self {
+        case .movies: 0xE57373
+        case .tvShows: 0x64B5F6
+        case .anime: 0xBA68C8
+        case .manga: 0x66BB6A
+        case .books: 0xD4A373
+        case .games: 0xFFA726
+        }
+    }
+
     var iconName: String {
         switch self {
         case .movies: "reel"
@@ -111,9 +123,14 @@ struct ClubItem: Identifiable, Hashable {
         hasher.combine(id)
     }
 
+    /// Resolved accent hex — the explicit theme, else the category color.
+    var resolvedAccentHex: UInt {
+        themeHex ?? category.accentHex
+    }
+
     /// Solid accent used for buttons, tabs and other primary surfaces.
     var accentColor: Color {
-        ClubItem.color(fromHex: themeHex) ?? Color.nook.clubDetailJoinedButton
+        Color(hex: resolvedAccentHex)
     }
 
     /// Parse a stored 6-digit hex string (e.g. "BA68C8") into a UInt.

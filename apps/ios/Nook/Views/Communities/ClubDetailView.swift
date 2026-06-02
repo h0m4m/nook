@@ -186,6 +186,8 @@ struct ClubDetailView: View {
     @State private var searchText = ""
     @State private var isMuted = false
     @State private var showReportConfirmation = false
+    @State private var descFullHeight: CGFloat = 0
+    @State private var descClampedHeight: CGFloat = 0
     @State private var detailVM: ClubDetailViewModel?
     @FocusState private var isSearchFocused: Bool
 
@@ -737,16 +739,26 @@ private extension ClubDetailView {
 // MARK: - Club Description
 
 private extension ClubDetailView {
+    var descriptionText: String {
+        detailVM?.club?.description ?? club.description
+    }
+
+    /// True only when the (3-line clamped) description actually overflows.
+    var isDescriptionTruncated: Bool {
+        descFullHeight > descClampedHeight + 1
+    }
+
     var clubDescription: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(detailVM?.club?.description ?? club.description)
+            Text(descriptionText)
                 .font(NookFont.labelMediumSmall)
                 .foregroundStyle(Color.nook.clubDetailTitle)
                 .lineSpacing(5)
                 .lineLimit(isDescriptionExpanded ? nil : 3)
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .background(descriptionMeasurement)
 
-            if !isDescriptionExpanded {
+            if !isDescriptionExpanded && isDescriptionTruncated {
                 Button {
                     withAnimation(.easeOut(duration: 0.2)) {
                         isDescriptionExpanded = true
@@ -759,6 +771,33 @@ private extension ClubDetailView {
                 .buttonStyle(.plain)
             }
         }
+    }
+
+    /// Hidden probes: measure the full vs 3-line-clamped height of the description
+    /// so "Read more" only appears when the text is genuinely clipped.
+    var descriptionMeasurement: some View {
+        ZStack {
+            Text(descriptionText)
+                .font(NookFont.labelMediumSmall)
+                .lineSpacing(5)
+                .lineLimit(nil)
+                .fixedSize(horizontal: false, vertical: true)
+                .background(GeometryReader { g in
+                    Color.clear.onAppear { descFullHeight = g.size.height }
+                        .onChange(of: g.size.height) { _, h in descFullHeight = h }
+                })
+
+            Text(descriptionText)
+                .font(NookFont.labelMediumSmall)
+                .lineSpacing(5)
+                .lineLimit(3)
+                .fixedSize(horizontal: false, vertical: true)
+                .background(GeometryReader { g in
+                    Color.clear.onAppear { descClampedHeight = g.size.height }
+                        .onChange(of: g.size.height) { _, h in descClampedHeight = h }
+                })
+        }
+        .hidden()
     }
 }
 
@@ -838,12 +877,16 @@ private extension ClubDetailView {
 private extension ClubDetailView {
     /// Build a navigable display post carrying the club's accent theme.
     func displayPost(_ model: ClubPostModel) -> ClubPost {
-        ClubPost(from: model, isLiked: detailVM?.isPostLiked(model.id) ?? false, themeHex: club.themeHex)
+        ClubPost(from: model, isLiked: detailVM?.isPostLiked(model.id) ?? false, themeHex: club.resolvedAccentHex)
     }
 
-    /// Pinned posts shown first (full cards with a badge).
-    var pinnedDisplayPosts: [ClubPost] {
-        (detailVM?.pinnedPosts ?? []).map { displayPost($0) }
+    /// Pinned post models, search-filtered (rendered as compact highlight cards).
+    var pinnedModels: [ClubPostModel] {
+        (detailVM?.pinnedPosts ?? []).filter { model in
+            searchText.isEmpty ||
+            model.body.localizedCaseInsensitiveContains(searchText) ||
+            model.authorName.localizedCaseInsensitiveContains(searchText)
+        }
     }
 
     /// Real feed posts (or mock data when rendered in a preview without a view model).
@@ -858,7 +901,6 @@ private extension ClubDetailView {
         post.authorName.localizedCaseInsensitiveContains(searchText)
     }
 
-    var filteredPinned: [ClubPost] { pinnedDisplayPosts.filter(matchesSearch) }
     var filteredPosts: [ClubPost] { displayPosts.filter(matchesSearch) }
 
     var postsTab: some View {
@@ -871,17 +913,20 @@ private extension ClubDetailView {
             if let vm = detailVM, vm.isLoadingPosts, vm.posts.isEmpty {
                 ProgressView()
                     .frame(maxWidth: .infinity, minHeight: 160)
-            } else if filteredPinned.isEmpty && filteredPosts.isEmpty {
+            } else if pinnedModels.isEmpty && filteredPosts.isEmpty {
                 emptyPostsState
             }
 
-            ForEach(filteredPinned) { post in
-                NavigationLink(value: post) {
-                    postCard(post)
+            // Pinned posts — compact highlight cards
+            ForEach(pinnedModels, id: \.id) { model in
+                NavigationLink(value: displayPost(model)) {
+                    pinnedCard(from: model)
                 }
                 .buttonStyle(.plain)
+                .contextMenu { pinnedContextMenu(model) }
             }
 
+            // Regular feed
             ForEach(filteredPosts) { post in
                 NavigationLink(value: post) {
                     postCard(post)
@@ -892,6 +937,25 @@ private extension ClubDetailView {
         .padding(.horizontal, 16)
         .padding(.top, isSearchActive ? 16 : 0)
         .padding(.bottom, 100)
+    }
+
+    /// Long-press actions on a pinned card (moderators).
+    @ViewBuilder
+    func pinnedContextMenu(_ model: ClubPostModel) -> some View {
+        if detailVM?.canModerate == true {
+            Button {
+                detailVM?.togglePin(postId: model.id)
+            } label: {
+                Label("Unpin", image: "push-pin")
+            }
+        }
+        if detailVM?.canDeletePost(model) == true {
+            Button(role: .destructive) {
+                detailVM?.deletePost(postId: model.id)
+            } label: {
+                Label("Delete Post", image: "trash")
+            }
+        }
     }
 
     @ViewBuilder
@@ -1062,24 +1126,6 @@ private extension ClubDetailView {
 private extension ClubDetailView {
     func postCard(_ post: ClubPost) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Pinned badge
-            if post.isPinned {
-                HStack(spacing: 6) {
-                    Image("push-pin-fill")
-                        .renderingMode(.template)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: 12, height: 12)
-                        .foregroundStyle(accent)
-                    Text("PINNED")
-                        .font(NookFont.captionBold)
-                        .tracking(0.3)
-                        .foregroundStyle(accent)
-                }
-                .padding(.top, 14)
-                .padding(.horizontal, 17)
-            }
-
             // Header: avatar + name + time + menu
             HStack(spacing: 12) {
                 ClubAvatarView(url: post.authorAvatarURL, size: 40)
@@ -1098,7 +1144,7 @@ private extension ClubDetailView {
 
                 postMenu(post)
             }
-            .padding(.top, post.isPinned ? 8 : 17)
+            .padding(.top, 17)
             .padding(.horizontal, 17)
 
             // Post body
@@ -1153,7 +1199,7 @@ private extension ClubDetailView {
                     Button {
                         detailVM?.togglePin(postId: dbId)
                     } label: {
-                        Label(post.isPinned ? "Unpin" : "Pin to club", image: "push-pin-fill")
+                        Label(post.isPinned ? "Unpin" : "Pin to club", image: "push-pin")
                     }
                 }
                 if canDelete {
