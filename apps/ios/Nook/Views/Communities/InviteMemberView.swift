@@ -165,7 +165,7 @@ private extension InviteMemberView {
                 emptyState
             } else {
                 LazyVStack(spacing: 0) {
-                    ForEach(results) { user in
+                    ForEach(results, id: \.id) { user in
                         userRow(user)
                     }
                 }
@@ -214,7 +214,7 @@ private extension InviteMemberView {
                 let generator = UIImpactFeedbackGenerator(style: .light)
                 generator.prepare()
                 withAnimation(.easeOut(duration: 0.2)) {
-                    invitedUsers.insert(user.id)
+                    _ = invitedUsers.insert(user.id)
                 }
                 generator.impactOccurred()
 
