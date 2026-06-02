@@ -441,16 +441,12 @@ struct LibraryView: View {
                 .padding(.top, 8)
                 .padding(.bottom, 16)
 
-            LazyVStack(spacing: 12) {
+            LazyVStack(spacing: 16) {
                 ForEach(viewModel.filteredNooks) { summary in
-                    NavigationLink(value: NookItem(from: summary)) {
-                        ProfileNookCard(
-                            title: summary.name,
-                            itemCount: summary.itemCount,
-                            likes: summary.likesCount,
-                            previewImageURLs: summary.previewImageURLs
-                        )
-                        .padding(.horizontal, 24)
+                    let item = NookItem(from: summary)
+                    NavigationLink(value: item) {
+                        NookCard(item: item, width: nil, showCurator: false)
+                            .padding(.horizontal, 24)
                     }
                     .buttonStyle(.plain)
                 }

@@ -181,8 +181,9 @@ struct PopularNooksSection: View {
 
 struct NookCard: View {
     let item: NookItem
+    var width: CGFloat? = 300
+    var showCurator: Bool = true
 
-    private let cardWidth: CGFloat = 300
     private let posterWidth: CGFloat = 60
     private let posterHeight: CGFloat = 90
 
@@ -198,19 +199,21 @@ struct NookCard: View {
                     .foregroundStyle(Color.nook.cardTitle)
                     .frame(maxWidth: .infinity, alignment: .leading)
 
-                HStack(spacing: 8) {
-                    curatorAvatar
+                if showCurator {
+                    HStack(spacing: 8) {
+                        curatorAvatar
 
-                    Text("CURATED BY \(item.curatorName.uppercased())")
-                        .font(.custom("PlusJakartaSans-Medium", size: 10))
-                        .tracking(0.5)
-                        .foregroundStyle(Color.nook.cardSubtitle)
-                        .lineLimit(1)
+                        Text("CURATED BY \(item.curatorName.uppercased())")
+                            .font(.custom("PlusJakartaSans-Medium", size: 10))
+                            .tracking(0.5)
+                            .foregroundStyle(Color.nook.cardSubtitle)
+                            .lineLimit(1)
+                    }
                 }
             }
         }
         .padding(16)
-        .frame(width: cardWidth, alignment: .leading)
+        .frame(width: width, alignment: .leading)
         .background(Color.nook.card)
         .clipShape(RoundedRectangle(cornerRadius: NookRadii.lg, style: .continuous))
         .overlay(
@@ -220,9 +223,11 @@ struct NookCard: View {
     }
 
     // Posters of the media inside the nook, lined up like a shelf.
+    // If there are more than 4, the 4th shows a "+N" overflow badge.
     private var posterShelf: some View {
-        HStack(spacing: 8) {
-            let posters = Array(item.mediaItems.prefix(4))
+        let posters = Array(item.mediaItems.prefix(4))
+        let overflow = item.mediaItems.count - posters.count
+        return HStack(spacing: 8) {
             if posters.isEmpty {
                 ForEach(0..<4, id: \.self) { _ in
                     RoundedRectangle(cornerRadius: 10, style: .continuous)
@@ -230,7 +235,7 @@ struct NookCard: View {
                         .frame(width: posterWidth, height: posterHeight)
                 }
             } else {
-                ForEach(posters) { media in
+                ForEach(Array(posters.enumerated()), id: \.offset) { index, media in
                     MediaPosterImage(
                         url: media.imageURL,
                         width: posterWidth,
@@ -238,6 +243,17 @@ struct NookCard: View {
                         cornerRadius: 10,
                         fallbackColor: Color.nook.searchShimmerBase
                     )
+                    .overlay {
+                        if index == 3 && overflow > 0 {
+                            ZStack {
+                                Color.black.opacity(0.55)
+                                Text("+\(overflow)")
+                                    .font(.custom("Outfit-Bold", size: 20))
+                                    .foregroundStyle(.white)
+                            }
+                            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        }
+                    }
                 }
                 Spacer(minLength: 0)
             }

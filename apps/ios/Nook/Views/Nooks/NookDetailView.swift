@@ -141,38 +141,39 @@ struct NookDetailView: View {
     // MARK: - Header Info (no banner — nooks have no cover image)
 
     private var headerInfo: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text(nook.title)
-                .font(.custom("Outfit-Bold", size: 26))
-                .lineSpacing(2)
-                .foregroundStyle(Color.nook.detailTitle)
-
+        VStack(alignment: .leading, spacing: 16) {
+            // Creator row up top, like a review header
             if let profile = ownerProfile {
                 NavigationLink(value: profile) { authorRow }
                     .buttonStyle(.plain)
             } else {
                 authorRow
             }
+
+            Text(nook.title)
+                .font(.custom("Outfit-Bold", size: 26))
+                .lineSpacing(2)
+                .foregroundStyle(Color.nook.detailTitle)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 24)
-        .padding(.top, 12)
+        .padding(.top, 16)
         .padding(.bottom, 4)
     }
 
     private var authorRow: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 12) {
             authorAvatar
 
-            VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: 2) {
                 Text(nook.curatorName)
-                    .font(NookFont.captionSemiBold)
-                    .foregroundStyle(Color(hex: 0x1C1917))
+                    .font(NookFont.labelSmall)
+                    .foregroundStyle(Color.nook.detailTitle)
 
                 if let created = nook.createdAt {
                     Text("Published \(created.formatted(.dateTime.month(.abbreviated).day().year()))")
-                        .font(.custom("PlusJakartaSans-Regular", size: 10))
-                        .foregroundStyle(Color(hex: 0x78716C))
+                        .font(NookFont.caption)
+                        .foregroundStyle(Color.nook.detailMeta)
                 }
             }
         }
@@ -218,13 +219,8 @@ struct NookDetailView: View {
                 avatarFallback
             }
         }
-        .frame(width: 32, height: 32)
+        .frame(width: 44, height: 44)
         .clipShape(Circle())
-        .overlay(
-            Circle()
-                .stroke(Color(hex: 0xFDFCF9), lineWidth: 2)
-        )
-        .shadow(color: .black.opacity(0.1), radius: 3, y: 1)
     }
 
     private var avatarFallback: some View {
@@ -232,7 +228,7 @@ struct NookDetailView: View {
             .fill(Color.nook.secondary)
             .overlay(
                 Image(systemName: "person.fill")
-                    .font(.system(size: 13))
+                    .font(.system(size: 18))
                     .foregroundStyle(Color.nook.mutedForeground)
             )
     }
