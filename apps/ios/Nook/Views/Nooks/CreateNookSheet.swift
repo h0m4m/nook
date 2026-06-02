@@ -676,8 +676,14 @@ private struct AddMediaToNookSheet: View {
     @State private var recentLibrary: [MediaSearchResult] = []
     @FocusState private var isSearchFocused: Bool
 
-    private var addedIDs: Set<UUID> {
-        Set(mediaItems.map(\.id))
+    // Identify added media by stable source identity, not the per-instance
+    // UUID (which changes on every search / list rebuild).
+    private var addedKeys: Set<String> {
+        Set(mediaItems.map(Self.mediaKey))
+    }
+
+    private static func mediaKey(_ item: MediaSearchResult) -> String {
+        "\(item.source)|\(item.mediaId)"
     }
 
     var body: some View {
@@ -975,7 +981,7 @@ private struct AddMediaToNookSheet: View {
     // MARK: - Media Row
 
     private func nookMediaRow(_ item: MediaSearchResult) -> some View {
-        let isAdded = addedIDs.contains(item.id)
+        let isAdded = addedKeys.contains(Self.mediaKey(item))
         let category = SearchMediaCategory.from(apiMediaType: item.mediaType)
 
         return HStack(spacing: 16) {
@@ -1100,7 +1106,8 @@ private struct AddMediaToNookSheet: View {
 
         withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
             if isAdded {
-                mediaItems.removeAll { $0.id == item.id }
+                let key = Self.mediaKey(item)
+                mediaItems.removeAll { Self.mediaKey($0) == key }
             } else if mediaItems.count < 10 {
                 mediaItems.append(item)
             }

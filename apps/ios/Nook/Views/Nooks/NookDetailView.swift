@@ -76,31 +76,20 @@ struct NookDetailView: View {
     }
 
     var body: some View {
-        ZStack(alignment: .top) {
-            VStack(spacing: 0) {
-                ScrollView(showsIndicators: false) {
-                    VStack(spacing: 0) {
-                        heroSection
-                        contentSection
-                    }
+        VStack(spacing: 0) {
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 0) {
+                    coverSection
+                    headerInfo
+                    contentSection
                 }
-                .ignoresSafeArea(edges: .top)
-                .scrollDismissesKeyboard(.interactively)
-
-                replyBar
             }
+            .scrollDismissesKeyboard(.interactively)
 
-            navigationBar
+            replyBar
         }
         .background(Color.nook.detailBackground.ignoresSafeArea())
-        .background(
-            VStack(spacing: 0) {
-                (nook.placeholderColor ?? Color.nook.foreground)
-                    .frame(height: 400)
-                Spacer(minLength: 0)
-            }
-            .ignoresSafeArea()
-        )
+        .modifier(NookDetailHeaderBar { headerBar })
         .navigationBarBackButtonHidden()
         .toolbar(.hidden, for: .navigationBar)
         .modifier(InteractivePopGesture())
@@ -150,72 +139,62 @@ struct NookDetailView: View {
         return "\(months / 12)y"
     }
 
-    // MARK: - Hero
+    // MARK: - Cover + Header Info
 
-    // Rectangular banner, matching the club detail banner (full-width × 192).
-    private let heroHeight: CGFloat = 192
-
-    private var heroSection: some View {
-        ZStack(alignment: .bottom) {
-            // Cover image
-            Group {
-                if let url = nook.imageURL {
-                    AsyncImage(url: url) { phase in
-                        switch phase {
-                        case .success(let image):
-                            image.resizable().scaledToFill()
-                        default:
-                            (nook.placeholderColor ?? Color.nook.foreground)
-                        }
-                    }
-                } else if let color = nook.placeholderColor {
-                    color
-                } else if !nook.imageName.isEmpty {
-                    Image(nook.imageName)
-                        .resizable()
-                        .scaledToFill()
-                } else {
-                    Color.nook.foreground
-                }
-            }
-            .frame(maxWidth: .infinity)
-            .frame(height: heroHeight)
-            .clipped()
-
-            // Gradient: fades to page bg at bottom, dark at top for nav buttons
-            LinearGradient(
-                stops: [
-                    .init(color: Color(hex: 0xFDFCF9), location: 0),
-                    .init(color: Color(hex: 0xFDFCF9).opacity(0.2), location: 0.5),
-                    .init(color: .black.opacity(0.3), location: 1.0),
-                ],
-                startPoint: .bottom,
-                endPoint: .top
+    // Rounded, inset cover image — rectangular (393:192), matching the club banner shape.
+    private var coverSection: some View {
+        Color.clear
+            .aspectRatio(393.0 / 192.0, contentMode: .fit)
+            .overlay { coverImage }
+            .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 24, style: .continuous)
+                    .strokeBorder(Color(hex: 0xE6E2E0), lineWidth: 1)
             )
-            .frame(height: heroHeight)
+            .padding(.horizontal, 20)
+            .padding(.top, 8)
+    }
 
-            // Content overlay at bottom
-            VStack(alignment: .leading, spacing: 10) {
-                // Title
-                Text(nook.title)
-                    .font(.custom("Outfit-Bold", size: 26))
-                    .lineSpacing(2)
-                    .lineLimit(2)
-                    .foregroundStyle(Color(hex: 0x1C1917))
-
-                // Author — tappable to open the curator's profile
-                if let profile = ownerProfile {
-                    NavigationLink(value: profile) { authorRow }
-                        .buttonStyle(.plain)
-                } else {
-                    authorRow
+    @ViewBuilder
+    private var coverImage: some View {
+        if let url = nook.imageURL {
+            AsyncImage(url: url) { phase in
+                switch phase {
+                case .success(let image):
+                    image.resizable().scaledToFill()
+                default:
+                    nook.placeholderColor ?? Color.nook.searchShimmerBase
                 }
             }
-            .padding(.horizontal, 24)
-            .padding(.bottom, 18)
-            .frame(maxWidth: .infinity, alignment: .leading)
+        } else if let color = nook.placeholderColor {
+            color
+        } else if !nook.imageName.isEmpty {
+            Image(nook.imageName)
+                .resizable()
+                .scaledToFill()
+        } else {
+            Color.nook.searchShimmerBase
         }
-        .frame(height: heroHeight)
+    }
+
+    private var headerInfo: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(nook.title)
+                .font(.custom("Outfit-Bold", size: 26))
+                .lineSpacing(2)
+                .foregroundStyle(Color.nook.detailTitle)
+
+            // Author — tappable to open the curator's profile
+            if let profile = ownerProfile {
+                NavigationLink(value: profile) { authorRow }
+                    .buttonStyle(.plain)
+            } else {
+                authorRow
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 24)
+        .padding(.top, 16)
     }
 
     private var authorRow: some View {
@@ -295,9 +274,9 @@ struct NookDetailView: View {
             )
     }
 
-    // MARK: - Navigation Bar
+    // MARK: - Header Bar (lives in the top safe area)
 
-    private var navigationBar: some View {
+    private var headerBar: some View {
         HStack(spacing: 8) {
             heroButton(icon: "caret-left-bold", action: { dismiss() })
 
@@ -308,7 +287,6 @@ struct NookDetailView: View {
             trailingButton
         }
         .padding(.horizontal, 16)
-        .padding(.top, 4)
     }
 
     @ViewBuilder
@@ -380,7 +358,7 @@ struct NookDetailView: View {
                 .resizable()
                 .aspectRatio(contentMode: .fit)
                 .frame(width: 20, height: 20)
-                .foregroundStyle(isHeartFilled ? Color.nook.clubDetailLikeActive : .white)
+                .foregroundStyle(isHeartFilled ? Color.nook.clubDetailLikeActive : .primary)
                 .frame(width: 40, height: 40)
                 .background(.ultraThinMaterial, in: Circle())
         }
@@ -1160,6 +1138,29 @@ struct NookDetailView: View {
             await MainActor.run {
                 NotificationCenter.default.post(name: .nooksDidChange, object: nil)
                 dismiss()
+            }
+        }
+    }
+}
+
+// MARK: - Header Bar (glass on iOS 26, solid fallback)
+
+private struct NookDetailHeaderBar<Bar: View>: ViewModifier {
+    @ViewBuilder var bar: () -> Bar
+
+    func body(content: Content) -> some View {
+        if #available(iOS 26, *) {
+            content.safeAreaBar(edge: .top, spacing: 0) {
+                bar()
+                    .padding(.top, 4)
+                    .padding(.bottom, 4)
+            }
+        } else {
+            content.safeAreaInset(edge: .top, spacing: 0) {
+                bar()
+                    .padding(.top, 4)
+                    .padding(.bottom, 4)
+                    .background(Color.nook.detailBackground)
             }
         }
     }
