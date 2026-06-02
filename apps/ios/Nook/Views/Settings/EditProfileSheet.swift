@@ -11,8 +11,7 @@ struct EditProfileSheet: View {
     @State private var bio = ""
     @State private var avatarURL: URL?
     @State private var avatarImage: UIImage?
-    @State private var rawPickedImage: UIImage?
-    @State private var showCropSheet = false
+    @State private var cropRequest: CropRequest?
     @State private var pickerSelection: [PhotosPickerItem] = []
     @State private var showPhotoPicker = false
     @State private var isSaving = false
@@ -109,25 +108,20 @@ struct EditProfileSheet: View {
                       let image = UIImage(data: data)
                 else { return }
                 await MainActor.run {
-                    rawPickedImage = image
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                        showCropSheet = true
+                    // Wait for the photo picker to finish dismissing, then present
+                    // the crop editor item-driven (avoids the blank-cover race).
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                        cropRequest = CropRequest(image: image, aspect: 1.0, shape: .circle) { cropped in
+                            withAnimation(.easeOut(duration: 0.2)) {
+                                avatarImage = cropped
+                            }
+                        }
                     }
                 }
             }
         }
-        .fullScreenCover(isPresented: $showCropSheet) {
-            if let rawPickedImage {
-                ImageCropView(
-                    image: rawPickedImage,
-                    cropAspect: 1.0,
-                    cropShape: .circle
-                ) { cropped in
-                    withAnimation(.easeOut(duration: 0.2)) {
-                        avatarImage = cropped
-                    }
-                }
-            }
+        .fullScreenCover(item: $cropRequest) { req in
+            ImageCropView(image: req.image, cropAspect: req.aspect, cropShape: req.shape, onCrop: req.onCrop)
         }
         .task {
             await loadProfile()

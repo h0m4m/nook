@@ -5,6 +5,18 @@ enum CropShape {
     case circle
 }
 
+/// An item-driven crop request. Presenting the crop editor via
+/// `.fullScreenCover(item:)` (instead of a bool + `if let`) avoids a race
+/// where the cover comes up before the picked image is set, and gives the
+/// cover stable identity so it lays out correctly.
+struct CropRequest: Identifiable {
+    let id = UUID()
+    let image: UIImage
+    let aspect: CGFloat
+    var shape: CropShape = .roundedRect(cornerRadius: 24)
+    let onCrop: (UIImage) -> Void
+}
+
 struct ImageCropView: View {
     let image: UIImage
     let cropAspect: CGFloat

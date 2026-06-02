@@ -73,15 +73,12 @@ struct CreateClubSheet: View {
     @State private var bannerImage: UIImage?
     @State private var bannerPickerSelection: [PhotosPickerItem] = []
     @State private var showBannerPicker = false
-    @State private var rawBannerImage: UIImage?
-    @State private var showBannerCrop = false
+    @State private var cropRequest: CropRequest?
 
     // Icon image
     @State private var iconImage: UIImage?
     @State private var iconPickerSelection: [PhotosPickerItem] = []
     @State private var showIconPicker = false
-    @State private var rawIconImage: UIImage?
-    @State private var showIconCrop = false
 
     private enum Field {
         case name, description
@@ -164,23 +161,8 @@ struct CreateClubSheet: View {
         .onChange(of: iconPickerSelection) { _, items in
             loadPickedIconImage(items)
         }
-        .fullScreenCover(isPresented: $showBannerCrop) {
-            if let rawBannerImage {
-                ImageCropView(image: rawBannerImage, cropAspect: bannerCropAspect) { cropped in
-                    withAnimation(.easeOut(duration: 0.2)) {
-                        bannerImage = cropped
-                    }
-                }
-            }
-        }
-        .fullScreenCover(isPresented: $showIconCrop) {
-            if let rawIconImage {
-                ImageCropView(image: rawIconImage, cropAspect: iconCropAspect, cropShape: .roundedRect(cornerRadius: 22)) { cropped in
-                    withAnimation(.easeOut(duration: 0.2)) {
-                        iconImage = cropped
-                    }
-                }
-            }
+        .fullScreenCover(item: $cropRequest) { req in
+            ImageCropView(image: req.image, cropAspect: req.aspect, cropShape: req.shape, onCrop: req.onCrop)
         }
         .onAppear {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
@@ -198,9 +180,11 @@ struct CreateClubSheet: View {
             guard let data = try? await item.loadTransferable(type: Data.self) else { return }
             let downsized = Self.downsample(data: data, maxWidth: 2000)
             await MainActor.run {
-                rawBannerImage = downsized
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    showBannerCrop = true
+                guard let downsized else { return }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                    cropRequest = CropRequest(image: downsized, aspect: bannerCropAspect) { cropped in
+                        withAnimation(.easeOut(duration: 0.2)) { bannerImage = cropped }
+                    }
                 }
             }
         }
@@ -213,9 +197,15 @@ struct CreateClubSheet: View {
             guard let data = try? await item.loadTransferable(type: Data.self) else { return }
             let downsized = Self.downsample(data: data, maxWidth: 2000)
             await MainActor.run {
-                rawIconImage = downsized
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    showIconCrop = true
+                guard let downsized else { return }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                    cropRequest = CropRequest(
+                        image: downsized,
+                        aspect: iconCropAspect,
+                        shape: .roundedRect(cornerRadius: 22)
+                    ) { cropped in
+                        withAnimation(.easeOut(duration: 0.2)) { iconImage = cropped }
+                    }
                 }
             }
         }

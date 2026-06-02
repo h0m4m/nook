@@ -13,7 +13,12 @@ final class StorageService: Sendable {
             .from("avatars")
             .getPublicURL(path: path)
 
-        return publicURL
+        // The path is fixed (upsert), so the URL is identical every upload and
+        // image caches would keep serving the stale avatar. Append a cache-busting
+        // version so the new image actually loads.
+        var components = URLComponents(url: publicURL, resolvingAgainstBaseURL: false)
+        components?.queryItems = [URLQueryItem(name: "v", value: String(Int(Date().timeIntervalSince1970)))]
+        return components?.url ?? publicURL
     }
 
     func uploadImage(bucket: String, userId: UUID, fileName: String, data: Data) async throws -> URL {
