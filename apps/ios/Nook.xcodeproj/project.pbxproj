@@ -40,7 +40,6 @@
 		8CEA40B67091D1F5FDF8B998 /* Club.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DA59C8C2D8D8491A2963765 /* Club.swift */; };
 		955936B2203D8BE8196F47CD /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 7DA5927064C06EEF957F7211 /* Assets.xcassets */; };
 		979677449BC14377E1F2FE90 /* CreateNookSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1C82AEE04D614B9BDA0C827 /* CreateNookSheet.swift */; };
-		5EDF4204765A2A3A7B2A0425 /* EditNookSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2801CFD8F87178C975EBD820 /* EditNookSheet.swift */; };
 		E3BADDBD4AE67464F8F7A50D /* DiscoverNooksView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4910E88B72D323133FFB0D7B /* DiscoverNooksView.swift */; };
 		B3A85DB0AF7A18610FC9B78F /* NookEditorShared.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C0FE1C3BE027DB6ADCFEB8A /* NookEditorShared.swift */; };
 		9824705C3F3D4A38D99A5158 /* PlusJakartaSans-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 36CCF438887FD12973FB2122 /* PlusJakartaSans-Bold.ttf */; };
@@ -160,7 +159,6 @@
 		CR3AT3CLUB123456789AB02 /* CreateClubSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateClubSheet.swift; sourceTree = "<group>"; };
 		D05C747B0FB995E02C6DAE54 /* MediaDetailViewModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MediaDetailViewModel.swift; sourceTree = "<group>"; };
 		D1C82AEE04D614B9BDA0C827 /* CreateNookSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateNookSheet.swift; sourceTree = "<group>"; };
-		2801CFD8F87178C975EBD820 /* EditNookSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditNookSheet.swift; sourceTree = "<group>"; };
 		4910E88B72D323133FFB0D7B /* DiscoverNooksView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscoverNooksView.swift; sourceTree = "<group>"; };
 		3C0FE1C3BE027DB6ADCFEB8A /* NookEditorShared.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NookEditorShared.swift; sourceTree = "<group>"; };
 		D5883C29336BCC3D35FC8074 /* MediaDetailRoute.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MediaDetailRoute.swift; sourceTree = "<group>"; };
@@ -323,7 +321,6 @@
 			children = (
 				D1C82AEE04D614B9BDA0C827 /* CreateNookSheet.swift */,
 				A7C606984A2F158496A5A281 /* NookDetailView.swift */,
-				2801CFD8F87178C975EBD820 /* EditNookSheet.swift */,
 				4910E88B72D323133FFB0D7B /* DiscoverNooksView.swift */,
 				3C0FE1C3BE027DB6ADCFEB8A /* NookEditorShared.swift */,
 			);
@@ -564,7 +561,6 @@
 				EBCA79A9A49144D5A443A16B /* SearchView.swift in Sources */,
 				979677449BC14377E1F2FE90 /* CreateNookSheet.swift in Sources */,
 				BEC6B7B185EF6DF92AD6BC51 /* NookDetailView.swift in Sources */,
-				5EDF4204765A2A3A7B2A0425 /* EditNookSheet.swift in Sources */,
 				E3BADDBD4AE67464F8F7A50D /* DiscoverNooksView.swift in Sources */,
 				B3A85DB0AF7A18610FC9B78F /* NookEditorShared.swift in Sources */,
 				62C7DDAA2D614FBF81CF7120 /* TrackMediaSheet.swift in Sources */,

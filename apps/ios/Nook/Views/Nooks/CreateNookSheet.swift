@@ -26,6 +26,8 @@ struct CreateNookSheet: View {
 
     private var canPublish: Bool {
         !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && !nookDescription.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && mediaItems.count >= 2
     }
 
     private let coverRadius: CGFloat = 32
@@ -109,7 +111,7 @@ struct CreateNookSheet: View {
             if let rawPickedImage {
                 ImageCropView(
                     image: rawPickedImage,
-                    cropAspect: 402.0 / 394.0
+                    cropAspect: 393.0 / 192.0
                 ) { cropped in
                     withAnimation(.easeOut(duration: 0.2)) {
                         coverImage = cropped
@@ -190,7 +192,7 @@ struct CreateNookSheet: View {
                 } else {
                     RoundedRectangle(cornerRadius: coverRadius, style: .continuous)
                         .fill(Color(hex: 0xF2EFEE).opacity(0.3))
-                        .aspectRatio(402.0 / 394.0, contentMode: .fit)
+                        .aspectRatio(393.0 / 192.0, contentMode: .fit)
                         .overlay(
                             RoundedRectangle(cornerRadius: coverRadius, style: .continuous)
                                 .strokeBorder(Color(hex: 0xE6E2E0), lineWidth: 1)
@@ -671,6 +673,7 @@ private struct AddMediaToNookSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var viewModel = SearchViewModel()
     @State private var userInterests: [SearchMediaCategory] = []
+    @State private var recentLibrary: [MediaSearchResult] = []
     @FocusState private var isSearchFocused: Bool
 
     private var addedIDs: Set<UUID> {
@@ -742,6 +745,7 @@ private struct AddMediaToNookSheet: View {
         }
         .task {
             await loadUserInterests()
+            await loadRecentLibrary()
         }
     }
 
@@ -878,12 +882,48 @@ private struct AddMediaToNookSheet: View {
 
     // MARK: - Content States
 
+    @ViewBuilder
     private var idleContent: some View {
-        SearchEmptyState(
-            icon: "magnifying-glass-bold",
-            title: "Search to add media",
-            subtitle: "Find movies, shows, anime, books, and manga to add to your nook"
-        )
+        if recentLibrary.isEmpty {
+            SearchEmptyState(
+                icon: "magnifying-glass-bold",
+                title: "Search to add media",
+                subtitle: "Find movies, shows, anime, books, and manga to add to your nook"
+            )
+        } else {
+            HStack(spacing: 0) {
+                sectionHeader("RECENTLY IN YOUR LIBRARY")
+                Spacer()
+            }
+
+            ForEach(Array(recentLibrary.enumerated()), id: \.element.id) { index, item in
+                nookMediaRow(item)
+                    .padding(.horizontal, 24)
+
+                if index < recentLibrary.count - 1 {
+                    Spacer().frame(height: 24)
+                }
+            }
+        }
+    }
+
+    private func loadRecentLibrary() async {
+        guard let userId = try? await supabase.auth.session.user.id else { return }
+        guard let items = try? await TrackingService().getLibrary(userId: userId) else { return }
+        recentLibrary = items
+            .sorted { $0.updatedAt > $1.updatedAt }
+            .prefix(20)
+            .map {
+                MediaSearchResult(
+                    mediaId: $0.sourceId,
+                    source: $0.source,
+                    mediaType: $0.mediaType,
+                    title: $0.title,
+                    imageURL: $0.imageURL,
+                    year: $0.year,
+                    score: $0.score
+                )
+            }
     }
 
     private var loadingContent: some View {

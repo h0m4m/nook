@@ -7,6 +7,7 @@ struct NookComment: Identifiable, Hashable {
     let dbId: UUID?
     let userId: UUID?
     let authorName: String
+    let authorAvatarURL: URL?
     let createdAt: Date?
     let body: String
     var likes: Int
@@ -18,6 +19,7 @@ struct NookComment: Identifiable, Hashable {
         dbId: UUID? = nil,
         userId: UUID? = nil,
         authorName: String,
+        authorAvatarURL: URL? = nil,
         createdAt: Date? = nil,
         body: String,
         likes: Int = 0,
@@ -28,6 +30,7 @@ struct NookComment: Identifiable, Hashable {
         self.dbId = dbId
         self.userId = userId
         self.authorName = authorName
+        self.authorAvatarURL = authorAvatarURL
         self.createdAt = createdAt
         self.body = body
         self.likes = likes
@@ -51,7 +54,6 @@ struct NookDetailView: View {
     @State private var expandedNoteID: UUID?
     @State private var sortOrder: CommentSort = .top
     @State private var currentUserId: UUID?
-    @State private var showEditSheet = false
     @State private var showDeleteConfirm = false
     @FocusState private var isCommentFocused: Bool
 
@@ -102,17 +104,6 @@ struct NookDetailView: View {
         .navigationBarBackButtonHidden()
         .toolbar(.hidden, for: .navigationBar)
         .modifier(InteractivePopGesture())
-        .sheet(isPresented: $showEditSheet) {
-            EditNookSheet(
-                nook: nook,
-                onSaved: { Task { await loadDetail() } },
-                onDeleted: { dismiss() }
-            )
-            .presentationDetents([.large])
-            .presentationDragIndicator(.hidden)
-            .presentationBackground(Color(hex: 0xFDFBF9))
-            .interactiveDismissDisabled()
-        }
         .confirmationDialog(
             "Delete this nook?",
             isPresented: $showDeleteConfirm,
@@ -161,7 +152,8 @@ struct NookDetailView: View {
 
     // MARK: - Hero
 
-    private let heroHeight: CGFloat = 394
+    // Rectangular banner, matching the club detail banner (full-width × 192).
+    private let heroHeight: CGFloat = 192
 
     private var heroSection: some View {
         ZStack(alignment: .bottom) {
@@ -203,35 +195,70 @@ struct NookDetailView: View {
             .frame(height: heroHeight)
 
             // Content overlay at bottom
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 10) {
                 // Title
                 Text(nook.title)
-                    .font(.custom("Outfit-Bold", size: 28))
+                    .font(.custom("Outfit-Bold", size: 26))
                     .lineSpacing(2)
+                    .lineLimit(2)
                     .foregroundStyle(Color(hex: 0x1C1917))
 
-                // Author
-                HStack(spacing: 10) {
-                    authorAvatar
-
-                    VStack(alignment: .leading, spacing: 0) {
-                        Text(nook.curatorName)
-                            .font(NookFont.captionSemiBold)
-                            .foregroundStyle(Color(hex: 0x1C1917))
-
-                        if let created = nook.createdAt {
-                            Text("Published \(created.formatted(.dateTime.month(.abbreviated).day().year()))")
-                                .font(.custom("PlusJakartaSans-Regular", size: 10))
-                                .foregroundStyle(Color(hex: 0x78716C))
-                        }
-                    }
+                // Author — tappable to open the curator's profile
+                if let profile = ownerProfile {
+                    NavigationLink(value: profile) { authorRow }
+                        .buttonStyle(.plain)
+                } else {
+                    authorRow
                 }
             }
             .padding(.horizontal, 24)
-            .padding(.bottom, 20)
+            .padding(.bottom, 18)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .frame(height: heroHeight)
+    }
+
+    private var authorRow: some View {
+        HStack(spacing: 10) {
+            authorAvatar
+
+            VStack(alignment: .leading, spacing: 0) {
+                Text(nook.curatorName)
+                    .font(NookFont.captionSemiBold)
+                    .foregroundStyle(Color(hex: 0x1C1917))
+
+                if let created = nook.createdAt {
+                    Text("Published \(created.formatted(.dateTime.month(.abbreviated).day().year()))")
+                        .font(.custom("PlusJakartaSans-Regular", size: 10))
+                        .foregroundStyle(Color(hex: 0x78716C))
+                }
+            }
+        }
+    }
+
+    /// Profile of the nook's curator, for navigation.
+    private var ownerProfile: UserProfile? {
+        guard let userId = nook.ownerUserId else { return nil }
+        return profile(userId: userId, name: nook.curatorName, avatar: nook.curatorAvatarURL)
+    }
+
+    private func profile(userId: UUID, name: String, avatar: URL?) -> UserProfile {
+        UserProfile(
+            id: userId.uuidString,
+            displayName: name,
+            username: "",
+            bio: "",
+            avatarURL: avatar,
+            followersCount: 0,
+            followingCount: 0,
+            trackedMedia: 0,
+            reviewsWritten: 0,
+            curatedNooks: 0,
+            clubs: 0,
+            tasteIdentity: [],
+            recentActivity: [],
+            isCurrentUser: userId == currentUserId
+        )
     }
 
     private var authorAvatar: some View {
@@ -288,12 +315,6 @@ struct NookDetailView: View {
     private var trailingButton: some View {
         if isOwner {
             heroMenu {
-                Button {
-                    showEditSheet = true
-                } label: {
-                    Label("Edit nook", systemImage: "pencil")
-                }
-
                 ShareLink(item: shareText) {
                     Label("Share", systemImage: "square.and.arrow.up")
                 }
@@ -777,6 +798,63 @@ struct NookDetailView: View {
         comment.replies.reduce(0) { $0 + 1 + totalReplyCount($1) }
     }
 
+    @ViewBuilder
+    private func commentAvatar(_ comment: NookComment, depth: Int) -> some View {
+        let size: CGFloat = depth == 0 ? 36 : 28
+        let avatar = Group {
+            if let url = comment.authorAvatarURL {
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case .success(let image): image.resizable().scaledToFill()
+                    default: commentAvatarFallback(depth: depth)
+                    }
+                }
+            } else {
+                commentAvatarFallback(depth: depth)
+            }
+        }
+        .frame(width: size, height: size)
+        .clipShape(Circle())
+
+        if let profile = userProfile(for: comment) {
+            NavigationLink(value: profile) { avatar }
+                .buttonStyle(.plain)
+        } else {
+            avatar
+        }
+    }
+
+    private func commentAvatarFallback(depth: Int) -> some View {
+        Circle()
+            .fill(Color.nook.secondary)
+            .overlay(
+                Image(systemName: "person.fill")
+                    .font(.system(size: depth == 0 ? 14 : 11))
+                    .foregroundStyle(Color.nook.mutedForeground)
+            )
+    }
+
+    @ViewBuilder
+    private func commentAuthorLink(_ comment: NookComment) -> some View {
+        if let profile = userProfile(for: comment) {
+            NavigationLink(value: profile) {
+                Text(comment.authorName)
+                    .font(NookFont.captionBold)
+                    .foregroundStyle(Color.nook.detailTitle)
+            }
+            .buttonStyle(.plain)
+        } else {
+            Text(comment.authorName)
+                .font(NookFont.captionBold)
+                .foregroundStyle(Color.nook.detailTitle)
+        }
+    }
+
+    private func userProfile(for comment: NookComment) -> UserProfile? {
+        guard let userId = comment.userId else { return nil }
+        return profile(userId: userId, name: comment.authorName, avatar: comment.authorAvatarURL)
+    }
+
     private func commentRow(_ comment: NookComment, depth: Int) -> some View {
         let indent = CGFloat(min(depth, Self.maxDepth)) * 24
         return HStack(alignment: .top, spacing: 10) {
@@ -786,20 +864,11 @@ struct NookDetailView: View {
                     .frame(width: 2)
             }
 
-            Circle()
-                .fill(Color.nook.secondary)
-                .frame(width: depth == 0 ? 36 : 28, height: depth == 0 ? 36 : 28)
-                .overlay(
-                    Image(systemName: "person.fill")
-                        .font(.system(size: depth == 0 ? 14 : 11))
-                        .foregroundStyle(Color.nook.mutedForeground)
-                )
+            commentAvatar(comment, depth: depth)
 
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 6) {
-                    Text(comment.authorName)
-                        .font(NookFont.captionBold)
-                        .foregroundStyle(Color.nook.detailTitle)
+                    commentAuthorLink(comment)
 
                     if let date = comment.createdAt {
                         Text(relativeTime(from: date))
@@ -1020,6 +1089,7 @@ struct NookDetailView: View {
                 dbId: c.id,
                 userId: c.userId,
                 authorName: c.authorName,
+                authorAvatarURL: c.authorAvatarURL,
                 createdAt: c.createdAt,
                 body: c.body,
                 likes: c.likesCount,
