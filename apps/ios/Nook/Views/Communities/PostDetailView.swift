@@ -3,8 +3,11 @@ import SwiftUI
 // MARK: - Comment Model
 
 struct PostComment: Identifiable {
-    let id = UUID()
+    let id: UUID
+    let dbId: UUID?
+    let userId: UUID?
     let authorName: String
+    let authorAvatarURL: URL?
     let timeAgo: String
     let body: String
     var likes: Int
@@ -12,14 +15,22 @@ struct PostComment: Identifiable {
     var replies: [PostComment]
 
     init(
+        id: UUID = UUID(),
+        dbId: UUID? = nil,
+        userId: UUID? = nil,
         authorName: String,
+        authorAvatarURL: URL? = nil,
         timeAgo: String,
         body: String,
         likes: Int = 0,
         isLiked: Bool = false,
         replies: [PostComment] = []
     ) {
+        self.id = id
+        self.dbId = dbId
+        self.userId = userId
         self.authorName = authorName
+        self.authorAvatarURL = authorAvatarURL
         self.timeAgo = timeAgo
         self.body = body
         self.likes = likes
@@ -47,18 +58,28 @@ enum CommentSort: String, CaseIterable {
 struct PostDetailView: View {
     let post: ClubPost
     @Environment(\.dismiss) private var dismiss
-    @State private var isLiked = false
-    @State private var likeCount: String
+    @State private var isLiked: Bool
+    @State private var likeCount: Int
     @State private var commentText = ""
     @State private var comments: [PostComment]
     @FocusState private var isCommentFocused: Bool
-    @State private var replyingTo: String?
+    @State private var replyingToName: String?
+    @State private var replyingToId: UUID?
     @State private var sortOrder: CommentSort = .top
+    @State private var didLoad = false
+
+    private let service = ClubService()
 
     init(post: ClubPost) {
         self.post = post
-        self._likeCount = State(initialValue: post.likes)
-        self._comments = State(initialValue: Self.mockComments)
+        self._isLiked = State(initialValue: post.isLiked)
+        self._likeCount = State(initialValue: post.likesCount)
+        // Mock comments only used in previews (no backing post id).
+        self._comments = State(initialValue: post.dbId == nil ? Self.mockComments : [])
+    }
+
+    private var commentCount: Int {
+        comments.reduce(0) { $0 + 1 + $1.replies.count }
     }
 
     var body: some View {
@@ -76,7 +97,12 @@ struct PostDetailView: View {
         }
         .background(Color.nook.clubDetailBackground)
         .modifier(
-            PostDetailTopBar(onBack: { dismiss() })
+            PostDetailTopBar(
+                onBack: { dismiss() },
+                onReport: reportPost,
+                onCopyLink: copyLink,
+                onBlock: blockAuthor
+            )
         )
         .navigationBarBackButtonHidden()
         .toolbar(.hidden, for: .navigationBar)
@@ -90,21 +116,57 @@ struct PostDetailView: View {
     }
 
     private func loadPostData() async {
-        guard let dbId = post.dbId else { return }
-        let clubService = ClubService()
+        guard let dbId = post.dbId, !didLoad else { return }
+        didLoad = true
 
-        // Load comments
-        if let rows = try? await clubService.getComments(postId: dbId) {
-            let loaded = rows.map { row in
-                PostComment(
-                    authorName: row.userProfile?.fullName ?? row.userProfile?.username ?? "Member",
-                    timeAgo: "",
-                    body: row.body
-                )
+        if let liked = try? await service.isPostLiked(postId: dbId) {
+            isLiked = liked
+        }
+
+        async let commentsResult = try? service.getComments(postId: dbId)
+        async let likedResult = try? service.getLikedCommentIds(postId: dbId)
+
+        let loaded = (await commentsResult) ?? []
+        let likedIds = (await likedResult) ?? []
+
+        comments = Self.buildTree(from: loaded, likedIds: likedIds)
+        sortComments()
+    }
+
+    /// Build a two-level comment tree: top-level comments with their (flattened) descendants as replies.
+    private static func buildTree(from models: [ClubCommentModel], likedIds: Set<UUID>) -> [PostComment] {
+        func node(_ m: ClubCommentModel) -> PostComment {
+            PostComment(
+                id: m.id,
+                dbId: m.id,
+                userId: m.userId,
+                authorName: m.authorName,
+                authorAvatarURL: m.authorAvatarURL,
+                timeAgo: m.createdAt.clubRelativeShort,
+                body: m.body,
+                likes: m.likesCount,
+                isLiked: likedIds.contains(m.id)
+            )
+        }
+
+        let byId = Dictionary(uniqueKeysWithValues: models.map { ($0.id, $0) })
+
+        func root(of id: UUID) -> UUID {
+            var current = id
+            while let parent = byId[current]?.parentCommentId, byId[parent] != nil {
+                current = parent
             }
-            if !loaded.isEmpty {
-                comments = loaded
-            }
+            return current
+        }
+
+        let topLevel = models.filter { $0.parentCommentId == nil }
+        return topLevel.map { top in
+            var comment = node(top)
+            comment.replies = models
+                .filter { $0.parentCommentId != nil && root(of: $0.id) == top.id }
+                .sorted { $0.createdAt < $1.createdAt }
+                .map { node($0) }
+            return comment
         }
     }
 }
@@ -116,14 +178,7 @@ private extension PostDetailView {
         VStack(alignment: .leading, spacing: 0) {
             // Author header
             HStack(spacing: 12) {
-                Circle()
-                    .fill(Color.nook.secondary)
-                    .frame(width: 44, height: 44)
-                    .overlay(
-                        Image(systemName: "person.fill")
-                            .font(.system(size: 18))
-                            .foregroundStyle(Color.nook.mutedForeground)
-                    )
+                ClubAvatarView(url: post.authorAvatarURL, size: 44)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(post.authorName)
@@ -145,9 +200,19 @@ private extension PostDetailView {
                 .padding(.top, 14)
                 .padding(.horizontal, 20)
 
-            // Post image
-            if post.imageName != nil || post.placeholderColor != nil {
-                postImage
+            // Poll
+            if let pollModel = post.pollModel {
+                ClubPollVoteView(poll: pollModel)
+                    .padding(.top, 14)
+                    .padding(.horizontal, 20)
+            }
+
+            // Post image(s)
+            if !post.imageURLs.isEmpty {
+                postImages
+                    .padding(.top, 14)
+            } else if post.imageName != nil || post.placeholderColor != nil {
+                legacyPostImage
                     .padding(.top, 14)
                     .padding(.horizontal, 20)
             }
@@ -172,6 +237,7 @@ private extension PostDetailView {
                     .lineSpacing(5)
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     func styledPostText(_ text: String, boldRanges: [String]) -> Text {
@@ -202,7 +268,40 @@ private extension PostDetailView {
         return result
     }
 
-    var postImage: some View {
+    var postImages: some View {
+        Group {
+            if post.imageURLs.count == 1, let url = post.imageURLs.first {
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case .success(let image): image.resizable().scaledToFill()
+                    default: Color.nook.secondary
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .frame(height: 240)
+                .clipShape(RoundedRectangle(cornerRadius: NookRadii.sm, style: .continuous))
+                .padding(.horizontal, 20)
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(post.imageURLs, id: \.self) { url in
+                            AsyncImage(url: url) { phase in
+                                switch phase {
+                                case .success(let image): image.resizable().scaledToFill()
+                                default: Color.nook.secondary
+                                }
+                            }
+                            .frame(width: 280, height: 240)
+                            .clipShape(RoundedRectangle(cornerRadius: NookRadii.sm, style: .continuous))
+                        }
+                    }
+                    .padding(.horizontal, 20)
+                }
+            }
+        }
+    }
+
+    var legacyPostImage: some View {
         Group {
             if let color = post.placeholderColor {
                 color
@@ -226,12 +325,12 @@ private extension PostDetailView {
                 let wasLiked = isLiked
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
                     isLiked.toggle()
+                    likeCount += isLiked ? 1 : -1
                 }
                 generator.impactOccurred()
 
                 if let dbId = post.dbId {
                     Task {
-                        let service = ClubService()
                         if wasLiked {
                             try? await service.unlikePost(postId: dbId)
                         } else {
@@ -248,7 +347,7 @@ private extension PostDetailView {
                         .foregroundStyle(isLiked ? Color.nook.clubDetailLikeActive : Color.nook.clubDetailMeta)
                         .scaleEffect(isLiked ? 1.15 : 1.0)
 
-                    Text(likeCount)
+                    Text(ClubPost.formatCount(max(likeCount, 0)))
                         .font(NookFont.labelBoldSmall)
                         .foregroundStyle(isLiked ? Color.nook.clubDetailLikeActive : Color.nook.clubDetailMeta)
                 }
@@ -266,7 +365,7 @@ private extension PostDetailView {
                     .frame(width: 20, height: 20)
                     .foregroundStyle(Color.nook.clubDetailMeta)
 
-                Text(post.comments)
+                Text("\(commentCount)")
                     .font(NookFont.labelBoldSmall)
                     .foregroundStyle(Color.nook.clubDetailMeta)
             }
@@ -274,9 +373,7 @@ private extension PostDetailView {
             Spacer()
 
             // Share
-            Button {
-                // TODO: Share sheet
-            } label: {
+            ShareLink(item: shareURL) {
                 Image("share-network")
                     .renderingMode(.template)
                     .resizable()
@@ -284,8 +381,14 @@ private extension PostDetailView {
                     .frame(width: 20, height: 20)
                     .foregroundStyle(Color.nook.clubDetailMeta)
             }
-            .buttonStyle(.plain)
         }
+    }
+
+    var shareURL: URL {
+        if let dbId = post.dbId {
+            return URL(string: "https://nook.app/post/\(dbId.uuidString)") ?? URL(string: "https://nook.app")!
+        }
+        return URL(string: "https://nook.app")!
     }
 }
 
@@ -299,7 +402,7 @@ private extension PostDetailView {
                 .frame(height: 1)
 
             HStack {
-                Text("\(comments.count) Comments")
+                Text("\(commentCount) Comments")
                     .font(NookFont.labelBoldSmall)
                     .foregroundStyle(Color.nook.clubDetailTitle)
 
@@ -346,12 +449,20 @@ private extension PostDetailView {
 private extension PostDetailView {
     var commentsSection: some View {
         LazyVStack(spacing: 0) {
-            ForEach(Array(comments.enumerated()), id: \.element.id) { index, comment in
-                VStack(spacing: 0) {
-                    commentRow(comment, depth: 0, index: index)
+            if comments.isEmpty {
+                Text("No comments yet. Start the conversation.")
+                    .font(NookFont.labelMediumSmall)
+                    .foregroundStyle(Color.nook.clubDetailMeta)
+                    .frame(maxWidth: .infinity, minHeight: 120)
+                    .padding(.horizontal, 24)
+            } else {
+                ForEach(Array(comments.enumerated()), id: \.element.id) { index, comment in
+                    VStack(spacing: 0) {
+                        commentRow(comment, depth: 0, index: index)
 
-                    ForEach(Array(comment.replies.enumerated()), id: \.element.id) { replyIndex, reply in
-                        commentRow(reply, depth: 1, index: index, replyIndex: replyIndex)
+                        ForEach(Array(comment.replies.enumerated()), id: \.element.id) { replyIndex, reply in
+                            commentRow(reply, depth: 1, index: index, replyIndex: replyIndex)
+                        }
                     }
                 }
             }
@@ -368,14 +479,7 @@ private extension PostDetailView {
                     .padding(.leading, 36)
             }
 
-            Circle()
-                .fill(Color.nook.secondary)
-                .frame(width: depth == 0 ? 36 : 28, height: depth == 0 ? 36 : 28)
-                .overlay(
-                    Image(systemName: "person.fill")
-                        .font(.system(size: depth == 0 ? 14 : 11))
-                        .foregroundStyle(Color.nook.mutedForeground)
-                )
+            ClubAvatarView(url: comment.authorAvatarURL, size: depth == 0 ? 36 : 28)
 
             VStack(alignment: .leading, spacing: 6) {
                 // Name + time
@@ -399,18 +503,7 @@ private extension PostDetailView {
                 HStack(spacing: 16) {
                     // Like
                     Button {
-                        let generator = UIImpactFeedbackGenerator(style: .light)
-                        generator.prepare()
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                            if let ri = replyIndex {
-                                comments[index].replies[ri].isLiked.toggle()
-                                comments[index].replies[ri].likes += comments[index].replies[ri].isLiked ? 1 : -1
-                            } else {
-                                comments[index].isLiked.toggle()
-                                comments[index].likes += comments[index].isLiked ? 1 : -1
-                            }
-                        }
-                        generator.impactOccurred()
+                        toggleCommentLike(index: index, replyIndex: replyIndex)
                     } label: {
                         HStack(spacing: 4) {
                             Image(comment.isLiked ? "heart-fill" : "heart")
@@ -430,7 +523,8 @@ private extension PostDetailView {
                     // Reply
                     Button {
                         withAnimation(.easeOut(duration: 0.2)) {
-                            replyingTo = comment.authorName
+                            replyingToName = comment.authorName
+                            replyingToId = comment.dbId
                         }
                         isCommentFocused = true
                     } label: {
@@ -447,6 +541,39 @@ private extension PostDetailView {
         .padding(.horizontal, 20)
         .padding(.vertical, 12)
     }
+
+    func toggleCommentLike(index: Int, replyIndex: Int?) {
+        let generator = UIImpactFeedbackGenerator(style: .light)
+        generator.prepare()
+
+        var commentId: UUID?
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+            if let ri = replyIndex {
+                comments[index].replies[ri].isLiked.toggle()
+                let liked = comments[index].replies[ri].isLiked
+                comments[index].replies[ri].likes += liked ? 1 : -1
+                comments[index].replies[ri].likes = max(comments[index].replies[ri].likes, 0)
+                commentId = comments[index].replies[ri].dbId
+            } else {
+                comments[index].isLiked.toggle()
+                let liked = comments[index].isLiked
+                comments[index].likes += liked ? 1 : -1
+                comments[index].likes = max(comments[index].likes, 0)
+                commentId = comments[index].dbId
+            }
+        }
+        generator.impactOccurred()
+
+        guard let commentId else { return }
+        let nowLiked = replyIndex != nil ? comments[index].replies[replyIndex!].isLiked : comments[index].isLiked
+        Task {
+            if nowLiked {
+                try? await service.likeComment(commentId: commentId)
+            } else {
+                try? await service.unlikeComment(commentId: commentId)
+            }
+        }
+    }
 }
 
 // MARK: - Reply Bar
@@ -458,7 +585,7 @@ private extension PostDetailView {
                 .fill(Color.nook.detailTabBorder)
                 .frame(height: 1)
 
-            if let replyTo = replyingTo {
+            if let replyTo = replyingToName {
                 HStack {
                     Text("Replying to \(replyTo)")
                         .font(NookFont.caption)
@@ -468,7 +595,8 @@ private extension PostDetailView {
 
                     Button {
                         withAnimation(.easeOut(duration: 0.15)) {
-                            replyingTo = nil
+                            replyingToName = nil
+                            replyingToId = nil
                         }
                     } label: {
                         Image("x-bold")
@@ -496,7 +624,7 @@ private extension PostDetailView {
                     )
 
                 TextField(
-                    replyingTo != nil ? "Reply..." : "Add a comment...",
+                    replyingToName != nil ? "Reply..." : "Add a comment...",
                     text: $commentText,
                     axis: .vertical
                 )
@@ -537,6 +665,7 @@ private extension PostDetailView {
         let text = commentText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
 
+        let parentId = replyingToId
         let newComment = PostComment(
             authorName: "You",
             timeAgo: "now",
@@ -544,24 +673,22 @@ private extension PostDetailView {
         )
 
         withAnimation(.easeOut(duration: 0.25)) {
-            if replyingTo != nil {
-                if !comments.isEmpty {
-                    comments[0].replies.append(newComment)
-                }
-                replyingTo = nil
+            if let parentId,
+               let topIndex = comments.firstIndex(where: { $0.dbId == parentId || $0.replies.contains(where: { $0.dbId == parentId }) }) {
+                comments[topIndex].replies.append(newComment)
             } else {
                 comments.insert(newComment, at: 0)
             }
             commentText = ""
+            replyingToName = nil
+            replyingToId = nil
         }
 
         isCommentFocused = false
 
-        // Persist to DB
         if let dbId = post.dbId {
             Task {
-                let service = ClubService()
-                try? await service.addComment(postId: dbId, body: text)
+                try? await service.addComment(postId: dbId, body: text, parentCommentId: parentId)
             }
         }
     }
@@ -571,29 +698,44 @@ private extension PostDetailView {
         case .top:
             comments.sort { $0.likes > $1.likes }
         case .newest:
-            comments.sort { lhs, rhs in
-                sortValue(lhs.timeAgo) < sortValue(rhs.timeAgo)
-            }
+            comments.sort { sortValue($0.timeAgo) < sortValue($1.timeAgo) }
         case .oldest:
-            comments.sort { lhs, rhs in
-                sortValue(lhs.timeAgo) > sortValue(rhs.timeAgo)
-            }
+            comments.sort { sortValue($0.timeAgo) > sortValue($1.timeAgo) }
         }
     }
 
     private func sortValue(_ timeAgo: String) -> Int {
-        let parts = timeAgo.split(separator: " ")
-        guard let num = Int(parts.first ?? "0") else {
-            if timeAgo == "now" { return 0 }
-            return 999
-        }
-        let unit = String(parts.last ?? "m")
+        if timeAgo == "now" { return 0 }
+        let parts = timeAgo.split(separator: " ").first.map(String.init) ?? timeAgo
+        let trimmed = parts
+        let number = Int(trimmed.prefix { $0.isNumber }) ?? 0
+        let unit = trimmed.drop { $0.isNumber }
         switch unit {
-        case "m": return num
-        case "h": return num * 60
-        case "d": return num * 1440
-        default: return num
+        case "m": return number
+        case "h": return number * 60
+        case "d": return number * 1440
+        case "w": return number * 10080
+        default: return 99999
         }
+    }
+}
+
+// MARK: - Actions (moderation / share)
+
+private extension PostDetailView {
+    func reportPost() {
+        guard let dbId = post.dbId else { return }
+        Task { try? await service.report(targetType: "post", targetId: dbId, reason: nil) }
+    }
+
+    func copyLink() {
+        UIPasteboard.general.url = shareURL
+    }
+
+    func blockAuthor() {
+        guard let userId = post.userId else { return }
+        Task { try? await service.blockUser(userId: userId) }
+        dismiss()
     }
 }
 
@@ -601,6 +743,9 @@ private extension PostDetailView {
 
 private struct PostDetailTopBar: ViewModifier {
     let onBack: () -> Void
+    let onReport: () -> Void
+    let onCopyLink: () -> Void
+    let onBlock: () -> Void
 
     func body(content: Content) -> some View {
         if #available(iOS 26, *) {
@@ -642,9 +787,7 @@ private struct PostDetailTopBar: ViewModifier {
             Spacer()
 
             Menu {
-                Button(role: .destructive) {
-                    // TODO: Report post
-                } label: {
+                Button(role: .destructive, action: onReport) {
                     Label {
                         Text("Report")
                             .font(.subheadline)
@@ -654,9 +797,7 @@ private struct PostDetailTopBar: ViewModifier {
                     }
                 }
 
-                Button {
-                    // TODO: Copy link
-                } label: {
+                Button(action: onCopyLink) {
                     Label {
                         Text("Copy link")
                             .font(.subheadline)
@@ -666,9 +807,7 @@ private struct PostDetailTopBar: ViewModifier {
                     }
                 }
 
-                Button {
-                    // TODO: Block user
-                } label: {
+                Button(role: .destructive, action: onBlock) {
                     Label {
                         Text("Block user")
                             .font(.subheadline)
@@ -705,7 +844,7 @@ private struct PostDetailSoftScrollEdge: ViewModifier {
     }
 }
 
-// MARK: - Mock Comments
+// MARK: - Mock Comments (previews only)
 
 extension PostDetailView {
     static let mockComments: [PostComment] = [
@@ -735,32 +874,6 @@ extension PostDetailView {
             body: "The art direction team deserves all the awards this year. Every single frame in the sky kingdom is wallpaper material.",
             likes: 67
         ),
-        PostComment(
-            authorName: "Liam Brooks",
-            timeAgo: "58m",
-            body: "Am I the only one who thinks the pacing in the last two episodes was a bit rushed? Still loved it but felt like they crammed a lot in.",
-            likes: 12,
-            replies: [
-                PostComment(
-                    authorName: "Ava Kim",
-                    timeAgo: "40m",
-                    body: "Agreed. They could have easily split episode 12 into two. But the emotional beats still landed for me.",
-                    likes: 5
-                ),
-            ]
-        ),
-        PostComment(
-            authorName: "Nadia Petrova",
-            timeAgo: "45m",
-            body: "Just here to say the soundtrack in the cloud weaving scenes is on another level. Anyone know the composer?",
-            likes: 23
-        ),
-        PostComment(
-            authorName: "Jin Park",
-            timeAgo: "30m",
-            body: "Yuki Kajiura. She's done some legendary work. Check out her discography if you haven't already.",
-            likes: 31
-        ),
     ]
 }
 
@@ -772,7 +885,7 @@ extension PostDetailView {
             post: ClubPost(
                 authorName: "Maya Lin",
                 timeAgo: "2h",
-                body: "Just finished episode 12 of The Cloud Weaver and I'm completely blown away. The art direction in the sky kingdom scenes is some of the best I've seen in years. Does anyone know if the manga covers past this arc?",
+                body: "Just finished episode 12 of The Cloud Weaver and I'm completely blown away.",
                 boldRanges: ["The Cloud Weaver"],
                 placeholderColor: Color(hex: 0x87CEEB).opacity(0.6),
                 likes: "1.2k",

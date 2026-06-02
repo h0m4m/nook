@@ -2,18 +2,18 @@ import SwiftUI
 
 struct InviteMemberView: View {
     let clubName: String
+    var clubId: UUID?
+    var existingMemberIds: Set<UUID> = []
+
     @Environment(\.dismiss) private var dismiss
     @State private var searchText = ""
+    @State private var results: [ReviewAuthor] = []
     @State private var invitedUsers: Set<UUID> = []
+    @State private var isSearching = false
+    @State private var searchTask: Task<Void, Never>?
     @FocusState private var isSearchFocused: Bool
 
-    private var filteredUsers: [InviteUser] {
-        if searchText.isEmpty { return Self.mockUsers }
-        return Self.mockUsers.filter {
-            $0.name.localizedCaseInsensitiveContains(searchText) ||
-            $0.username.localizedCaseInsensitiveContains(searchText)
-        }
-    }
+    private let service = ClubService()
 
     var body: some View {
         NavigationStack {
@@ -28,6 +28,32 @@ struct InviteMemberView: View {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                     isSearchFocused = true
                 }
+            }
+        }
+    }
+
+    private func runSearch(_ query: String) {
+        searchTask?.cancel()
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard trimmed.count >= 2 else {
+            results = []
+            isSearching = false
+            return
+        }
+
+        isSearching = true
+        searchTask = Task {
+            try? await Task.sleep(for: .milliseconds(350))
+            guard !Task.isCancelled else { return }
+
+            let found = (try? await service.searchUsers(query: trimmed)) ?? []
+            let filtered = found.filter { !existingMemberIds.contains($0.id) }
+
+            await MainActor.run {
+                guard !Task.isCancelled else { return }
+                results = filtered
+                isSearching = false
             }
         }
     }
@@ -94,10 +120,16 @@ private extension InviteMemberView {
             .font(NookFont.labelMediumSmall)
             .foregroundStyle(Color.nook.clubDetailTitle)
             .focused($isSearchFocused)
+            .autocorrectionDisabled()
+            .textInputAutocapitalization(.never)
+            .onChange(of: searchText) { _, newValue in
+                runSearch(newValue)
+            }
 
             if !searchText.isEmpty {
                 Button {
                     searchText = ""
+                    results = []
                 } label: {
                     Image("x-bold")
                         .renderingMode(.template)
@@ -125,11 +157,15 @@ private extension InviteMemberView {
 private extension InviteMemberView {
     var userList: some View {
         ScrollView(showsIndicators: false) {
-            if filteredUsers.isEmpty {
+            if isSearching {
+                ProgressView()
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 40)
+            } else if results.isEmpty {
                 emptyState
             } else {
                 LazyVStack(spacing: 0) {
-                    ForEach(filteredUsers) { user in
+                    ForEach(results, id: \.id) { user in
                         userRow(user)
                     }
                 }
@@ -140,11 +176,11 @@ private extension InviteMemberView {
 
     var emptyState: some View {
         VStack(spacing: 8) {
-            Text("No users found")
+            Text(searchText.count < 2 ? "Search for people to invite" : "No users found")
                 .font(NookFont.labelSmall)
                 .foregroundStyle(Color.nook.clubDetailTitle)
 
-            Text("Try a different name or username")
+            Text(searchText.count < 2 ? "Find friends by name or username" : "Try a different name or username")
                 .font(NookFont.caption)
                 .foregroundStyle(Color.nook.clubDetailMeta)
         }
@@ -152,42 +188,47 @@ private extension InviteMemberView {
         .padding(.top, 60)
     }
 
-    func userRow(_ user: InviteUser) -> some View {
+    func userRow(_ user: ReviewAuthor) -> some View {
         let isInvited = invitedUsers.contains(user.id)
+        let displayName = user.fullName ?? user.username ?? "User"
 
         return HStack(spacing: 12) {
-            Circle()
-                .fill(Color.nook.secondary)
-                .frame(width: 40, height: 40)
-                .overlay(
-                    Image(systemName: "person.fill")
-                        .font(.system(size: 16))
-                        .foregroundStyle(Color.nook.mutedForeground)
-                )
+            ClubAvatarView(url: user.avatarUrl.flatMap { URL(string: $0) }, size: 40)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(user.name)
+                Text(displayName)
                     .font(NookFont.labelSmall)
                     .foregroundStyle(Color.nook.clubDetailTitle)
 
-                Text("@\(user.username)")
-                    .font(NookFont.caption)
-                    .foregroundStyle(Color.nook.clubDetailMeta)
+                if let username = user.username {
+                    Text("@\(username)")
+                        .font(NookFont.caption)
+                        .foregroundStyle(Color.nook.clubDetailMeta)
+                }
             }
 
             Spacer()
 
             Button {
+                guard !isInvited else { return }
                 let generator = UIImpactFeedbackGenerator(style: .light)
                 generator.prepare()
                 withAnimation(.easeOut(duration: 0.2)) {
-                    if isInvited {
-                        invitedUsers.remove(user.id)
-                    } else {
-                        invitedUsers.insert(user.id)
-                    }
+                    _ = invitedUsers.insert(user.id)
                 }
                 generator.impactOccurred()
+
+                if let clubId {
+                    Task {
+                        do {
+                            try await service.inviteToClub(clubId: clubId, userId: user.id)
+                        } catch {
+                            await MainActor.run {
+                                _ = invitedUsers.remove(user.id)
+                            }
+                        }
+                    }
+                }
             } label: {
                 Text(isInvited ? "Invited" : "Invite")
                     .font(NookFont.labelBoldSmall)
@@ -211,31 +252,6 @@ private extension InviteMemberView {
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
     }
-}
-
-// MARK: - Invite User Model
-
-struct InviteUser: Identifiable {
-    let id = UUID()
-    let name: String
-    let username: String
-}
-
-// MARK: - Mock Data
-
-extension InviteMemberView {
-    static let mockUsers: [InviteUser] = [
-        InviteUser(name: "Marcus Chen", username: "marcuschen"),
-        InviteUser(name: "Yuki Sato", username: "yukisato"),
-        InviteUser(name: "Olivia Hart", username: "oliviahart"),
-        InviteUser(name: "Devon Ray", username: "devonray"),
-        InviteUser(name: "Priya Sharma", username: "priyasharma"),
-        InviteUser(name: "Leo Fernandez", username: "leofernandez"),
-        InviteUser(name: "Hana Nakamura", username: "hananakamura"),
-        InviteUser(name: "Sam Torres", username: "samtorres"),
-        InviteUser(name: "Zara Ali", username: "zaraali"),
-        InviteUser(name: "Noah Kim", username: "noahkim"),
-    ]
 }
 
 // MARK: - Preview

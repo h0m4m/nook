@@ -5,6 +5,14 @@ enum PollDuration: String, CaseIterable {
     case oneDay = "1 Day"
     case threeDays = "3 Days"
     case oneWeek = "1 Week"
+
+    var seconds: TimeInterval {
+        switch self {
+        case .oneDay: 86_400
+        case .threeDays: 259_200
+        case .oneWeek: 604_800
+        }
+    }
 }
 
 struct ComposePostView: View {
@@ -487,13 +495,20 @@ private extension ComposePostView {
         guard canPost else { return }
         isPosting = true
 
+        let trimmedBody = postBody.trimmingCharacters(in: .whitespacesAndNewlines)
+        let images = attachedImages
+        let pollDraft = buildPollDraft()
+
         Task {
             do {
                 if let clubId {
                     let clubService = ClubService()
+                    let imageDatas = images.compactMap { $0.jpegData(compressionQuality: 0.8) }
                     try await clubService.createPost(
                         clubId: clubId,
-                        body: postBody.trimmingCharacters(in: .whitespacesAndNewlines)
+                        body: trimmedBody,
+                        imageDatas: imageDatas,
+                        poll: pollDraft
                     )
                 }
 
@@ -509,6 +524,15 @@ private extension ComposePostView {
                 }
             }
         }
+    }
+
+    func buildPollDraft() -> ClubPollDraft? {
+        guard showPoll else { return nil }
+        let options = pollOptions
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        guard options.count >= 2 else { return nil }
+        return ClubPollDraft(options: options, closesAt: Date().addingTimeInterval(pollDuration.seconds))
     }
 }
 

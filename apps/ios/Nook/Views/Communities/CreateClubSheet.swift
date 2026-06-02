@@ -712,13 +712,11 @@ struct CreateClubSheet: View {
             try? await Task.sleep(for: .milliseconds(500))
             guard !Task.isCancelled else { return }
 
-            let lowerQuery = trimmed.lowercased()
-            let matches = ClubsView.mockClubs.filter { club in
-                club.name.lowercased().contains(lowerQuery) ||
-                lowerQuery.contains(club.name.lowercased().prefix(4))
-            }
+            let rows = (try? await ClubService().searchClubsByName(trimmed, limit: 3)) ?? []
+            let matches = rows.map { ClubItem(from: $0, isJoined: false) }
 
             await MainActor.run {
+                guard !Task.isCancelled else { return }
                 withAnimation(.easeOut(duration: 0.25)) {
                     similarClubs = Array(matches.prefix(2))
                 }
