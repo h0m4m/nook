@@ -2,36 +2,21 @@ import Foundation
 import Supabase
 
 final class NookService: Sendable {
-    /// Embedded owner profile + item count for list/grid surfaces.
+    /// Embedded owner profile + the contained media posters for list/grid surfaces.
     private static let summarySelect =
-        "*, user_profile:user_profiles!nooks_user_id_user_profiles_fkey(full_name, username, avatar_url), items:nook_items(count)"
+        "*, user_profile:user_profiles!nooks_user_id_user_profiles_fkey(full_name, username, avatar_url), preview:nook_items(sort_order, media_item:media_items(image_url))"
 
     func createNook(
         name: String,
         description: String?,
-        coverData: Data?,
         privacy: String
     ) async throws -> UUID {
         let userId = try await supabase.auth.session.user.id
-
-        // Upload cover if provided
-        var coverUrl: String?
-        if let coverData {
-            let storageService = StorageService()
-            let url = try await storageService.uploadImage(
-                bucket: "nook-covers",
-                userId: userId,
-                fileName: "\(UUID().uuidString).jpg",
-                data: coverData
-            )
-            coverUrl = url.absoluteString
-        }
 
         struct NookInsert: Encodable {
             let user_id: String
             let name: String
             let description: String?
-            let cover_url: String?
             let privacy: String
         }
 
@@ -45,7 +30,6 @@ final class NookService: Sendable {
                 user_id: userId.uuidString,
                 name: name,
                 description: description,
-                cover_url: coverUrl,
                 privacy: privacy
             ))
             .select("id")
@@ -182,41 +166,6 @@ final class NookService: Sendable {
             .value
 
         return rows.map { NookSummary(from: $0) }
-    }
-
-    func updateNook(
-        nookId: UUID,
-        name: String? = nil,
-        description: String? = nil,
-        privacy: String? = nil,
-        coverUrl: String? = nil
-    ) async throws {
-        var updates: [String: AnyEncodable] = [:]
-        if let name { updates["name"] = AnyEncodable(name) }
-        if let description { updates["description"] = AnyEncodable(description) }
-        if let privacy { updates["privacy"] = AnyEncodable(privacy) }
-        if let coverUrl { updates["cover_url"] = AnyEncodable(coverUrl) }
-
-        guard !updates.isEmpty else { return }
-
-        try await supabase
-            .from("nooks")
-            .update(updates)
-            .eq("id", value: nookId.uuidString)
-            .execute()
-    }
-
-    /// Upload a new cover image and return its public URL.
-    func uploadCover(data: Data) async throws -> String {
-        let userId = try await supabase.auth.session.user.id
-        let storageService = StorageService()
-        let url = try await storageService.uploadImage(
-            bucket: "nook-covers",
-            userId: userId,
-            fileName: "\(UUID().uuidString).jpg",
-            data: data
-        )
-        return url.absoluteString
     }
 
     func deleteNook(nookId: UUID) async throws {

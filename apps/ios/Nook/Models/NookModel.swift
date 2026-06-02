@@ -59,36 +59,45 @@ struct NookAuthor: Codable, Sendable {
     }
 }
 
-/// Aggregate count returned by an embedded `nook_items(count)` selection.
-struct NookEmbeddedCount: Codable, Sendable {
-    let count: Int
+/// An embedded nook_item carrying just its media poster, for preview thumbnails.
+struct NookItemPreviewRow: Codable, Sendable {
+    let sortOrder: Int
+    let mediaItem: PreviewMedia?
+
+    enum CodingKeys: String, CodingKey {
+        case sortOrder = "sort_order"
+        case mediaItem = "media_item"
+    }
+
+    struct PreviewMedia: Codable, Sendable {
+        let imageUrl: String?
+        enum CodingKeys: String, CodingKey { case imageUrl = "image_url" }
+    }
 }
 
-/// A nook row enriched with owner profile + item count, for list/grid surfaces
-/// (Home "Popular", Discover, Library, Profile).
+/// A nook row enriched with owner profile + the contained media posters, for
+/// list/grid surfaces (Home "Popular", Discover, Library, Profile).
 struct NookSummaryRow: Codable, Sendable {
     let id: UUID
     let userId: UUID
     let name: String
     let description: String?
-    let coverUrl: String?
     let privacy: String
     let likesCount: Int?
     let createdAt: Date
     let userProfile: NookAuthor?
-    let items: [NookEmbeddedCount]?
+    let preview: [NookItemPreviewRow]?
 
     enum CodingKeys: String, CodingKey {
         case id
         case userId = "user_id"
         case name
         case description
-        case coverUrl = "cover_url"
         case privacy
         case likesCount = "likes_count"
         case createdAt = "created_at"
         case userProfile = "user_profile"
-        case items
+        case preview
     }
 }
 
@@ -223,10 +232,10 @@ struct NookSummary: Identifiable, Hashable, Sendable {
     let userId: UUID
     let name: String
     let description: String?
-    let coverURL: URL?
     let privacy: String
     let likesCount: Int
     let itemCount: Int
+    let previewImageURLs: [URL]
     let ownerName: String?
     let ownerAvatarURL: URL?
     let createdAt: Date
@@ -236,10 +245,11 @@ struct NookSummary: Identifiable, Hashable, Sendable {
         self.userId = row.userId
         self.name = row.name
         self.description = row.description
-        self.coverURL = row.coverUrl.flatMap { URL(string: $0) }
         self.privacy = row.privacy
         self.likesCount = row.likesCount ?? 0
-        self.itemCount = row.items?.first?.count ?? 0
+        let preview = (row.preview ?? []).sorted { $0.sortOrder < $1.sortOrder }
+        self.itemCount = preview.count
+        self.previewImageURLs = preview.compactMap { $0.mediaItem?.imageUrl.flatMap { URL(string: $0) } }
         self.ownerName = row.userProfile?.fullName ?? row.userProfile?.username
         self.ownerAvatarURL = row.userProfile?.avatarUrl.flatMap { URL(string: $0) }
         self.createdAt = row.createdAt

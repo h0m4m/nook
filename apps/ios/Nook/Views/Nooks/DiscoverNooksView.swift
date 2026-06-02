@@ -86,42 +86,8 @@ private struct DiscoverNookCard: View {
     let summary: NookSummary
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            ZStack(alignment: .topTrailing) {
-                Color.clear
-                    .aspectRatio(393.0 / 192.0, contentMode: .fit)
-                    .overlay {
-                        AsyncImage(url: summary.coverURL) { phase in
-                            switch phase {
-                            case .success(let image): image.resizable().scaledToFill()
-                            default: Color.nook.searchShimmerBase
-                            }
-                        }
-                    }
-                    .frame(maxWidth: .infinity)
-                    .clipShape(RoundedRectangle(cornerRadius: NookRadii.sm, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: NookRadii.sm, style: .continuous)
-                            .strokeBorder(Color(hex: 0xE6E2E0), lineWidth: 1)
-                    )
-
-                if summary.likesCount > 0 {
-                    HStack(spacing: 4) {
-                        Image("heart-fill")
-                            .renderingMode(.template)
-                            .resizable()
-                            .frame(width: 11, height: 11)
-                            .foregroundStyle(.white)
-                        Text("\(summary.likesCount)")
-                            .font(.custom("PlusJakartaSans-SemiBold", size: 11))
-                            .foregroundStyle(.white)
-                    }
-                    .padding(.horizontal, 8)
-                    .frame(height: 24)
-                    .background(.black.opacity(0.35), in: Capsule())
-                    .padding(8)
-                }
-            }
+        VStack(alignment: .leading, spacing: 10) {
+            posterShelf
 
             Text(summary.name)
                 .font(NookFont.labelBoldSmall)
@@ -137,6 +103,17 @@ private struct DiscoverNookCard: View {
 
                 Spacer(minLength: 0)
 
+                if summary.likesCount > 0 {
+                    Image("heart-fill")
+                        .renderingMode(.template)
+                        .resizable()
+                        .frame(width: 11, height: 11)
+                        .foregroundStyle(Color.nook.cardSubtitle)
+                    Text("\(summary.likesCount)")
+                        .font(NookFont.caption)
+                        .foregroundStyle(Color.nook.cardSubtitle)
+                }
+
                 Text("\(summary.itemCount)")
                     .font(NookFont.caption)
                     .foregroundStyle(Color.nook.cardSubtitle)
@@ -145,6 +122,45 @@ private struct DiscoverNookCard: View {
                     .resizable()
                     .frame(width: 11, height: 11)
                     .foregroundStyle(Color.nook.cardSubtitle)
+            }
+        }
+    }
+
+    // Posters of the media inside the nook, lined up like a shelf.
+    private var posterShelf: some View {
+        HStack(spacing: 6) {
+            let posters = Array(summary.previewImageURLs.prefix(3))
+            if posters.isEmpty {
+                ForEach(0..<3, id: \.self) { _ in
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(Color.nook.searchShimmerBase)
+                        .aspectRatio(2.0 / 3.0, contentMode: .fit)
+                        .frame(maxWidth: .infinity)
+                }
+            } else {
+                ForEach(Array(posters.enumerated()), id: \.offset) { _, url in
+                    Color.clear
+                        .aspectRatio(2.0 / 3.0, contentMode: .fit)
+                        .overlay {
+                            AsyncImage(url: url) { phase in
+                                switch phase {
+                                case .success(let image): image.resizable().scaledToFill()
+                                default: Color.nook.searchShimmerBase
+                                }
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
+                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .strokeBorder(Color(hex: 0xE6E2E0), lineWidth: 1)
+                        )
+                }
+                if posters.count < 3 {
+                    ForEach(0..<(3 - posters.count), id: \.self) { _ in
+                        Color.clear.frame(maxWidth: .infinity)
+                    }
+                }
             }
         }
     }

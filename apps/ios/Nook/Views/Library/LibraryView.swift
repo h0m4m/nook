@@ -448,7 +448,7 @@ struct LibraryView: View {
                             title: summary.name,
                             itemCount: summary.itemCount,
                             likes: summary.likesCount,
-                            coverURL: summary.coverURL
+                            previewImageURLs: summary.previewImageURLs
                         )
                         .padding(.horizontal, 24)
                     }

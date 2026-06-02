@@ -1,15 +1,9 @@
-import PhotosUI
 import SwiftUI
 
 struct CreateNookSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var name = ""
     @State private var nookDescription = ""
-    @State private var coverImage: UIImage?
-    @State private var pickerSelection: [PhotosPickerItem] = []
-    @State private var showPhotoPicker = false
-    @State private var rawPickedImage: UIImage?
-    @State private var showCropSheet = false
     @State private var mediaItems: [MediaSearchResult] = []
     @State private var mediaNotes: [UUID: String] = [:]
     @State private var showAddMedia = false
@@ -30,7 +24,6 @@ struct CreateNookSheet: View {
             && mediaItems.count >= 2
     }
 
-    private let coverRadius: CGFloat = 32
     private let cardRadius: CGFloat = 24
     private let settingsRadius: CGFloat = 24
 
@@ -40,11 +33,8 @@ struct CreateNookSheet: View {
 
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 0) {
-                    coverSection
-                        .padding(.top, 4)
-                        .padding(.bottom, 24)
-
                     titleSection
+                        .padding(.top, 8)
                         .padding(.horizontal, 24)
                         .padding(.bottom, 12)
 
@@ -84,40 +74,6 @@ struct CreateNookSheet: View {
             .presentationDetents([.medium])
             .presentationDragIndicator(.visible)
             .presentationBackground(Color(hex: 0xFDFBF9))
-        }
-        .photosPicker(
-            isPresented: $showPhotoPicker,
-            selection: $pickerSelection,
-            maxSelectionCount: 1,
-            matching: .images
-        )
-        .onChange(of: pickerSelection) { _, items in
-            guard let item = items.first else { return }
-            pickerSelection = []
-            Task.detached {
-                guard let data = try? await item.loadTransferable(type: Data.self) else { return }
-                // Downsample to max 2000px wide to avoid UI freezes with huge photos
-                let downsized = Self.downsample(data: data, maxWidth: 2000)
-                await MainActor.run {
-                    rawPickedImage = downsized
-                    // Small delay so the picker dismissal animation completes first
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                        showCropSheet = true
-                    }
-                }
-            }
-        }
-        .fullScreenCover(isPresented: $showCropSheet) {
-            if let rawPickedImage {
-                ImageCropView(
-                    image: rawPickedImage,
-                    cropAspect: 393.0 / 192.0
-                ) { cropped in
-                    withAnimation(.easeOut(duration: 0.2)) {
-                        coverImage = cropped
-                    }
-                }
-            }
         }
         .onAppear {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
@@ -171,62 +127,6 @@ struct CreateNookSheet: View {
         .padding(.horizontal, 20)
         .padding(.top, 16)
         .padding(.bottom, 12)
-    }
-
-    // MARK: - Cover
-
-    private var coverSection: some View {
-        Button {
-            showPhotoPicker = true
-        } label: {
-            ZStack(alignment: .bottomTrailing) {
-                if let coverImage {
-                    Image(uiImage: coverImage)
-                        .resizable()
-                        .scaledToFit()
-                        .clipShape(RoundedRectangle(cornerRadius: coverRadius, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: coverRadius, style: .continuous)
-                                .strokeBorder(Color(hex: 0xE6E2E0), lineWidth: 1)
-                        )
-                } else {
-                    RoundedRectangle(cornerRadius: coverRadius, style: .continuous)
-                        .fill(Color(hex: 0xF2EFEE).opacity(0.3))
-                        .aspectRatio(393.0 / 192.0, contentMode: .fit)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: coverRadius, style: .continuous)
-                                .strokeBorder(Color(hex: 0xE6E2E0), lineWidth: 1)
-                        )
-                        .overlay {
-                            Image("image")
-                                .renderingMode(.template)
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .frame(width: 32, height: 32)
-                                .foregroundStyle(Color(hex: 0x78716C).opacity(0.4))
-                        }
-                }
-
-                HStack(spacing: 6) {
-                    Image("palette")
-                        .renderingMode(.template)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: 16, height: 16)
-                        .foregroundStyle(Color(hex: 0x1C1918))
-
-                    Text("Change Cover")
-                        .font(NookFont.captionBold)
-                        .foregroundStyle(Color(hex: 0x1C1918))
-                }
-                .padding(.horizontal, 16)
-                .frame(height: 34)
-                .background(.white.opacity(0.9), in: Capsule())
-                .padding(12)
-            }
-        }
-        .buttonStyle(.plain)
-        .padding(.horizontal, 24)
     }
 
     // MARK: - Title
@@ -521,23 +421,6 @@ struct CreateNookSheet: View {
         .contentShape(Rectangle())
     }
 
-    // MARK: - Image Helpers
-
-    nonisolated private static func downsample(data: Data, maxWidth: CGFloat) -> UIImage? {
-        let options: [CFString: Any] = [
-            kCGImageSourceShouldCache: false,
-            kCGImageSourceCreateThumbnailFromImageAlways: true,
-            kCGImageSourceCreateThumbnailWithTransform: true,
-            kCGImageSourceThumbnailMaxPixelSize: maxWidth,
-        ]
-        guard let source = CGImageSourceCreateWithData(data as CFData, nil),
-              let cgImage = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary)
-        else {
-            return UIImage(data: data)
-        }
-        return UIImage(cgImage: cgImage)
-    }
-
     // MARK: - Publish
 
     private func publishNook() {
@@ -548,12 +431,9 @@ struct CreateNookSheet: View {
             do {
                 let nookService = NookService()
 
-                let coverData = coverImage?.jpegData(compressionQuality: 0.8)
-
                 let nookId = try await nookService.createNook(
                     name: name.trimmingCharacters(in: .whitespacesAndNewlines),
                     description: nookDescription.isEmpty ? nil : nookDescription,
-                    coverData: coverData,
                     privacy: privacy.dbValue
                 )
 

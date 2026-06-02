@@ -434,7 +434,7 @@ struct MyProfileView: View {
                             title: summary.name,
                             itemCount: summary.itemCount,
                             likes: summary.likesCount,
-                            coverURL: summary.coverURL
+                            previewImageURLs: summary.previewImageURLs
                         )
                     }
                     .buttonStyle(.plain)
@@ -880,18 +880,11 @@ struct ProfileNookCard: View {
     let title: String
     let itemCount: Int
     let likes: Int
-    var coverURL: URL? = nil
-    var placeholderColor: Color = Color.nook.secondary
+    var previewImageURLs: [URL] = []
 
     var body: some View {
         HStack(spacing: 16) {
-            MediaPosterImage(
-                url: coverURL,
-                width: 120,
-                height: 64,
-                cornerRadius: NookRadii.sm,
-                fallbackColor: placeholderColor
-            )
+            posterCluster
 
             VStack(alignment: .leading, spacing: 6) {
                 Text(title)
@@ -932,6 +925,28 @@ struct ProfileNookCard: View {
         .overlay {
             RoundedRectangle(cornerRadius: NookRadii.lg, style: .continuous)
                 .stroke(Color.nook.profileActivityCardBorder, lineWidth: 1)
+        }
+    }
+
+    // A small cluster of the nook's media posters in place of a cover.
+    private var posterCluster: some View {
+        HStack(spacing: 4) {
+            let posters = Array(previewImageURLs.prefix(3))
+            if posters.isEmpty {
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(Color.nook.searchShimmerBase)
+                    .frame(width: 44, height: 64)
+            } else {
+                ForEach(Array(posters.enumerated()), id: \.offset) { _, url in
+                    MediaPosterImage(
+                        url: url,
+                        width: 44,
+                        height: 64,
+                        cornerRadius: 8,
+                        fallbackColor: Color.nook.searchShimmerBase
+                    )
+                }
+            }
         }
     }
 }

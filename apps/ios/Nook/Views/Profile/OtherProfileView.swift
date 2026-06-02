@@ -411,7 +411,7 @@ struct OtherProfileView: View {
                             title: summary.name,
                             itemCount: summary.itemCount,
                             likes: summary.likesCount,
-                            coverURL: summary.coverURL
+                            previewImageURLs: summary.previewImageURLs
                         )
                     }
                     .buttonStyle(.plain)

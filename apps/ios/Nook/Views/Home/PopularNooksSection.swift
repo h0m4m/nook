@@ -59,7 +59,7 @@ struct NookItem: Identifiable, Hashable {
         self.curatorName = detail.ownerName ?? "Unknown"
         self.curatorAvatarURL = detail.ownerAvatarURL
         self.imageName = ""
-        self.imageURL = detail.nook.coverURL
+        self.imageURL = nil
         self.placeholderColor = nil
         self.likes = detail.nook.likesCount
         self.comments = 0
@@ -76,12 +76,15 @@ struct NookItem: Identifiable, Hashable {
         self.curatorName = summary.ownerName ?? "Unknown"
         self.curatorAvatarURL = summary.ownerAvatarURL
         self.imageName = ""
-        self.imageURL = summary.coverURL
+        self.imageURL = nil
         self.placeholderColor = nil
         self.likes = summary.likesCount
         self.comments = 0
         self.createdAt = summary.createdAt
-        self.mediaItems = []
+        // Preview posters of the media inside the nook (no cover image).
+        self.mediaItems = summary.previewImageURLs.map {
+            NookMediaItem(title: "", category: "", year: "", imageName: "", imageURL: $0)
+        }
         self.privacy = summary.privacy
     }
 }
@@ -179,67 +182,68 @@ struct PopularNooksSection: View {
 struct NookCard: View {
     let item: NookItem
 
+    private let cardWidth: CGFloat = 300
+    private let posterWidth: CGFloat = 60
+    private let posterHeight: CGFloat = 90
+
     var body: some View {
-        ZStack(alignment: .bottomLeading) {
-            // Background image or placeholder
-            Group {
-                if let url = item.imageURL {
-                    AsyncImage(url: url) { phase in
-                        switch phase {
-                        case .success(let image):
-                            image.resizable().scaledToFill()
-                        default:
-                            (item.placeholderColor ?? Color.nook.foreground)
-                        }
-                    }
-                } else if let color = item.placeholderColor {
-                    color
-                } else if !item.imageName.isEmpty {
-                    Image(item.imageName)
-                        .resizable()
-                        .scaledToFill()
-                } else {
-                    Color.nook.foreground
-                }
-            }
-            .frame(width: 354)
-            .aspectRatio(393.0 / 192.0, contentMode: .fill)
-            .clipped()
+        VStack(alignment: .leading, spacing: 14) {
+            posterShelf
 
-            // Gradient overlay
-            LinearGradient(
-                stops: [
-                    .init(color: .black.opacity(0.8), location: 0),
-                    .init(color: .black.opacity(0.2), location: 0.5),
-                    .init(color: .clear, location: 1),
-                ],
-                startPoint: .bottom,
-                endPoint: .top
-            )
-
-            // Text content
             VStack(alignment: .leading, spacing: 8) {
                 Text(item.title)
-                    .font(.custom("Outfit-Bold", size: 24))
+                    .font(.custom("Outfit-Bold", size: 20))
                     .lineSpacing(2)
-                    .foregroundStyle(.white)
                     .lineLimit(2)
+                    .foregroundStyle(Color.nook.cardTitle)
+                    .frame(maxWidth: .infinity, alignment: .leading)
 
-                // Curator
                 HStack(spacing: 8) {
                     curatorAvatar
 
                     Text("CURATED BY \(item.curatorName.uppercased())")
                         .font(.custom("PlusJakartaSans-Medium", size: 10))
                         .tracking(0.5)
-                        .foregroundStyle(.white.opacity(0.8))
+                        .foregroundStyle(Color.nook.cardSubtitle)
+                        .lineLimit(1)
                 }
             }
-            .padding(24)
         }
-        .frame(width: 354)
-        .aspectRatio(393.0 / 192.0, contentMode: .fit)
-        .clipShape(RoundedRectangle(cornerRadius: NookRadii.lg))
+        .padding(16)
+        .frame(width: cardWidth, alignment: .leading)
+        .background(Color.nook.card)
+        .clipShape(RoundedRectangle(cornerRadius: NookRadii.lg, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: NookRadii.lg, style: .continuous)
+                .stroke(Color.nook.border, lineWidth: 1)
+        )
+    }
+
+    // Posters of the media inside the nook, lined up like a shelf.
+    private var posterShelf: some View {
+        HStack(spacing: 8) {
+            let posters = Array(item.mediaItems.prefix(4))
+            if posters.isEmpty {
+                ForEach(0..<4, id: \.self) { _ in
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(Color.nook.searchShimmerBase)
+                        .frame(width: posterWidth, height: posterHeight)
+                }
+            } else {
+                ForEach(posters) { media in
+                    MediaPosterImage(
+                        url: media.imageURL,
+                        width: posterWidth,
+                        height: posterHeight,
+                        cornerRadius: 10,
+                        fallbackColor: Color.nook.searchShimmerBase
+                    )
+                }
+                Spacer(minLength: 0)
+            }
+        }
+        .frame(height: posterHeight)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var curatorAvatar: some View {
@@ -261,7 +265,7 @@ struct NookCard: View {
         .clipShape(Circle())
         .overlay(
             Circle()
-                .stroke(.white.opacity(0.2), lineWidth: 1)
+                .stroke(Color.nook.border, lineWidth: 1)
         )
     }
 

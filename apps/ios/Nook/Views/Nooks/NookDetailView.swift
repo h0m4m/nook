@@ -79,7 +79,7 @@ struct NookDetailView: View {
         VStack(spacing: 0) {
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 0) {
-                    coverSection
+                    headerInfo
                     contentSection
                 }
             }
@@ -138,41 +138,14 @@ struct NookDetailView: View {
         return "\(months / 12)y"
     }
 
-    // MARK: - Cover + Header Info
+    // MARK: - Header Info (no banner — nooks have no cover image)
 
-    // Rounded, inset cover image — rectangular (393:192), with the gradient
-    // fade + overlaid title/curator. Nav buttons live in the top safe-area bar.
-    private var coverSection: some View {
-        Color.clear
-            .aspectRatio(393.0 / 192.0, contentMode: .fit)
-            .overlay { coverImage }
-            .overlay {
-                LinearGradient(
-                    stops: [
-                        .init(color: Color(hex: 0xFDFCF9), location: 0),
-                        .init(color: Color(hex: 0xFDFCF9).opacity(0), location: 0.6),
-                    ],
-                    startPoint: .bottom,
-                    endPoint: .top
-                )
-            }
-            .overlay(alignment: .bottomLeading) { coverOverlayText }
-            .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 24, style: .continuous)
-                    .strokeBorder(Color(hex: 0xE6E2E0), lineWidth: 1)
-            )
-            .padding(.horizontal, 20)
-            .padding(.top, 8)
-    }
-
-    private var coverOverlayText: some View {
-        VStack(alignment: .leading, spacing: 8) {
+    private var headerInfo: some View {
+        VStack(alignment: .leading, spacing: 10) {
             Text(nook.title)
-                .font(.custom("Outfit-Bold", size: 24))
+                .font(.custom("Outfit-Bold", size: 26))
                 .lineSpacing(2)
-                .lineLimit(2)
-                .foregroundStyle(Color(hex: 0x1C1917))
+                .foregroundStyle(Color.nook.detailTitle)
 
             if let profile = ownerProfile {
                 NavigationLink(value: profile) { authorRow }
@@ -181,30 +154,10 @@ struct NookDetailView: View {
                 authorRow
             }
         }
-        .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    @ViewBuilder
-    private var coverImage: some View {
-        if let url = nook.imageURL {
-            AsyncImage(url: url) { phase in
-                switch phase {
-                case .success(let image):
-                    image.resizable().scaledToFill()
-                default:
-                    nook.placeholderColor ?? Color.nook.searchShimmerBase
-                }
-            }
-        } else if let color = nook.placeholderColor {
-            color
-        } else if !nook.imageName.isEmpty {
-            Image(nook.imageName)
-                .resizable()
-                .scaledToFill()
-        } else {
-            Color.nook.searchShimmerBase
-        }
+        .padding(.horizontal, 24)
+        .padding(.top, 12)
+        .padding(.bottom, 4)
     }
 
     private var authorRow: some View {
