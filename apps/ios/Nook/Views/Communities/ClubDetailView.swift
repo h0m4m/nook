@@ -1109,6 +1109,7 @@ private extension ClubDetailView {
             .padding(.horizontal, 17)
             .padding(.bottom, 17)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: NookRadii.md, style: .continuous)
                 .fill(Color.nook.clubDetailPostCard)

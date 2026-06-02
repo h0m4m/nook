@@ -1,19 +1,12 @@
 import SwiftUI
 import Supabase
 
-/// A menu row label whose icon is forced to a uniform size, so custom asset
-/// glyphs (which have differing intrinsic weights) all render consistently.
+/// A menu row label. Icon sizing is normalized at the asset level (the SVG
+/// viewBoxes are padded so every glyph fills the same proportion), because
+/// UIKit ignores SwiftUI frame sizing on menu icons.
 @ViewBuilder
 func sizedMenuLabel(_ title: String, icon: String, size: CGFloat = 17) -> some View {
-    Label {
-        Text(title)
-    } icon: {
-        Image(icon)
-            .renderingMode(.template)
-            .resizable()
-            .scaledToFit()
-            .frame(width: size, height: size)
-    }
+    Label(title, image: icon)
 }
 
 // MARK: - Club Post Comment Model
