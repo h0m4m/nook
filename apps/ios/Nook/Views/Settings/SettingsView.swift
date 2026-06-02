@@ -8,10 +8,11 @@ struct SettingsView: View {
 
     // MARK: - Notification Preferences
 
-    @AppStorage("pushNotificationsEnabled") private var pushNotificationsEnabled = true
-    @AppStorage("activityNotifications") private var activityNotifications = true
-    @AppStorage("communityNotifications") private var communityNotifications = true
-    @AppStorage("reviewNotifications") private var reviewNotifications = true
+    @State private var pushNotificationsEnabled = true
+    @State private var activityNotifications = true
+    @State private var communityNotifications = true
+    @State private var reviewNotifications = true
+    @State private var notificationPrefsLoaded = false
 
     // MARK: - Interests
 
@@ -22,6 +23,13 @@ struct SettingsView: View {
     @State private var showNotificationsSheet = false
     @State private var showAboutSheet = false
     @State private var showMailCompose = false
+
+    // MARK: - Export
+
+    @State private var isExporting = false
+    @State private var exportFileURL: URL?
+    @State private var showExportShare = false
+    @State private var showExportError = false
 
     // MARK: - Destructive Alerts
 
@@ -38,7 +46,7 @@ struct SettingsView: View {
 
     private let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
     private let buildNumber = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
-    private let feedbackEmail = "claudevfz@gmail.com"
+    private let feedbackEmail = "getnookapp@gmail.com"
 
     var body: some View {
         NavigationStack {
@@ -104,7 +112,8 @@ struct SettingsView: View {
                 pushEnabled: $pushNotificationsEnabled,
                 activityEnabled: $activityNotifications,
                 communityEnabled: $communityNotifications,
-                reviewEnabled: $reviewNotifications
+                reviewEnabled: $reviewNotifications,
+                onSave: { saveNotificationPreferences() }
             )
             .presentationDetents([.medium])
             .presentationDragIndicator(.visible)
@@ -128,6 +137,19 @@ struct SettingsView: View {
                 subject: "Nook Feedback (v\(appVersion))",
                 body: "\n\n---\nApp Version: \(appVersion) (\(buildNumber))\niOS: \(UIDevice.current.systemVersion)\nDevice: \(UIDevice.current.model)"
             )
+        }
+        .sheet(isPresented: $showExportShare) {
+            if let url = exportFileURL {
+                ShareSheet(items: [url])
+            }
+        }
+        .alert("Export Failed", isPresented: $showExportError) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("Something went wrong while exporting your data. Please try again.")
+        }
+        .task {
+            await loadNotificationPreferences()
         }
     }
 
@@ -153,6 +175,14 @@ struct SettingsView: View {
         }
         .padding(.horizontal, 16)
         .padding(.top, 16)
+        .padding(.bottom, 12)
+        .background(
+            LinearGradient(
+                colors: [Color.nook.settingsBackground, Color.nook.settingsBackground.opacity(0)],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        )
     }
 
     @ViewBuilder
@@ -234,10 +264,11 @@ struct SettingsView: View {
             settingsCard {
                 settingsRow(
                     icon: "export",
-                    label: "Export Data",
+                    label: isExporting ? "Exporting..." : "Export Data",
                     subtitle: "Download your Nook data"
                 ) {
-                    // TODO: Export data
+                    guard !isExporting else { return }
+                    exportData()
                 }
 
                 settingsDivider
@@ -429,6 +460,206 @@ struct SettingsView: View {
         }
     }
 
+    // MARK: - Notification Preferences (DB)
+
+    private func loadNotificationPreferences() async {
+        guard let userId = try? await supabase.auth.session.user.id else { return }
+
+        struct PrefsRow: Decodable {
+            let notificationPreferences: NotificationPreferences?
+
+            enum CodingKeys: String, CodingKey {
+                case notificationPreferences = "notification_preferences"
+            }
+        }
+
+        do {
+            let row: PrefsRow = try await supabase
+                .from("user_profiles")
+                .select("notification_preferences")
+                .eq("id", value: userId.uuidString)
+                .single()
+                .execute()
+                .value
+
+            if let prefs = row.notificationPreferences {
+                pushNotificationsEnabled = prefs.pushEnabled
+                activityNotifications = prefs.activity
+                communityNotifications = prefs.community
+                reviewNotifications = prefs.reviews
+            }
+        } catch {
+            // Keep defaults on failure
+        }
+
+        notificationPrefsLoaded = true
+    }
+
+    private func saveNotificationPreferences() {
+        guard notificationPrefsLoaded else { return }
+
+        Task {
+            guard let userId = try? await supabase.auth.session.user.id else { return }
+
+            let prefs = NotificationPreferences(
+                pushEnabled: pushNotificationsEnabled,
+                activity: activityNotifications,
+                community: communityNotifications,
+                reviews: reviewNotifications
+            )
+
+            struct PrefsUpdate: Encodable {
+                let notification_preferences: NotificationPreferences
+            }
+
+            try? await supabase
+                .from("user_profiles")
+                .update(PrefsUpdate(notification_preferences: prefs))
+                .eq("id", value: userId.uuidString)
+                .execute()
+        }
+    }
+
+    // MARK: - Export Data
+
+    private func exportData() {
+        isExporting = true
+
+        Task {
+            do {
+                let userId = try await supabase.auth.session.user.id
+
+                // Fetch profile
+                struct ExportProfile: Codable {
+                    let full_name: String?
+                    let username: String?
+                    let bio: String?
+                    let interests: [String]?
+                }
+
+                let profile: ExportProfile = try await supabase
+                    .from("user_profiles")
+                    .select("full_name, username, bio, interests")
+                    .eq("id", value: userId.uuidString)
+                    .single()
+                    .execute()
+                    .value
+
+                // Fetch tracked media
+                struct ExportTracked: Codable {
+                    let status: String
+                    let progress: Int
+                    let score: Double?
+                    let started_at: String?
+                    let completed_at: String?
+                    let notes: String?
+                    let created_at: String
+                    let media_item: ExportMediaItem?
+
+                    enum CodingKeys: String, CodingKey {
+                        case status, progress, score
+                        case started_at, completed_at, notes, created_at
+                        case media_item
+                    }
+                }
+
+                struct ExportMediaItem: Codable {
+                    let source: String
+                    let source_id: String
+                    let media_type: String
+                    let title: String
+                    let year: String?
+                }
+
+                let tracked: [ExportTracked] = try await supabase
+                    .from("tracked_media")
+                    .select("status, progress, score, started_at, completed_at, notes, created_at, media_item:media_items(source, source_id, media_type, title, year)")
+                    .eq("user_id", value: userId.uuidString)
+                    .order("created_at", ascending: false)
+                    .execute()
+                    .value
+
+                // Fetch reviews
+                struct ExportReview: Codable {
+                    let title: String?
+                    let body: String
+                    let rating: Double
+                    let is_spoiler: Bool
+                    let created_at: String
+                    let media_item: ExportMediaItem?
+
+                    enum CodingKeys: String, CodingKey {
+                        case title, body, rating, is_spoiler, created_at
+                        case media_item
+                    }
+                }
+
+                let reviews: [ExportReview] = try await supabase
+                    .from("reviews")
+                    .select("title, body, rating, is_spoiler, created_at, media_item:media_items(source, source_id, media_type, title, year)")
+                    .eq("user_id", value: userId.uuidString)
+                    .order("created_at", ascending: false)
+                    .execute()
+                    .value
+
+                // Fetch nooks
+                struct ExportNook: Codable {
+                    let name: String
+                    let description: String?
+                    let privacy: String
+                    let layout: String
+                    let created_at: String
+                }
+
+                let nooks: [ExportNook] = try await supabase
+                    .from("nooks")
+                    .select("name, description, privacy, layout, created_at")
+                    .eq("user_id", value: userId.uuidString)
+                    .order("created_at", ascending: false)
+                    .execute()
+                    .value
+
+                // Build export
+                struct NookExport: Codable {
+                    let exported_at: String
+                    let profile: ExportProfile
+                    let tracked_media: [ExportTracked]
+                    let reviews: [ExportReview]
+                    let nooks: [ExportNook]
+                }
+
+                let formatter = ISO8601DateFormatter()
+                let export = NookExport(
+                    exported_at: formatter.string(from: Date()),
+                    profile: profile,
+                    tracked_media: tracked,
+                    reviews: reviews,
+                    nooks: nooks
+                )
+
+                let encoder = JSONEncoder()
+                encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+                let data = try encoder.encode(export)
+
+                // Write to temp file
+                let tempDir = FileManager.default.temporaryDirectory
+                let fileURL = tempDir.appendingPathComponent("nook-export.json")
+                try data.write(to: fileURL)
+
+                await MainActor.run {
+                    exportFileURL = fileURL
+                    isExporting = false
+                    showExportShare = true
+                }
+            } catch {
+                await MainActor.run {
+                    isExporting = false
+                    showExportError = true
+                }
+            }
+        }
+    }
+
     // MARK: - Shared Components
 
     private func sectionHeader(_ title: String) -> some View {
@@ -546,6 +777,22 @@ enum AppColorScheme: String, CaseIterable {
     }
 }
 
+// MARK: - Notification Preferences Model
+
+struct NotificationPreferences: Codable {
+    let pushEnabled: Bool
+    let activity: Bool
+    let community: Bool
+    let reviews: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case pushEnabled = "push_enabled"
+        case activity
+        case community
+        case reviews
+    }
+}
+
 // MARK: - Notification Preferences Sheet
 
 private struct NotificationPreferencesSheet: View {
@@ -553,6 +800,7 @@ private struct NotificationPreferencesSheet: View {
     @Binding var activityEnabled: Bool
     @Binding var communityEnabled: Bool
     @Binding var reviewEnabled: Bool
+    var onSave: () -> Void
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -608,6 +856,10 @@ private struct NotificationPreferencesSheet: View {
 
             Spacer()
         }
+        .onChange(of: pushEnabled) { onSave() }
+        .onChange(of: activityEnabled) { onSave() }
+        .onChange(of: communityEnabled) { onSave() }
+        .onChange(of: reviewEnabled) { onSave() }
     }
 
     private func toggleRow(
@@ -745,6 +997,18 @@ struct MailComposeView: UIViewControllerRepresentable {
             }
         }
     }
+}
+
+// MARK: - Share Sheet
+
+struct ShareSheet: UIViewControllerRepresentable {
+    let items: [Any]
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: items, applicationActivities: nil)
+    }
+
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
 
 // MARK: - Preview

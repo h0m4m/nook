@@ -6,6 +6,7 @@ struct StatsView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var trackedCount = 0
     @State private var completedCount = 0
+    @State private var hoursSpent: String = "—"
     @State private var avgRating: String = "—"
     @State private var categoryStats: [CategoryStat] = []
     @State private var realRatingData: [RatingStat] = []
@@ -63,11 +64,12 @@ struct StatsView: View {
                 "book": (Color.nook.statsBook, Color.nook.statsBookBg),
                 "movie": (Color.nook.statsMovie, Color.nook.statsMovieBg),
                 "manga": (Color.nook.statsManga, Color.nook.statsMangaBg),
+                "game": (Color.nook.statsGame, Color.nook.statsGameBg),
             ]
 
             let labelMap: [String: String] = [
                 "anime": "Anime", "tv": "TV", "book": "Books",
-                "movie": "Movies", "manga": "Manga",
+                "movie": "Movies", "manga": "Manga", "game": "Games",
             ]
 
             let maxCount = counts.values.max() ?? 1
@@ -149,14 +151,26 @@ struct StatsView: View {
                 streakStartDate = df.string(from: startDate)
             }
 
+            // Hours spent (movies, TV, anime only — no reliable data for books/manga/games)
+            let profileService = ProfileService()
+            let hours = (try? await profileService.getHoursSpent(userId: userId)) ?? 0
+            if hours >= 1 {
+                hoursSpent = String(format: "%.0f", hours)
+            } else if hours > 0 {
+                hoursSpent = "<1"
+            }
+
             // Milestones
-            let reviewCount = (try? await ProfileService().getStats(userId: userId))?.reviewCount ?? 0
+            let stats = try? await profileService.getStats(userId: userId)
+            let reviewCount = stats?.reviewCount ?? 0
+            let reviewLikesReceived = stats?.reviewLikesReceived ?? 0
             realMilestones = [
                 MilestoneStat(title: "First Steps", description: "Track your first piece of media", achieved: trackedCount >= 1),
                 MilestoneStat(title: "Dedicated Viewer", description: "Complete 50 titles", achieved: completedCount >= 50),
                 MilestoneStat(title: "Century Club", description: "Complete 100 titles", achieved: completedCount >= 100),
                 MilestoneStat(title: "Critic's Eye", description: "Write 25 reviews", achieved: reviewCount >= 25),
                 MilestoneStat(title: "Bookworm", description: "Track 10 books", achieved: counts["book", default: 0] >= 10),
+                MilestoneStat(title: "Tastemaker", description: "Have 10 reviews liked by others", achieved: reviewLikesReceived >= 10),
             ]
         } catch {
             // Keep defaults
@@ -184,6 +198,14 @@ struct StatsView: View {
         }
         .padding(.horizontal, 16)
         .padding(.top, 16)
+        .padding(.bottom, 12)
+        .background(
+            LinearGradient(
+                colors: [Color.nook.statsBackground, Color.nook.statsBackground.opacity(0)],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        )
     }
 
     @ViewBuilder
@@ -247,7 +269,7 @@ struct StatsView: View {
                     background: Color.nook.libraryStatusActive.opacity(0.12)
                 )
                 overviewCard(
-                    value: "—",
+                    value: hoursSpent,
                     label: "Hours spent",
                     icon: "clock-fill",
                     color: Color.nook.profileStatReviews,
@@ -357,7 +379,7 @@ struct StatsView: View {
                 .foregroundStyle(Color.nook.statsSectionTitle)
 
             VStack(spacing: 10) {
-                let data = categoryStats.isEmpty ? StatsView.categoryData : categoryStats
+                let data = categoryStats
                 ForEach(data, id: \.label) { item in
                     categoryBar(item: item)
                 }
@@ -408,7 +430,7 @@ struct StatsView: View {
                 .foregroundStyle(Color.nook.statsSectionTitle)
 
             VStack(spacing: 0) {
-                let ratings = realRatingData.isEmpty ? StatsView.ratingData : realRatingData
+                let ratings = realRatingData
                 let maxCount = ratings.map(\.count).max() ?? 1
 
                 HStack(alignment: .bottom, spacing: 6) {
@@ -445,23 +467,6 @@ struct StatsView: View {
         }
     }
 
-    private func ratingBar(item: RatingStat) -> some View {
-        VStack(spacing: 4) {
-            Spacer(minLength: 0)
-
-            if item.count > 0 {
-                Text("\(item.count)")
-                    .font(NookFont.statsBarLabel)
-                    .foregroundStyle(Color.nook.statsSubtitle)
-            }
-
-            RoundedRectangle(cornerRadius: 4)
-                .fill(item.count > 0 ? Color.nook.statsRatingBarFill : Color.nook.statsRatingBar)
-                .frame(maxWidth: .infinity)
-                .frame(height: max(CGFloat(item.count) / CGFloat(StatsView.maxRatingCount) * 80, 4))
-        }
-    }
-
     private func ratingBarDynamic(item: RatingStat, maxCount: Int) -> some View {
         VStack(spacing: 4) {
             Spacer(minLength: 0)
@@ -488,7 +493,7 @@ struct StatsView: View {
                 .foregroundStyle(Color.nook.statsSectionTitle)
 
             FlowLayout(spacing: 8) {
-                ForEach(realGenreData.isEmpty ? StatsView.genreData : realGenreData, id: \.name) { genre in
+                ForEach(realGenreData, id: \.name) { genre in
                     genreTag(name: genre.name, count: genre.count)
                 }
             }
@@ -539,7 +544,7 @@ struct StatsView: View {
             }
 
             VStack(spacing: 0) {
-                let monthlyItems = realMonthlyData.isEmpty ? StatsView.monthlyData : realMonthlyData
+                let monthlyItems = realMonthlyData
                 let maxMonthly = monthlyItems.map(\.count).max() ?? 1
 
                 HStack(alignment: .bottom, spacing: 8) {
@@ -565,7 +570,7 @@ struct StatsView: View {
                 .padding(.top, 16)
 
                 HStack(spacing: 8) {
-                    ForEach(realMonthlyData.isEmpty ? StatsView.monthlyData : realMonthlyData, id: \.month) { item in
+                    ForEach(realMonthlyData, id: \.month) { item in
                         Text(item.month)
                             .font(NookFont.statsBarLabel)
                             .foregroundStyle(Color.nook.statsRatingLabel)
@@ -594,7 +599,7 @@ struct StatsView: View {
                 .foregroundStyle(Color.nook.statsSectionTitle)
 
             VStack(spacing: 0) {
-                let milestones = realMilestones.isEmpty ? StatsView.milestoneData : realMilestones
+                let milestones = realMilestones
                 ForEach(Array(milestones.enumerated()), id: \.element.title) { index, milestone in
                     milestoneRow(milestone: milestone)
 
@@ -711,10 +716,6 @@ extension StatsView {
         RatingStat(score: 10, count: 6),
     ]
 
-    fileprivate static var maxRatingCount: Int {
-        ratingData.map(\.count).max() ?? 1
-    }
-
     fileprivate static let genreData: [GenreStat] = [
         GenreStat(name: "Sci-Fi", count: 34),
         GenreStat(name: "Fantasy", count: 28),
@@ -735,10 +736,6 @@ extension StatsView {
         MonthlyStat(month: "Apr", count: 18),
         MonthlyStat(month: "May", count: 26),
     ]
-
-    fileprivate static var maxMonthlyCount: Int {
-        monthlyData.map(\.count).max() ?? 1
-    }
 
     fileprivate static let milestoneData: [MilestoneStat] = [
         MilestoneStat(title: "First Steps", description: "Track your first piece of media", achieved: true),

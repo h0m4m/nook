@@ -133,7 +133,9 @@ export async function detail(sourceId: string, mediaType: string): Promise<Media
     const releases = (r.releases as Array<Record<string, string>>) || [];
     const usRelease = releases.find((rel) => rel.country === 'usa');
     details.release_date = usRelease?.date || releases[0]?.date || null;
-    details.runtime = getReadableDuration(r.runtime as number);
+    const movieRuntime = r.runtime as number | null;
+    details.runtime = getReadableDuration(movieRuntime);
+    if (movieRuntime) details.runtime_minutes = movieRuntime;
 
     const studios = (r.studios as Array<Record<string, unknown>>) || [];
     details.studios = studios.length > 0 ? studios.map((s) => s.name as string) : null;
@@ -146,7 +148,9 @@ export async function detail(sourceId: string, mediaType: string): Promise<Media
     // TV series-specific fields
     details.first_air_date = (r.firstAired as string) || null;
     details.end_date = (r.lastAired as string) || null;
-    details.runtime = getReadableDuration(r.averageRuntime as number);
+    const avgRuntime = r.averageRuntime as number | null;
+    details.runtime = getReadableDuration(avgRuntime);
+    if (avgRuntime) details.runtime_minutes = avgRuntime;
 
     const network = r.originalNetwork as Record<string, unknown> | undefined;
     details.network = network?.name || null;

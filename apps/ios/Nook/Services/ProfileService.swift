@@ -82,8 +82,19 @@ final class ProfileService: Sendable {
             trackedCount: (result["tracked_count"]?.intValue) ?? 0,
             reviewCount: (result["review_count"]?.intValue) ?? 0,
             nookCount: (result["nook_count"]?.intValue) ?? 0,
-            clubCount: (result["club_count"]?.intValue) ?? 0
+            clubCount: (result["club_count"]?.intValue) ?? 0,
+            reviewLikesReceived: (result["review_likes_received"]?.intValue) ?? 0
         )
+    }
+
+    func getHoursSpent(userId: UUID) async throws -> Double {
+        let result: JSONObject = try await supabase
+            .rpc("get_hours_spent", params: ["target_user_id": userId.uuidString])
+            .execute()
+            .value
+
+        let totalMinutes = result["total_minutes"]?.intValue ?? 0
+        return Double(totalMinutes) / 60.0
     }
 
     func follow(userId: UUID) async throws {
@@ -214,6 +225,7 @@ struct UserStats: Sendable {
     let reviewCount: Int
     let nookCount: Int
     let clubCount: Int
+    let reviewLikesReceived: Int
 }
 
 // MARK: - JSON helpers for RPC

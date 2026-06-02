@@ -8,6 +8,9 @@ struct EditInterestsSheet: View {
     @State private var isSaving = false
     @State private var isLoading = true
     @State private var errorMessage: String?
+    @State private var trackedMediaTypes: Set<String> = []
+    @State private var interestToRemove: MediaInterest?
+    @State private var showRemoveAlert = false
 
     private let columns = [
         GridItem(.flexible(), spacing: 16),
@@ -60,6 +63,16 @@ struct EditInterestsSheet: View {
         .background(Color.nook.settingsBackground)
         .task {
             await loadInterests()
+        }
+        .alert("Remove \(interestToRemove?.label ?? "")?", isPresented: $showRemoveAlert) {
+            Button("Cancel", role: .cancel) {
+                interestToRemove = nil
+            }
+            Button("Remove", role: .destructive) {
+                confirmRemoveInterest()
+            }
+        } message: {
+            Text("You have tracked \(interestToRemove?.label.lowercased() ?? "") in your library. Removing this interest will hide it from search and recommendations, but your tracked items won't be deleted.")
         }
     }
 
@@ -127,14 +140,31 @@ struct EditInterestsSheet: View {
         let generator = UIImpactFeedbackGenerator(style: .light)
         generator.prepare()
 
-        withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
-            if selectedInterests.contains(interest.rawValue) {
+        if selectedInterests.contains(interest.rawValue) {
+            // Check if user has tracked media for this interest
+            let apiType = interest.apiMediaType
+            if trackedMediaTypes.contains(apiType) {
+                interestToRemove = interest
+                showRemoveAlert = true
+                return
+            }
+            withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
                 selectedInterests.remove(interest.rawValue)
-            } else {
+            }
+        } else {
+            withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
                 selectedInterests.insert(interest.rawValue)
                 generator.impactOccurred()
             }
         }
+    }
+
+    private func confirmRemoveInterest() {
+        guard let interest = interestToRemove else { return }
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
+            selectedInterests.remove(interest.rawValue)
+        }
+        interestToRemove = nil
     }
 
     private func loadInterests() async {
@@ -162,6 +192,33 @@ struct EditInterestsSheet: View {
         } catch {
             // Default to all if can't load
             selectedInterests = Set(MediaInterest.allCases.map(\.rawValue))
+        }
+
+        // Load which media types the user has tracked
+        struct TrackedWithMedia: Decodable {
+            let mediaItem: TrackedMediaType?
+
+            enum CodingKeys: String, CodingKey {
+                case mediaItem = "media_item"
+            }
+        }
+
+        struct TrackedMediaType: Decodable {
+            let mediaType: String
+
+            enum CodingKeys: String, CodingKey {
+                case mediaType = "media_type"
+            }
+        }
+
+        if let rows: [TrackedWithMedia] = try? await supabase
+            .from("tracked_media")
+            .select("media_item:media_items(media_type)")
+            .eq("user_id", value: user.id.uuidString)
+            .execute()
+            .value
+        {
+            trackedMediaTypes = Set(rows.compactMap { $0.mediaItem?.mediaType })
         }
 
         isLoading = false

@@ -55,6 +55,17 @@ enum MediaInterest: String, CaseIterable, Identifiable {
         case .games: "gamepad"
         }
     }
+
+    var apiMediaType: String {
+        switch self {
+        case .movies: "movie"
+        case .tvShows: "tv"
+        case .anime: "anime"
+        case .manga: "manga"
+        case .books: "book"
+        case .games: "game"
+        }
+    }
 }
 
 // MARK: - Main View

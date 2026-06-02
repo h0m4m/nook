@@ -154,6 +154,7 @@ export async function detail(sourceId: string, mediaType: string): Promise<Media
       const h = Math.floor(epLength / 60);
       const m = epLength % 60;
       details.runtime = h > 0 ? `${h}h ${m}m` : `${m} min`;
+      details.runtime_minutes = epLength;
     }
   } else {
     const chapterCount = attrs.chapterCount as number | null;
