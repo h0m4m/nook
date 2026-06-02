@@ -887,8 +887,8 @@ struct ProfileNookCard: View {
         HStack(spacing: 16) {
             MediaPosterImage(
                 url: coverURL,
-                width: 80,
-                height: 80,
+                width: 120,
+                height: 64,
                 cornerRadius: NookRadii.sm,
                 fallbackColor: placeholderColor
             )

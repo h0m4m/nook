@@ -80,7 +80,6 @@ struct NookDetailView: View {
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 0) {
                     coverSection
-                    headerInfo
                     contentSection
                 }
             }
@@ -141,11 +140,23 @@ struct NookDetailView: View {
 
     // MARK: - Cover + Header Info
 
-    // Rounded, inset cover image — rectangular (393:192), matching the club banner shape.
+    // Rounded, inset cover image — rectangular (393:192), with the gradient
+    // fade + overlaid title/curator. Nav buttons live in the top safe-area bar.
     private var coverSection: some View {
         Color.clear
             .aspectRatio(393.0 / 192.0, contentMode: .fit)
             .overlay { coverImage }
+            .overlay {
+                LinearGradient(
+                    stops: [
+                        .init(color: Color(hex: 0xFDFCF9), location: 0),
+                        .init(color: Color(hex: 0xFDFCF9).opacity(0), location: 0.6),
+                    ],
+                    startPoint: .bottom,
+                    endPoint: .top
+                )
+            }
+            .overlay(alignment: .bottomLeading) { coverOverlayText }
             .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: 24, style: .continuous)
@@ -153,6 +164,25 @@ struct NookDetailView: View {
             )
             .padding(.horizontal, 20)
             .padding(.top, 8)
+    }
+
+    private var coverOverlayText: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(nook.title)
+                .font(.custom("Outfit-Bold", size: 24))
+                .lineSpacing(2)
+                .lineLimit(2)
+                .foregroundStyle(Color(hex: 0x1C1917))
+
+            if let profile = ownerProfile {
+                NavigationLink(value: profile) { authorRow }
+                    .buttonStyle(.plain)
+            } else {
+                authorRow
+            }
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     @ViewBuilder
@@ -175,26 +205,6 @@ struct NookDetailView: View {
         } else {
             Color.nook.searchShimmerBase
         }
-    }
-
-    private var headerInfo: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text(nook.title)
-                .font(.custom("Outfit-Bold", size: 26))
-                .lineSpacing(2)
-                .foregroundStyle(Color.nook.detailTitle)
-
-            // Author — tappable to open the curator's profile
-            if let profile = ownerProfile {
-                NavigationLink(value: profile) { authorRow }
-                    .buttonStyle(.plain)
-            } else {
-                authorRow
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 24)
-        .padding(.top, 16)
     }
 
     private var authorRow: some View {

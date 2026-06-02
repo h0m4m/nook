@@ -88,20 +88,22 @@ private struct DiscoverNookCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             ZStack(alignment: .topTrailing) {
-                MediaPosterImage(
-                    url: summary.coverURL,
-                    width: 999,
-                    height: 999,
-                    cornerRadius: NookRadii.sm,
-                    fallbackColor: Color.nook.searchShimmerBase
-                )
-                .aspectRatio(402.0 / 394.0, contentMode: .fit)
-                .frame(maxWidth: .infinity)
-                .clipShape(RoundedRectangle(cornerRadius: NookRadii.sm, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: NookRadii.sm, style: .continuous)
-                        .strokeBorder(Color(hex: 0xE6E2E0), lineWidth: 1)
-                )
+                Color.clear
+                    .aspectRatio(393.0 / 192.0, contentMode: .fit)
+                    .overlay {
+                        AsyncImage(url: summary.coverURL) { phase in
+                            switch phase {
+                            case .success(let image): image.resizable().scaledToFill()
+                            default: Color.nook.searchShimmerBase
+                            }
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .clipShape(RoundedRectangle(cornerRadius: NookRadii.sm, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: NookRadii.sm, style: .continuous)
+                            .strokeBorder(Color(hex: 0xE6E2E0), lineWidth: 1)
+                    )
 
                 if summary.likesCount > 0 {
                     HStack(spacing: 4) {

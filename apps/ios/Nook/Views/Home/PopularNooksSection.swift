@@ -203,7 +203,7 @@ struct NookCard: View {
                 }
             }
             .frame(width: 354)
-            .aspectRatio(402.0 / 394.0, contentMode: .fill)
+            .aspectRatio(393.0 / 192.0, contentMode: .fill)
             .clipped()
 
             // Gradient overlay
@@ -238,7 +238,7 @@ struct NookCard: View {
             .padding(24)
         }
         .frame(width: 354)
-        .aspectRatio(402.0 / 394.0, contentMode: .fit)
+        .aspectRatio(393.0 / 192.0, contentMode: .fit)
         .clipShape(RoundedRectangle(cornerRadius: NookRadii.lg))
     }
 
