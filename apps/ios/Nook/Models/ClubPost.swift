@@ -14,8 +14,9 @@ struct ClubPostRow: Codable, Sendable {
     let updatedAt: Date
     let userProfile: ReviewAuthor?
     let images: [ClubPostImageRow]?
-    // PostgREST returns embedded one-to-one relations as an array; decode as array, use first.
-    let poll: [ClubPollRow]?
+    // PostgREST may serialize the one-to-one poll embed as a single object (unique FK)
+    // or an array depending on version; decode tolerantly.
+    let poll: SingleOrArray<ClubPollRow>?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -37,6 +38,25 @@ struct ClubPostImageRow: Codable, Sendable {
     let id: UUID
     let url: String
     let position: Int
+}
+
+/// Decodes a PostgREST embed that may arrive either as a single object or as an array.
+struct SingleOrArray<Element: Codable & Sendable>: Codable, Sendable {
+    let first: Element?
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        if let array = try? container.decode([Element].self) {
+            first = array.first
+        } else {
+            first = try? container.decode(Element.self)
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(first)
+    }
 }
 
 struct ClubPollRow: Codable, Sendable {
