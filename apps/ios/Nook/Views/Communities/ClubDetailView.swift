@@ -946,14 +946,14 @@ private extension ClubDetailView {
             Button {
                 detailVM?.togglePin(postId: model.id)
             } label: {
-                Label("Unpin", image: "push-pin")
+                sizedMenuLabel("Unpin", icon: "push-pin")
             }
         }
         if detailVM?.canDeletePost(model) == true {
             Button(role: .destructive) {
                 detailVM?.deletePost(postId: model.id)
             } label: {
-                Label("Delete Post", image: "trash")
+                sizedMenuLabel("Delete Post", icon: "trash")
             }
         }
     }
@@ -1054,7 +1054,7 @@ private extension ClubDetailView {
                     .renderingMode(.template)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
-                    .frame(width: 14, height: 14)
+                    .frame(width: 12, height: 12)
                     .foregroundStyle(Color.nook.clubDetailPinned)
 
                 Text("PINNED DISCUSSION")
@@ -1199,14 +1199,14 @@ private extension ClubDetailView {
                     Button {
                         detailVM?.togglePin(postId: dbId)
                     } label: {
-                        Label(post.isPinned ? "Unpin" : "Pin to club", image: "push-pin")
+                        sizedMenuLabel(post.isPinned ? "Unpin" : "Pin to club", icon: "push-pin")
                     }
                 }
                 if canDelete {
                     Button(role: .destructive) {
                         detailVM?.deletePost(postId: dbId)
                     } label: {
-                        Label("Delete Post", image: "trash")
+                        sizedMenuLabel("Delete Post", icon: "trash")
                     }
                 }
             } label: {
@@ -1583,20 +1583,20 @@ private extension ClubDetailView {
                         Button {
                             vm?.setMemberRole(userId: member.userId, role: "member")
                         } label: {
-                            Label("Remove Admin", image: "star")
+                            sizedMenuLabel("Remove Admin", icon: "star")
                         }
                     } else {
                         Button {
                             vm?.setMemberRole(userId: member.userId, role: "admin")
                         } label: {
-                            Label("Make Admin", image: "star-fill")
+                            sizedMenuLabel("Make Admin", icon: "star-fill")
                         }
                     }
                 }
                 Button(role: .destructive) {
                     vm?.removeMember(userId: member.userId)
                 } label: {
-                    Label("Remove from Club", image: "user-minus")
+                    sizedMenuLabel("Remove from Club", icon: "user-minus")
                 }
             } label: {
                 Image("dots-three-bold")

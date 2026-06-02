@@ -367,7 +367,7 @@ private extension ComposePostView {
                 }
 
                 // Save draft
-                toolbarIconButton("bookmark", active: draftSaved) {
+                toolbarIconButton("bookmark-simple", active: draftSaved) {
                     saveDraft()
                 }
 

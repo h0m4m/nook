@@ -1,6 +1,21 @@
 import SwiftUI
 import Supabase
 
+/// A menu row label whose icon is forced to a uniform size, so custom asset
+/// glyphs (which have differing intrinsic weights) all render consistently.
+@ViewBuilder
+func sizedMenuLabel(_ title: String, icon: String, size: CGFloat = 17) -> some View {
+    Label {
+        Text(title)
+    } icon: {
+        Image(icon)
+            .renderingMode(.template)
+            .resizable()
+            .scaledToFit()
+            .frame(width: size, height: size)
+    }
+}
+
 // MARK: - Club Post Comment Model
 // Mirrors ReviewComment / NookComment so club posts behave identically.
 
@@ -850,18 +865,18 @@ private struct PostDetailTopBar: ViewModifier {
             Menu {
                 if canModerate {
                     Button(action: onTogglePin) {
-                        Label(isPinned ? "Unpin" : "Pin to club", image: "push-pin")
+                        sizedMenuLabel(isPinned ? "Unpin" : "Pin to club", icon: "push-pin")
                     }
                 }
                 Button(role: .destructive, action: onReport) {
-                    Label("Report", image: "flag")
+                    sizedMenuLabel("Report", icon: "flag")
                 }
                 Button(action: onBlock) {
-                    Label("Block user", image: "user-minus")
+                    sizedMenuLabel("Block user", icon: "user-minus")
                 }
                 if canDelete {
                     Button(role: .destructive, action: onDelete) {
-                        Label("Delete post", image: "trash")
+                        sizedMenuLabel("Delete post", icon: "trash")
                     }
                 }
             } label: {

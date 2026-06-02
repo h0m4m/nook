@@ -986,36 +986,18 @@ private struct ReviewDetailTopBar: ViewModifier {
                 Button(role: .destructive) {
                     // TODO: Report review
                 } label: {
-                    Label {
-                        Text("Report")
-                            .font(.subheadline)
-                    } icon: {
-                        Image("flag")
-                            .renderingMode(.template)
-                    }
+                    sizedMenuLabel("Report", icon: "flag")
                 }
 
                 Button {
                     // TODO: Block user
                 } label: {
-                    Label {
-                        Text("Block user")
-                            .font(.subheadline)
-                    } icon: {
-                        Image("user-minus")
-                            .renderingMode(.template)
-                    }
+                    sizedMenuLabel("Block user", icon: "user-minus")
                 }
 
                 if canDelete {
                     Button(role: .destructive, action: onDelete) {
-                        Label {
-                            Text("Delete review")
-                                .font(.subheadline)
-                        } icon: {
-                            Image("trash")
-                                .renderingMode(.template)
-                        }
+                        sizedMenuLabel("Delete review", icon: "trash")
                     }
                 }
             } label: {
