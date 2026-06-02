@@ -151,7 +151,7 @@ struct CreateNookSheet: View {
                 await MainActor.run {
                     rawPickedImage = downsized
                     // Small delay so the picker dismissal animation completes first
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                         showCropSheet = true
                     }
                 }
@@ -159,7 +159,10 @@ struct CreateNookSheet: View {
         }
         .fullScreenCover(isPresented: $showCropSheet) {
             if let rawPickedImage {
-                CoverCropView(image: rawPickedImage) { cropped in
+                ImageCropView(
+                    image: rawPickedImage,
+                    cropAspect: 402.0 / 394.0
+                ) { cropped in
                     withAnimation(.easeOut(duration: 0.2)) {
                         coverImage = cropped
                     }
@@ -864,197 +867,6 @@ private struct SettingsPickerSheet<T: Equatable>: View {
 
             Spacer()
         }
-    }
-}
-
-// MARK: - Cover Crop View
-
-private struct CoverCropView: View {
-    let image: UIImage
-    var onCrop: (UIImage) -> Void
-    @Environment(\.dismiss) private var dismiss
-
-    @State private var scale: CGFloat = 1.0
-    @State private var lastScale: CGFloat = 1.0
-    @State private var offset: CGSize = .zero
-    @State private var lastOffset: CGSize = .zero
-    @State private var viewSize: CGSize = .zero
-
-    // Match the detail hero ratio (full width × 394pt on ~393pt screen)
-    private let cropAspect: CGFloat = 402.0 / 394.0
-
-    private var cropWidth: CGFloat { max(1, viewSize.width - 48) }
-    private var cropHeight: CGFloat { cropWidth / cropAspect }
-
-    // Base size: image scaled to just fill the crop rect (scaledToFill the crop window)
-    private var baseFitSize: CGSize {
-        let imgAspect = image.size.width / image.size.height
-        let cropAsp = cropWidth / cropHeight
-        if imgAspect > cropAsp {
-            // Image wider than crop — match heights
-            let h = cropHeight
-            let w = h * imgAspect
-            return CGSize(width: w, height: h)
-        } else {
-            // Image taller than crop — match widths
-            let w = cropWidth
-            let h = w / imgAspect
-            return CGSize(width: w, height: h)
-        }
-    }
-
-    private func clampedOffset(for currentScale: CGFloat) -> CGSize {
-        let fit = baseFitSize
-        let displayW = fit.width * currentScale
-        let displayH = fit.height * currentScale
-
-        // Max offset so image edge doesn't go past crop edge
-        let maxX = max(0, (displayW - cropWidth) / 2)
-        let maxY = max(0, (displayH - cropHeight) / 2)
-
-        return CGSize(
-            width: min(maxX, max(-maxX, offset.width)),
-            height: min(maxY, max(-maxY, offset.height))
-        )
-    }
-
-    var body: some View {
-        ZStack {
-            Color.black.ignoresSafeArea()
-
-            GeometryReader { geo in
-                let fit = baseFitSize
-
-                ZStack {
-                    Image(uiImage: image)
-                        .resizable()
-                        .frame(width: fit.width, height: fit.height)
-                        .scaleEffect(scale)
-                        .offset(clampedOffset(for: scale))
-                        .gesture(
-                            DragGesture()
-                                .onChanged { value in
-                                    offset = CGSize(
-                                        width: lastOffset.width + value.translation.width,
-                                        height: lastOffset.height + value.translation.height
-                                    )
-                                }
-                                .onEnded { _ in
-                                    withAnimation(.easeOut(duration: 0.2)) {
-                                        offset = clampedOffset(for: scale)
-                                    }
-                                    lastOffset = clampedOffset(for: scale)
-                                }
-                        )
-                        .gesture(
-                            MagnifyGesture()
-                                .onChanged { value in
-                                    scale = max(1.0, lastScale * value.magnification)
-                                }
-                                .onEnded { _ in
-                                    withAnimation(.easeOut(duration: 0.2)) {
-                                        scale = max(1.0, scale)
-                                        offset = clampedOffset(for: scale)
-                                    }
-                                    lastScale = scale
-                                    lastOffset = clampedOffset(for: scale)
-                                }
-                        )
-
-                    // Crop overlay
-                    Rectangle()
-                        .fill(.black.opacity(0.5))
-                        .reverseMask {
-                            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                                .frame(width: cropWidth, height: cropHeight)
-                        }
-                        .allowsHitTesting(false)
-
-                    RoundedRectangle(cornerRadius: 24, style: .continuous)
-                        .strokeBorder(.white.opacity(0.5), lineWidth: 1)
-                        .frame(width: cropWidth, height: cropHeight)
-                        .allowsHitTesting(false)
-                }
-                .frame(width: geo.size.width, height: geo.size.height)
-                .clipped()
-                .onAppear { viewSize = geo.size }
-                .onChange(of: geo.size) { _, newSize in viewSize = newSize }
-            }
-
-            // Toolbar
-            VStack {
-                Spacer()
-
-                HStack {
-                    Button("Cancel") {
-                        dismiss()
-                    }
-                    .font(NookFont.labelBoldSmall)
-                    .foregroundStyle(.white)
-
-                    Spacer()
-
-                    Button("Done") {
-                        performCrop()
-                    }
-                    .font(NookFont.labelBoldSmall)
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 24)
-                    .frame(height: 40)
-                    .background(.white.opacity(0.2), in: Capsule())
-                }
-                .padding(.horizontal, 24)
-                .padding(.bottom, 24)
-            }
-        }
-    }
-
-    private func performCrop() {
-        let fit = baseFitSize
-        let clamped = clampedOffset(for: scale)
-
-        guard fit.width > 0, fit.height > 0 else {
-            onCrop(image)
-            dismiss()
-            return
-        }
-
-        // Pixels per point at base fit size
-        let pppX = image.size.width / fit.width
-        let pppY = image.size.height / fit.height
-
-        // Crop center in image pixels
-        let centerX = (image.size.width / 2) - (clamped.width / scale) * pppX
-        let centerY = (image.size.height / 2) - (clamped.height / scale) * pppY
-
-        // Crop size in image pixels
-        let w = (cropWidth / scale) * pppX
-        let h = (cropHeight / scale) * pppY
-
-        var rect = CGRect(x: centerX - w / 2, y: centerY - h / 2, width: w, height: h)
-        rect = rect.intersection(CGRect(origin: .zero, size: image.size))
-
-        guard !rect.isEmpty, let cgImage = image.cgImage?.cropping(to: rect) else {
-            onCrop(image)
-            dismiss()
-            return
-        }
-
-        onCrop(UIImage(cgImage: cgImage, scale: image.scale, orientation: image.imageOrientation))
-        dismiss()
-    }
-}
-
-private extension View {
-    func reverseMask<Mask: View>(@ViewBuilder _ mask: () -> Mask) -> some View {
-        self.mask(
-            ZStack {
-                Rectangle()
-                mask()
-                    .blendMode(.destinationOut)
-            }
-            .compositingGroup()
-        )
     }
 }
 

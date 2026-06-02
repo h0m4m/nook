@@ -11,6 +11,8 @@ struct EditProfileSheet: View {
     @State private var bio = ""
     @State private var avatarURL: URL?
     @State private var avatarImage: UIImage?
+    @State private var rawPickedImage: UIImage?
+    @State private var showCropSheet = false
     @State private var pickerSelection: [PhotosPickerItem] = []
     @State private var showPhotoPicker = false
     @State private var isSaving = false
@@ -107,8 +109,22 @@ struct EditProfileSheet: View {
                       let image = UIImage(data: data)
                 else { return }
                 await MainActor.run {
+                    rawPickedImage = image
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        showCropSheet = true
+                    }
+                }
+            }
+        }
+        .fullScreenCover(isPresented: $showCropSheet) {
+            if let rawPickedImage {
+                ImageCropView(
+                    image: rawPickedImage,
+                    cropAspect: 1.0,
+                    cropShape: .circle
+                ) { cropped in
                     withAnimation(.easeOut(duration: 0.2)) {
-                        avatarImage = image
+                        avatarImage = cropped
                     }
                 }
             }
