@@ -46,6 +46,21 @@ struct ClubMemberRow: Codable, Sendable {
     }
 }
 
+/// Lightweight membership row for the current user (role + mute preference).
+struct ClubMembershipRow: Codable, Sendable {
+    let clubId: UUID
+    let userId: UUID
+    let role: String
+    let notificationsMuted: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case clubId = "club_id"
+        case userId = "user_id"
+        case role
+        case notificationsMuted = "notifications_muted"
+    }
+}
+
 // MARK: - View-Facing Models
 
 struct Club: Identifiable, Hashable, Sendable {
