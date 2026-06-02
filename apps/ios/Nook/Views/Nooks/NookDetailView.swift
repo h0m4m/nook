@@ -2,28 +2,37 @@ import SwiftUI
 
 // MARK: - Comment Model
 
-struct NookComment: Identifiable {
+struct NookComment: Identifiable, Hashable {
     let id = UUID()
+    let dbId: UUID?
+    let userId: UUID?
     let authorName: String
-    let timeAgo: String
+    let createdAt: Date?
     let body: String
     var likes: Int
     var isLiked: Bool
+    var isCollapsed: Bool
     var replies: [NookComment]
 
     init(
+        dbId: UUID? = nil,
+        userId: UUID? = nil,
         authorName: String,
-        timeAgo: String,
+        createdAt: Date? = nil,
         body: String,
         likes: Int = 0,
         isLiked: Bool = false,
+        isCollapsed: Bool = true,
         replies: [NookComment] = []
     ) {
+        self.dbId = dbId
+        self.userId = userId
         self.authorName = authorName
-        self.timeAgo = timeAgo
+        self.createdAt = createdAt
         self.body = body
         self.likes = likes
         self.isLiked = isLiked
+        self.isCollapsed = isCollapsed
         self.replies = replies
     }
 }
@@ -36,17 +45,32 @@ struct NookDetailView: View {
     @State private var isLiked = false
     @State private var likeCount: Int
     @State private var commentText = ""
-    @State private var comments: [NookComment]
-    @State private var replyingTo: String?
-    @State private var commentsVisible = false
+    @State private var comments: [NookComment] = []
+    @State private var replyingToName: String?
+    @State private var replyingToId: UUID?
     @State private var expandedNoteID: UUID?
-    @State private var isLoadingDetail = false
+    @State private var sortOrder: CommentSort = .top
+    @State private var currentUserId: UUID?
+    @State private var showEditSheet = false
+    @State private var showDeleteConfirm = false
     @FocusState private var isCommentFocused: Bool
 
     init(nook: NookItem) {
         self._nook = State(initialValue: nook)
         self._likeCount = State(initialValue: nook.likes)
-        self._comments = State(initialValue: Self.mockComments)
+    }
+
+    private var isOwner: Bool {
+        guard let owner = nook.ownerUserId, let me = currentUserId else { return false }
+        return owner == me
+    }
+
+    private var totalCommentCount: Int {
+        comments.reduce(0) { $0 + 1 + replyCount($1) }
+    }
+
+    private func replyCount(_ comment: NookComment) -> Int {
+        comment.replies.reduce(0) { $0 + 1 + replyCount($1) }
     }
 
     var body: some View {
@@ -59,11 +83,9 @@ struct NookDetailView: View {
                     }
                 }
                 .ignoresSafeArea(edges: .top)
+                .scrollDismissesKeyboard(.interactively)
 
-                if commentsVisible {
-                    replyBar
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
-                }
+                replyBar
             }
 
             navigationBar
@@ -80,16 +102,61 @@ struct NookDetailView: View {
         .navigationBarBackButtonHidden()
         .toolbar(.hidden, for: .navigationBar)
         .modifier(InteractivePopGesture())
-        .task {
-            guard let dbId = nook.dbId else { return }
-            isLoadingDetail = true
-            let nookService = NookService()
-            if let detail = try? await nookService.getNook(nookId: dbId) {
-                nook = NookItem(from: detail)
-                likeCount = 0
-            }
-            isLoadingDetail = false
+        .sheet(isPresented: $showEditSheet) {
+            EditNookSheet(
+                nook: nook,
+                onSaved: { Task { await loadDetail() } },
+                onDeleted: { dismiss() }
+            )
+            .presentationDetents([.large])
+            .presentationDragIndicator(.hidden)
+            .presentationBackground(Color(hex: 0xFDFBF9))
+            .interactiveDismissDisabled()
         }
+        .confirmationDialog(
+            "Delete this nook?",
+            isPresented: $showDeleteConfirm,
+            titleVisibility: .visible
+        ) {
+            Button("Delete", role: .destructive) { deleteNook() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This permanently removes the nook and all its items. This can't be undone.")
+        }
+        .task {
+            await loadDetail()
+        }
+    }
+
+    // MARK: - Data
+
+    private func loadDetail() async {
+        currentUserId = try? await supabase.auth.session.user.id
+
+        guard let dbId = nook.dbId else { return }
+        let nookService = NookService()
+
+        if let detail = try? await nookService.getNook(nookId: dbId) {
+            nook = NookItem(from: detail)
+            likeCount = detail.nook.likesCount
+        }
+
+        isLiked = (try? await nookService.isNookLiked(nookId: dbId)) ?? false
+        await reloadComments()
+    }
+
+    private func relativeTime(from date: Date) -> String {
+        let seconds = Int(Date().timeIntervalSince(date))
+        if seconds < 60 { return "just now" }
+        let minutes = seconds / 60
+        if minutes < 60 { return "\(minutes)m" }
+        let hours = minutes / 60
+        if hours < 24 { return "\(hours)h" }
+        let days = hours / 24
+        if days < 30 { return "\(days)d" }
+        let months = days / 30
+        if months < 12 { return "\(months)mo" }
+        return "\(months / 12)y"
     }
 
     // MARK: - Hero
@@ -145,28 +212,18 @@ struct NookDetailView: View {
 
                 // Author
                 HStack(spacing: 10) {
-                    Circle()
-                        .fill(Color.nook.secondary)
-                        .frame(width: 32, height: 32)
-                        .overlay(
-                            Image(systemName: "person.fill")
-                                .font(.system(size: 13))
-                                .foregroundStyle(Color.nook.mutedForeground)
-                        )
-                        .overlay(
-                            Circle()
-                                .stroke(Color(hex: 0xFDFCF9), lineWidth: 2)
-                        )
-                        .shadow(color: .black.opacity(0.1), radius: 3, y: 1)
+                    authorAvatar
 
                     VStack(alignment: .leading, spacing: 0) {
                         Text(nook.curatorName)
                             .font(NookFont.captionSemiBold)
                             .foregroundStyle(Color(hex: 0x1C1917))
 
-                        Text("Published Oct 12, 2023")
-                            .font(.custom("PlusJakartaSans-Regular", size: 10))
-                            .foregroundStyle(Color(hex: 0x78716C))
+                        if let created = nook.createdAt {
+                            Text("Published \(created.formatted(.dateTime.month(.abbreviated).day().year()))")
+                                .font(.custom("PlusJakartaSans-Regular", size: 10))
+                                .foregroundStyle(Color(hex: 0x78716C))
+                        }
                     }
                 }
             }
@@ -177,6 +234,40 @@ struct NookDetailView: View {
         .frame(height: heroHeight)
     }
 
+    private var authorAvatar: some View {
+        Group {
+            if let url = nook.curatorAvatarURL {
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image.resizable().scaledToFill()
+                    default:
+                        avatarFallback
+                    }
+                }
+            } else {
+                avatarFallback
+            }
+        }
+        .frame(width: 32, height: 32)
+        .clipShape(Circle())
+        .overlay(
+            Circle()
+                .stroke(Color(hex: 0xFDFCF9), lineWidth: 2)
+        )
+        .shadow(color: .black.opacity(0.1), radius: 3, y: 1)
+    }
+
+    private var avatarFallback: some View {
+        Circle()
+            .fill(Color.nook.secondary)
+            .overlay(
+                Image(systemName: "person.fill")
+                    .font(.system(size: 13))
+                    .foregroundStyle(Color.nook.mutedForeground)
+            )
+    }
+
     // MARK: - Navigation Bar
 
     private var navigationBar: some View {
@@ -185,53 +276,117 @@ struct NookDetailView: View {
 
             Spacer()
 
-            heroButton(icon: "heart", action: {
-                let generator = UIImpactFeedbackGenerator(style: .light)
-                generator.prepare()
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                    isLiked.toggle()
-                    likeCount += isLiked ? 1 : -1
-                }
-                generator.impactOccurred()
-            })
+            heroButton(icon: "heart", action: toggleLike)
 
-            heroButton(icon: "export", action: {})
+            trailingButton
         }
         .padding(.horizontal, 16)
         .padding(.top, 4)
     }
 
     @ViewBuilder
-    private func heroButton(icon: String, action: @escaping () -> Void) -> some View {
-        let isHeartFilled = icon == "heart" && isLiked
-        let resolvedIcon = isHeartFilled ? "heart-fill" : icon
+    private var trailingButton: some View {
+        if isOwner {
+            heroMenu {
+                Button {
+                    showEditSheet = true
+                } label: {
+                    Label("Edit nook", systemImage: "pencil")
+                }
 
-        if #available(iOS 26, *) {
-            Button(action: action) {
-                Image(resolvedIcon)
-                    .renderingMode(.template)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 20, height: 20)
-                    .foregroundStyle(isHeartFilled ? Color.nook.clubDetailLikeActive : .primary)
-                    .frame(width: 40, height: 40)
-                    .contentShape(Circle())
+                ShareLink(item: shareText) {
+                    Label("Share", systemImage: "square.and.arrow.up")
+                }
+
+                Button(role: .destructive) {
+                    showDeleteConfirm = true
+                } label: {
+                    Label("Delete nook", systemImage: "trash")
+                }
+            } label: {
+                heroButtonLabel(icon: "dots-three-bold", isHeartFilled: false)
             }
-            .buttonStyle(.plain)
-            .glassEffect(.regular.interactive(), in: .circle)
         } else {
-            Button(action: action) {
-                Image(resolvedIcon)
-                    .renderingMode(.template)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 20, height: 20)
-                    .foregroundStyle(isHeartFilled ? Color.nook.clubDetailLikeActive : .white)
-                    .frame(width: 40, height: 40)
-                    .background(.ultraThinMaterial, in: Circle())
+            ShareLink(item: shareText) {
+                heroButtonLabel(icon: "export", isHeartFilled: false)
             }
             .buttonStyle(.plain)
         }
+    }
+
+    private var shareText: String {
+        "Check out \"\(nook.title)\" on Nook"
+    }
+
+    private func toggleLike() {
+        let generator = UIImpactFeedbackGenerator(style: .light)
+        generator.prepare()
+        let wasLiked = isLiked
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+            isLiked.toggle()
+            likeCount += wasLiked ? -1 : 1
+        }
+        generator.impactOccurred()
+
+        guard let dbId = nook.dbId else { return }
+        Task {
+            let service = NookService()
+            if wasLiked {
+                try? await service.unlikeNook(nookId: dbId)
+            } else {
+                try? await service.likeNook(nookId: dbId)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func heroButtonLabel(icon: String, isHeartFilled: Bool) -> some View {
+        let resolvedIcon = isHeartFilled ? "heart-fill" : icon
+
+        if #available(iOS 26, *) {
+            Image(resolvedIcon)
+                .renderingMode(.template)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 20, height: 20)
+                .foregroundStyle(isHeartFilled ? Color.nook.clubDetailLikeActive : .primary)
+                .frame(width: 40, height: 40)
+                .contentShape(Circle())
+                .glassEffect(.regular.interactive(), in: .circle)
+        } else {
+            Image(resolvedIcon)
+                .renderingMode(.template)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 20, height: 20)
+                .foregroundStyle(isHeartFilled ? Color.nook.clubDetailLikeActive : .white)
+                .frame(width: 40, height: 40)
+                .background(.ultraThinMaterial, in: Circle())
+        }
+    }
+
+    @ViewBuilder
+    private func heroButton(icon: String, action: @escaping () -> Void) -> some View {
+        let isHeartFilled = icon == "heart" && isLiked
+
+        Button(action: action) {
+            heroButtonLabel(icon: icon, isHeartFilled: isHeartFilled)
+        }
+        .buttonStyle(.plain)
+    }
+
+    @ViewBuilder
+    private func heroMenu<MenuContent: View, Label: View>(
+        @ViewBuilder content: () -> MenuContent,
+        @ViewBuilder label: () -> Label
+    ) -> some View {
+        Menu {
+            content()
+        } label: {
+            label()
+        }
+        .menuStyle(.button)
+        .buttonStyle(.plain)
     }
 
     // MARK: - Content
@@ -252,15 +407,16 @@ struct NookDetailView: View {
             // Stats
             HStack(spacing: 16) {
                 HStack(spacing: 5) {
-                    Image("heart")
+                    Image(isLiked ? "heart-fill" : "heart")
                         .renderingMode(.template)
                         .resizable()
                         .aspectRatio(contentMode: .fit)
                         .frame(width: 16, height: 16)
+                        .foregroundStyle(isLiked ? Color.nook.clubDetailLikeActive : Color.nook.detailMeta)
                     Text("\(likeCount)")
                         .font(NookFont.captionSemiBold)
+                        .foregroundStyle(Color.nook.detailMeta)
                 }
-                .foregroundStyle(Color.nook.detailMeta)
 
                 HStack(spacing: 5) {
                     Image("chat-circle")
@@ -268,7 +424,7 @@ struct NookDetailView: View {
                         .resizable()
                         .aspectRatio(contentMode: .fit)
                         .frame(width: 16, height: 16)
-                    Text("\(nook.comments)")
+                    Text("\(totalCommentCount)")
                         .font(NookFont.captionSemiBold)
                 }
                 .foregroundStyle(Color.nook.detailMeta)
@@ -321,27 +477,75 @@ struct NookDetailView: View {
 
                 Spacer()
 
-                Text("\(comments.count)")
-                    .font(NookFont.labelMediumSmall)
-                    .foregroundStyle(Color.nook.detailMeta)
+                if !comments.isEmpty {
+                    Menu {
+                        ForEach(CommentSort.allCases, id: \.self) { sort in
+                            Button {
+                                withAnimation(.easeOut(duration: 0.2)) {
+                                    sortOrder = sort
+                                    sortComments()
+                                }
+                            } label: {
+                                HStack {
+                                    Text(sort.label)
+                                    if sortOrder == sort {
+                                        Image(systemName: "checkmark")
+                                    }
+                                }
+                            }
+                        }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image("sort-ascending-bold")
+                                .renderingMode(.template)
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(width: 16, height: 16)
+
+                            Text(sortOrder.label)
+                                .font(NookFont.captionBold)
+                        }
+                        .foregroundStyle(Color.nook.detailMeta)
+                    }
+                } else {
+                    Text("\(totalCommentCount)")
+                        .font(NookFont.labelMediumSmall)
+                        .foregroundStyle(Color.nook.detailMeta)
+                }
             }
             .padding(.horizontal, 24)
             .padding(.vertical, 20)
-            .onGeometryChange(for: Bool.self) { geo in
-                // Check visibility without referencing UIScreen.main (main-actor isolated)
-                // A global minY < 3000 and maxY > 0 means the element is on screen
-                let frame = geo.frame(in: .global)
-                return frame.maxY > 0 && frame.minY < 3000
-            } action: { visible in
-                withAnimation(.easeOut(duration: 0.2)) {
-                    commentsVisible = visible
-                }
-            }
 
             // Comments
-            commentsSection
+            if comments.isEmpty {
+                emptyCommentsState
+            } else {
+                commentsSection
+            }
         }
         .background(Color.nook.detailBackground)
+    }
+
+    private var emptyCommentsState: some View {
+        VStack(spacing: 8) {
+            Image("chat-circle")
+                .renderingMode(.template)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 26, height: 26)
+                .foregroundStyle(Color.nook.detailMeta.opacity(0.5))
+
+            Text("No comments yet")
+                .font(NookFont.labelBold)
+                .foregroundStyle(Color.nook.detailMeta)
+
+            Text("Be the first to share what you think")
+                .font(NookFont.bodySmall)
+                .foregroundStyle(Color.nook.detailMeta.opacity(0.7))
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 32)
+        .padding(.bottom, 40)
     }
 
     // MARK: - Items Grid
@@ -492,41 +696,99 @@ struct NookDetailView: View {
 
     // MARK: - Comments
 
+    private static let defaultVisibleReplies = 2
+    private static let maxDepth = 4
+
     private var commentsSection: some View {
         LazyVStack(spacing: 0) {
-            ForEach(Array(comments.enumerated()), id: \.element.id) { index, comment in
-                VStack(spacing: 0) {
-                    commentRow(comment, depth: 0, index: index)
-
-                    ForEach(Array(comment.replies.enumerated()), id: \.element.id) { replyIndex, reply in
-                        commentRow(reply, depth: 1, index: index, replyIndex: replyIndex)
-                    }
-                }
+            ForEach(comments) { comment in
+                renderCommentTree(comment, depth: 0)
             }
         }
         .padding(.bottom, 40)
     }
 
-    private func commentRow(
-        _ comment: NookComment,
-        depth: Int,
-        index: Int,
-        replyIndex: Int? = nil
-    ) -> some View {
-        HStack(alignment: .top, spacing: 10) {
+    private func engagement(_ c: NookComment) -> Int {
+        c.likes + c.replies.count
+    }
+
+    private func renderCommentTree(_ comment: NookComment, depth: Int) -> AnyView {
+        let topReplies = comment.replies
+            .sorted { engagement($0) > engagement($1) }
+        let visibleReplies = comment.isCollapsed
+            ? Array(topReplies.prefix(Self.defaultVisibleReplies))
+            : comment.replies
+        let visibleIds = Set(visibleReplies.map(\.id))
+        let hiddenReplies = comment.replies.filter { !visibleIds.contains($0.id) }
+        let totalHidden = hiddenReplies.reduce(0) { $0 + 1 + totalReplyCount($1) }
+
+        return AnyView(
+            VStack(spacing: 0) {
+                commentRow(comment, depth: depth)
+
+                ForEach(visibleReplies) { reply in
+                    renderCommentTree(reply, depth: depth + 1)
+                }
+
+                if comment.isCollapsed && totalHidden > 0 {
+                    collapseToggle(
+                        depth: depth,
+                        label: "View \(totalHidden) more \(totalHidden == 1 ? "reply" : "replies")",
+                        accent: true,
+                        commentDbId: comment.dbId
+                    )
+                }
+
+                if !comment.isCollapsed && comment.replies.count > Self.defaultVisibleReplies {
+                    collapseToggle(
+                        depth: depth,
+                        label: "Hide replies",
+                        accent: false,
+                        commentDbId: comment.dbId
+                    )
+                }
+            }
+        )
+    }
+
+    private func collapseToggle(depth: Int, label: String, accent: Bool, commentDbId: UUID?) -> some View {
+        Button {
+            withAnimation(.easeOut(duration: 0.2)) {
+                toggleCollapsed(commentDbId: commentDbId)
+            }
+        } label: {
+            HStack(spacing: 6) {
+                Rectangle()
+                    .fill(Color.nook.detailTabBorder)
+                    .frame(width: 2, height: 12)
+
+                Text(label)
+                    .font(NookFont.captionBold)
+                    .foregroundStyle(accent ? Color.nook.detailTabActive : Color.nook.detailMeta)
+            }
+            .padding(.leading, 24 + CGFloat(min(depth + 1, Self.maxDepth)) * 24)
+            .padding(.vertical, 6)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func totalReplyCount(_ comment: NookComment) -> Int {
+        comment.replies.reduce(0) { $0 + 1 + totalReplyCount($1) }
+    }
+
+    private func commentRow(_ comment: NookComment, depth: Int) -> some View {
+        let indent = CGFloat(min(depth, Self.maxDepth)) * 24
+        return HStack(alignment: .top, spacing: 10) {
             if depth > 0 {
                 Rectangle()
                     .fill(Color.nook.detailTabBorder)
                     .frame(width: 2)
-                    .padding(.leading, 36)
             }
 
             Circle()
                 .fill(Color.nook.secondary)
-                .frame(
-                    width: depth == 0 ? 36 : 28,
-                    height: depth == 0 ? 36 : 28
-                )
+                .frame(width: depth == 0 ? 36 : 28, height: depth == 0 ? 36 : 28)
                 .overlay(
                     Image(systemName: "person.fill")
                         .font(.system(size: depth == 0 ? 14 : 11))
@@ -539,9 +801,11 @@ struct NookDetailView: View {
                         .font(NookFont.captionBold)
                         .foregroundStyle(Color.nook.detailTitle)
 
-                    Text(comment.timeAgo)
-                        .font(NookFont.caption)
-                        .foregroundStyle(Color.nook.detailMeta)
+                    if let date = comment.createdAt {
+                        Text(relativeTime(from: date))
+                            .font(NookFont.caption)
+                            .foregroundStyle(Color.nook.detailMeta)
+                    }
                 }
 
                 Text(comment.body)
@@ -553,16 +817,21 @@ struct NookDetailView: View {
                     Button {
                         let generator = UIImpactFeedbackGenerator(style: .light)
                         generator.prepare()
+                        let wasLiked = comment.isLiked
                         withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                            if let ri = replyIndex {
-                                comments[index].replies[ri].isLiked.toggle()
-                                comments[index].replies[ri].likes += comments[index].replies[ri].isLiked ? 1 : -1
-                            } else {
-                                comments[index].isLiked.toggle()
-                                comments[index].likes += comments[index].isLiked ? 1 : -1
-                            }
+                            toggleCommentLike(commentDbId: comment.dbId, wasLiked: wasLiked)
                         }
                         generator.impactOccurred()
+                        if let commentDbId = comment.dbId {
+                            Task {
+                                let service = NookService()
+                                if wasLiked {
+                                    try? await service.unlikeComment(commentId: commentDbId)
+                                } else {
+                                    try? await service.likeComment(commentId: commentDbId)
+                                }
+                            }
+                        }
                     } label: {
                         HStack(spacing: 4) {
                             Image(comment.isLiked ? "heart-fill" : "heart")
@@ -585,7 +854,8 @@ struct NookDetailView: View {
 
                     Button {
                         withAnimation(.easeOut(duration: 0.2)) {
-                            replyingTo = comment.authorName
+                            replyingToName = comment.authorName
+                            replyingToId = comment.dbId
                         }
                         isCommentFocused = true
                     } label: {
@@ -599,7 +869,8 @@ struct NookDetailView: View {
 
             Spacer(minLength: 0)
         }
-        .padding(.horizontal, 20)
+        .padding(.leading, 24 + indent)
+        .padding(.trailing, 24)
         .padding(.vertical, 12)
     }
 
@@ -611,7 +882,7 @@ struct NookDetailView: View {
                 .fill(Color.nook.detailTabBorder)
                 .frame(height: 1)
 
-            if let replyTo = replyingTo {
+            if let replyTo = replyingToName {
                 HStack {
                     Text("Replying to \(replyTo)")
                         .font(NookFont.caption)
@@ -621,7 +892,8 @@ struct NookDetailView: View {
 
                     Button {
                         withAnimation(.easeOut(duration: 0.15)) {
-                            replyingTo = nil
+                            replyingToName = nil
+                            replyingToId = nil
                         }
                     } label: {
                         Image("x-bold")
@@ -649,7 +921,7 @@ struct NookDetailView: View {
                     )
 
                 TextField(
-                    replyingTo != nil ? "Reply..." : "Add a comment...",
+                    replyingToName != nil ? "Reply..." : "Add a comment...",
                     text: $commentText,
                     axis: .vertical
                 )
@@ -684,69 +956,141 @@ struct NookDetailView: View {
         .background(Color.nook.detailBackground)
     }
 
+    // MARK: - Comment Actions
+
     private func sendComment() {
         let text = commentText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
 
-        let newComment = NookComment(
-            authorName: "You",
-            timeAgo: "now",
-            body: text
-        )
+        let parentId = replyingToId
+        commentText = ""
+        replyingToName = nil
+        replyingToId = nil
+        isCommentFocused = false
 
-        withAnimation(.easeOut(duration: 0.25)) {
-            if replyingTo != nil {
-                if !comments.isEmpty {
-                    comments[0].replies.append(newComment)
-                }
-                replyingTo = nil
+        guard let dbId = nook.dbId else { return }
+        Task {
+            let service = NookService()
+            try? await service.addComment(nookId: dbId, body: text, parentCommentId: parentId)
+            await reloadComments()
+        }
+    }
+
+    private func toggleCommentLike(commentDbId: UUID?, wasLiked: Bool) {
+        guard let dbId = commentDbId else { return }
+        toggleCommentLikeRecursive(in: &comments, dbId: dbId, wasLiked: wasLiked)
+    }
+
+    private func toggleCommentLikeRecursive(in list: inout [NookComment], dbId: UUID, wasLiked: Bool) {
+        for i in list.indices {
+            if list[i].dbId == dbId {
+                list[i].isLiked.toggle()
+                list[i].likes += wasLiked ? -1 : 1
+                return
+            }
+            toggleCommentLikeRecursive(in: &list[i].replies, dbId: dbId, wasLiked: wasLiked)
+        }
+    }
+
+    private func toggleCollapsed(commentDbId: UUID?) {
+        guard let dbId = commentDbId else { return }
+        toggleCollapsedRecursive(in: &comments, dbId: dbId)
+    }
+
+    private func toggleCollapsedRecursive(in list: inout [NookComment], dbId: UUID) {
+        for i in list.indices {
+            if list[i].dbId == dbId {
+                list[i].isCollapsed.toggle()
+                return
+            }
+            toggleCollapsedRecursive(in: &list[i].replies, dbId: dbId)
+        }
+    }
+
+    private func reloadComments() async {
+        guard let dbId = nook.dbId else { return }
+        let service = NookService()
+        guard let dbComments = try? await service.getComments(nookId: dbId) else { return }
+
+        let likedIds = (try? await service.getLikedCommentIds(nookId: dbId)) ?? []
+
+        var commentById: [UUID: NookComment] = [:]
+        for c in dbComments {
+            commentById[c.id] = NookComment(
+                dbId: c.id,
+                userId: c.userId,
+                authorName: c.authorName,
+                createdAt: c.createdAt,
+                body: c.body,
+                likes: c.likesCount,
+                isLiked: likedIds.contains(c.id)
+            )
+        }
+
+        var childrenOf: [UUID: [UUID]] = [:]
+        var rootIds: [UUID] = []
+
+        for c in dbComments {
+            if let parentId = c.parentCommentId {
+                childrenOf[parentId, default: []].append(c.id)
             } else {
-                comments.insert(newComment, at: 0)
+                rootIds.append(c.id)
             }
         }
 
-        commentText = ""
-        isCommentFocused = false
+        func buildTree(id: UUID) -> NookComment? {
+            guard var comment = commentById[id] else { return nil }
+            if let childIds = childrenOf[id] {
+                comment.replies = childIds.compactMap { buildTree(id: $0) }
+            }
+            return comment
+        }
+
+        var tree = rootIds.compactMap { buildTree(id: $0) }
+        sortTopLevel(&tree)
+        collapseAfterTop(&tree, visibleCount: Self.defaultVisibleReplies)
+
+        withAnimation(.easeOut(duration: 0.25)) {
+            comments = tree
+        }
     }
-}
 
-// MARK: - Mock Comments
+    private func sortTopLevel(_ list: inout [NookComment]) {
+        let comparator: (NookComment, NookComment) -> Bool = {
+            switch sortOrder {
+            case .top: return { ($0.likes + $0.replies.count) > ($1.likes + $1.replies.count) }
+            case .newest: return { ($0.createdAt ?? .distantPast) > ($1.createdAt ?? .distantPast) }
+            case .oldest: return { ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast) }
+            }
+        }()
+        list.sort(by: comparator)
+    }
 
-extension NookDetailView {
-    static let mockComments: [NookComment] = [
-        NookComment(
-            authorName: "Alex",
-            timeAgo: "2h",
-            body: "This is such a perfect collection. The autumn vibes are immaculate.",
-            likes: 12,
-            replies: [
-                NookComment(
-                    authorName: "Sarah",
-                    timeAgo: "1h",
-                    body: "Thank you! Took me a while to curate this one 🍂",
-                    likes: 5
-                ),
-            ]
-        ),
-        NookComment(
-            authorName: "Jordan",
-            timeAgo: "5h",
-            body: "Foundation's Edge is such an underrated pick. Most people go for the first book but the later ones have so much more depth.",
-            likes: 8
-        ),
-        NookComment(
-            authorName: "Riley",
-            timeAgo: "1d",
-            body: "Adding Frieren to this was genius. It fits the vibe perfectly.",
-            likes: 15,
-            replies: [
-                NookComment(
-                    authorName: "Alex",
-                    timeAgo: "12h",
-                    body: "Right? The pacing of that show is exactly the feeling this nook captures.",
-                    likes: 3
-                ),
-            ]
-        ),
-    ]
+    private func collapseAfterTop(_ list: inout [NookComment], visibleCount: Int) {
+        for i in list.indices {
+            list[i].isCollapsed = list[i].replies.count > visibleCount
+            collapseAfterTop(&list[i].replies, visibleCount: visibleCount)
+        }
+    }
+
+    private func sortComments() {
+        sortTopLevel(&comments)
+        collapseAfterTop(&comments, visibleCount: Self.defaultVisibleReplies)
+    }
+
+    // MARK: - Delete
+
+    private func deleteNook() {
+        guard let dbId = nook.dbId else { return }
+        Task {
+            let service = NookService()
+            try? await service.deleteNook(nookId: dbId)
+            let generator = UINotificationFeedbackGenerator()
+            generator.notificationOccurred(.success)
+            await MainActor.run {
+                NotificationCenter.default.post(name: .nooksDidChange, object: nil)
+                dismiss()
+            }
+        }
+    }
 }

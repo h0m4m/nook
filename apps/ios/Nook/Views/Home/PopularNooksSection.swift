@@ -5,74 +5,84 @@ import SwiftUI
 struct NookItem: Identifiable, Hashable {
     let id = UUID()
     let dbId: UUID?
+    let ownerUserId: UUID?
     let title: String
     let description: String
     let curatorName: String
+    let curatorAvatarURL: URL?
     let imageName: String
     let imageURL: URL?
     let placeholderColor: Color?
     let likes: Int
     let comments: Int
+    let createdAt: Date?
     let mediaItems: [NookMediaItem]
     let privacy: String
-    let layout: String
 
     init(
         title: String,
         description: String = "",
         curatorName: String,
-        imageName: String,
+        curatorAvatarURL: URL? = nil,
+        imageName: String = "",
         imageURL: URL? = nil,
         placeholderColor: Color? = nil,
         likes: Int = 0,
         comments: Int = 0,
+        createdAt: Date? = nil,
         mediaItems: [NookMediaItem] = [],
-        privacy: String = "Public",
-        layout: String = "Grid",
-        dbId: UUID? = nil
+        privacy: String = "public",
+        dbId: UUID? = nil,
+        ownerUserId: UUID? = nil
     ) {
+        self.dbId = dbId
+        self.ownerUserId = ownerUserId
         self.title = title
         self.description = description
         self.curatorName = curatorName
+        self.curatorAvatarURL = curatorAvatarURL
         self.imageName = imageName
         self.imageURL = imageURL
         self.placeholderColor = placeholderColor
         self.likes = likes
         self.comments = comments
+        self.createdAt = createdAt
         self.mediaItems = mediaItems
         self.privacy = privacy
-        self.layout = layout
-        self.dbId = dbId
     }
 
     init(from detail: NookDetail) {
         self.dbId = detail.nook.id
+        self.ownerUserId = detail.nook.userId
         self.title = detail.nook.name
         self.description = detail.nook.description ?? ""
         self.curatorName = detail.ownerName ?? "Unknown"
+        self.curatorAvatarURL = detail.ownerAvatarURL
         self.imageName = ""
         self.imageURL = detail.nook.coverURL
         self.placeholderColor = nil
-        self.likes = 0
+        self.likes = detail.nook.likesCount
         self.comments = 0
+        self.createdAt = detail.nook.createdAt
         self.mediaItems = detail.items.map { NookMediaItem(from: $0) }
-        self.privacy = detail.nook.privacy.capitalized
-        self.layout = detail.nook.layout.capitalized
+        self.privacy = detail.nook.privacy
     }
 
-    init(from row: NookRow) {
-        self.dbId = row.id
-        self.title = row.name
-        self.description = row.description ?? ""
-        self.curatorName = ""
+    init(from summary: NookSummary) {
+        self.dbId = summary.id
+        self.ownerUserId = summary.userId
+        self.title = summary.name
+        self.description = summary.description ?? ""
+        self.curatorName = summary.ownerName ?? "Unknown"
+        self.curatorAvatarURL = summary.ownerAvatarURL
         self.imageName = ""
-        self.imageURL = row.coverUrl.flatMap { URL(string: $0) }
+        self.imageURL = summary.coverURL
         self.placeholderColor = nil
-        self.likes = 0
+        self.likes = summary.likesCount
         self.comments = 0
+        self.createdAt = summary.createdAt
         self.mediaItems = []
-        self.privacy = row.privacy.capitalized
-        self.layout = row.layout.capitalized
+        self.privacy = summary.privacy
     }
 }
 
@@ -137,9 +147,7 @@ struct PopularNooksSection: View {
 
             Spacer()
 
-            Button {
-                // TODO: Discover action
-            } label: {
+            NavigationLink(value: DiscoverNooksRoute()) {
                 Text("Discover")
                     .font(NookFont.labelMediumSmall)
                     .foregroundStyle(Color.nook.sectionAction)
@@ -168,7 +176,7 @@ struct PopularNooksSection: View {
 
 // MARK: - Card
 
-private struct NookCard: View {
+struct NookCard: View {
     let item: NookItem
 
     var body: some View {
@@ -219,18 +227,7 @@ private struct NookCard: View {
 
                 // Curator
                 HStack(spacing: 8) {
-                    Circle()
-                        .fill(Color.nook.secondary)
-                        .frame(width: 20, height: 20)
-                        .overlay(
-                            Image(systemName: "person.fill")
-                                .font(.system(size: 9))
-                                .foregroundStyle(Color.nook.mutedForeground)
-                        )
-                        .overlay(
-                            Circle()
-                                .stroke(.white.opacity(0.2), lineWidth: 1)
-                        )
+                    curatorAvatar
 
                     Text("CURATED BY \(item.curatorName.uppercased())")
                         .font(.custom("PlusJakartaSans-Medium", size: 10))
@@ -244,63 +241,59 @@ private struct NookCard: View {
         .aspectRatio(402.0 / 394.0, contentMode: .fit)
         .clipShape(RoundedRectangle(cornerRadius: NookRadii.lg))
     }
-}
 
-// MARK: - Mock Data
+    private var curatorAvatar: some View {
+        Group {
+            if let url = item.curatorAvatarURL {
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image.resizable().scaledToFill()
+                    default:
+                        avatarFallback
+                    }
+                }
+            } else {
+                avatarFallback
+            }
+        }
+        .frame(width: 20, height: 20)
+        .clipShape(Circle())
+        .overlay(
+            Circle()
+                .stroke(.white.opacity(0.2), lineWidth: 1)
+        )
+    }
 
-extension PopularNooksSection {
-    static let mockItems: [NookItem] = [
-        NookItem(
-            title: "Books and films that feel like autumn",
-            description: "A cozy collection of stories that capture the warmth of golden leaves, warm drinks, and that quiet feeling of change. Perfect for rainy afternoons.",
-            curatorName: "Sarah",
-            imageName: "mock-autumn-nook",
-            placeholderColor: Color(hex: 0x5C3A1E),
-            likes: 234,
-            comments: 18,
-            mediaItems: [
-                NookMediaItem(title: "The Midnight Garden", category: "MOVIE", year: "2025", imageName: "mock-midnight-garden", placeholderColor: Color(hex: 0x2D4A3E), note: "The cinematography in this one is unreal"),
-                NookMediaItem(title: "Foundation's Edge", category: "BOOK", year: "1982", imageName: "mock-foundations-edge", placeholderColor: Color(hex: 0xD4A373), note: "Asimov at his most contemplative"),
-                NookMediaItem(title: "Frieren: Beyond Journey's End", category: "ANIME", year: "2023", imageName: "mock-frieren", placeholderColor: Color(hex: 0x9B8EC4)),
-                NookMediaItem(title: "Project Hail Mary", category: "BOOK", year: "2021", imageName: "mock-hail-mary", placeholderColor: Color(hex: 0x2C3E50), note: "This book made me cry on a plane"),
-                NookMediaItem(title: "The Cloud Weaver", category: "ANIME", year: "2024", imageName: "mock-cloud-weaver", placeholderColor: Color(hex: 0x87CEEB)),
-            ]
-        ),
-        NookItem(
-            title: "Sci-fi worlds that feel lived in",
-            description: "Not the shiny utopias — the ones with rust and history. Worlds that feel like someone actually lives there.",
-            curatorName: "James",
-            imageName: "mock-scifi-nook",
-            placeholderColor: Color(hex: 0x1A2940),
-            likes: 189,
-            comments: 12,
-            mediaItems: [
-                NookMediaItem(title: "Astris", category: "MOVIE", year: "2023", imageName: "mock-astris", placeholderColor: Color(hex: 0x2C3E50)),
-                NookMediaItem(title: "Severance", category: "TV SHOW", year: "2022", imageName: "mock-severance", placeholderColor: Color(hex: 0x3B5998)),
-                NookMediaItem(title: "Dune: Part Three", category: "MOVIE", year: "2026", imageName: "mock-dune", placeholderColor: Color(hex: 0xC2A059)),
-            ]
-        ),
-        NookItem(
-            title: "Stories that hit different at night",
-            description: "The kind of stories you stay up way too late for. Atmospheric, emotional, and impossible to put down.",
-            curatorName: "Mia",
-            imageName: "mock-night-nook",
-            placeholderColor: Color(hex: 0x2D1B4E),
-            likes: 156,
-            comments: 9,
-            mediaItems: [
-                NookMediaItem(title: "Dandadan", category: "ANIME", year: "2024", imageName: "mock-dandadan", placeholderColor: Color(hex: 0xE84393)),
-                NookMediaItem(title: "Chainsaw Man", category: "MANGA", year: "2018", imageName: "mock-chainsaw-man", placeholderColor: Color(hex: 0xD63031)),
-            ]
-        ),
-    ]
+    private var avatarFallback: some View {
+        Circle()
+            .fill(Color.nook.secondary)
+            .overlay(
+                Image(systemName: "person.fill")
+                    .font(.system(size: 9))
+                    .foregroundStyle(Color.nook.mutedForeground)
+            )
+    }
 }
 
 // MARK: - Preview
 
 #Preview {
     ScrollView {
-        PopularNooksSection(items: PopularNooksSection.mockItems)
+        PopularNooksSection(items: [
+            NookItem(
+                title: "Books and films that feel like autumn",
+                curatorName: "Sarah",
+                placeholderColor: Color(hex: 0x5C3A1E),
+                likes: 234
+            ),
+            NookItem(
+                title: "Sci-fi worlds that feel lived in",
+                curatorName: "James",
+                placeholderColor: Color(hex: 0x1A2940),
+                likes: 189
+            ),
+        ])
     }
     .background(Color.nook.background)
 }

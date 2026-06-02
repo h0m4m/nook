@@ -8,6 +8,7 @@ struct OtherProfileView: View {
     @State private var followerCount: Int = 0
     @State private var followingCount: Int = 0
     @State private var userReviews: [Review] = []
+    @State private var userNooks: [NookSummary] = []
 
     var body: some View {
         ZStack(alignment: .top) {
@@ -50,6 +51,9 @@ struct OtherProfileView: View {
 
         let reviewService = ReviewService()
         userReviews = (try? await reviewService.getReviewsByUser(userId: userId)) ?? []
+
+        let nookService = NookService()
+        userNooks = (try? await nookService.getUserNooks(userId: userId)) ?? []
     }
 
     // MARK: - Navigation Buttons (MediaDetail-style overlay)
@@ -389,14 +393,29 @@ struct OtherProfileView: View {
 
     private var nooksContent: some View {
         VStack(spacing: 12) {
-            ForEach(0..<2) { i in
-                ProfileNookCard(
-                    title: i == 0 ? "Best Anime of 2024" : "Hidden Manga Gems",
-                    itemCount: i == 0 ? 24 : 45,
-                    likes: i == 0 ? 890 : 340,
-                    placeholderColor: i == 0
-                        ? Color(hex: 0xC8A8D4) : Color(hex: 0xD4C8A8)
-                )
+            if userNooks.isEmpty {
+                VStack(spacing: 8) {
+                    Text("No nooks yet")
+                        .font(NookFont.labelBold)
+                        .foregroundStyle(Color.nook.detailMeta)
+                    Text("This user hasn't shared any nooks")
+                        .font(NookFont.bodySmall)
+                        .foregroundStyle(Color.nook.detailMeta.opacity(0.7))
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.top, 24)
+            } else {
+                ForEach(userNooks) { summary in
+                    NavigationLink(value: NookItem(from: summary)) {
+                        ProfileNookCard(
+                            title: summary.name,
+                            itemCount: summary.itemCount,
+                            likes: summary.likesCount,
+                            coverURL: summary.coverURL
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
             }
         }
     }

@@ -268,14 +268,22 @@ struct LibraryView: View {
                     isSearchActive: $isSearchActive,
                     searchText: $viewModel.searchText,
                     isSearchFocused: $isSearchFocused,
-                    selectedSort: $viewModel.selectedSort
+                    selectedSort: $viewModel.selectedSort,
+                    mode: viewModel.mode
                 )
             )
             .task {
                 await viewModel.loadLibrary()
             }
             .refreshable {
-                await viewModel.loadLibrary()
+                if viewModel.mode == .media {
+                    await viewModel.loadLibrary()
+                } else {
+                    await viewModel.loadNooks()
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .nooksDidChange)) { _ in
+                Task { await viewModel.loadNooks() }
             }
             .sheet(isPresented: Binding(
                 get: { trackingItemID != nil },
@@ -302,62 +310,152 @@ struct LibraryView: View {
     private var scrollContent: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                filterChips
-
-                if let error = viewModel.error {
-                    ErrorBanner(message: error.localizedDescription) {
-                        viewModel.error = nil
-                    }
+                modeSwitcher
                     .padding(.horizontal, 24)
-                    .padding(.bottom, 16)
-                }
+                    .padding(.top, 14)
+                    .padding(.bottom, 4)
 
-                if viewModel.isLoading && viewModel.items.isEmpty {
-                    VStack(spacing: 24) {
-                        ForEach(0..<4, id: \.self) { _ in
-                            SearchShimmerRow()
-                                .padding(.horizontal, 24)
-                        }
-                    }
-                    .padding(.top, 8)
-                } else if viewModel.filteredItems.isEmpty {
-                    SearchEmptyState(
-                        icon: "books-bold",
-                        title: "Nothing here yet",
-                        subtitle: "Search for media and start tracking to build your library"
-                    )
+                if viewModel.mode == .media {
+                    mediaContent
                 } else {
-                    Text("\(viewModel.filteredItems.count) ITEMS")
-                        .font(NookFont.tabLabel)
-                        .tracking(1)
-                        .foregroundStyle(Color.nook.searchSectionLabel)
-                        .padding(.horizontal, 24)
-                        .padding(.bottom, 24)
-
-                    LazyVStack(spacing: 24) {
-                        ForEach(viewModel.filteredItems) { item in
-                            NavigationLink(value: MediaDetailRoute(
-                                mediaId: item.sourceId,
-                                source: item.source,
-                                mediaType: item.mediaType,
-                                title: item.title,
-                                imageURL: item.imageURL,
-                                year: item.year,
-                                score: item.score
-                            )) {
-                                RealLibraryItemRow(item: item) {
-                                    openTrackingSheet(for: item)
-                                }
-                                .padding(.horizontal, 24)
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
+                    nooksContent
                 }
             }
             .padding(.bottom, 100)
         }
         .modifier(LibrarySoftScrollEdge())
+    }
+
+    // MARK: - Mode Switcher
+
+    private var modeSwitcher: some View {
+        HStack(spacing: 6) {
+            ForEach(LibraryContentMode.allCases) { m in
+                let isSelected = viewModel.mode == m
+                Button {
+                    withAnimation(.easeOut(duration: 0.2)) {
+                        viewModel.mode = m
+                    }
+                    if m == .nooks && !viewModel.hasLoadedNooks {
+                        Task { await viewModel.loadNooks() }
+                    }
+                } label: {
+                    Text(m.label)
+                        .font(NookFont.labelBoldSmall)
+                        .foregroundStyle(isSelected ? .white : Color.nook.sectionTitle)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 38)
+                        .background(
+                            Capsule().fill(isSelected ? Color.nook.searchFilterSelected : .clear)
+                        )
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(4)
+        .background(Capsule().fill(Color.nook.searchBarBackground))
+    }
+
+    // MARK: - Media Content
+
+    @ViewBuilder
+    private var mediaContent: some View {
+        filterChips
+
+        if let error = viewModel.error {
+            ErrorBanner(message: error.localizedDescription) {
+                viewModel.error = nil
+            }
+            .padding(.horizontal, 24)
+            .padding(.bottom, 16)
+        }
+
+        if viewModel.isLoading && viewModel.items.isEmpty {
+            VStack(spacing: 24) {
+                ForEach(0..<4, id: \.self) { _ in
+                    SearchShimmerRow()
+                        .padding(.horizontal, 24)
+                }
+            }
+            .padding(.top, 8)
+        } else if viewModel.filteredItems.isEmpty {
+            SearchEmptyState(
+                icon: "books-bold",
+                title: "Nothing here yet",
+                subtitle: "Search for media and start tracking to build your library"
+            )
+        } else {
+            Text("\(viewModel.filteredItems.count) ITEMS")
+                .font(NookFont.tabLabel)
+                .tracking(1)
+                .foregroundStyle(Color.nook.searchSectionLabel)
+                .padding(.horizontal, 24)
+                .padding(.bottom, 24)
+
+            LazyVStack(spacing: 24) {
+                ForEach(viewModel.filteredItems) { item in
+                    NavigationLink(value: MediaDetailRoute(
+                        mediaId: item.sourceId,
+                        source: item.source,
+                        mediaType: item.mediaType,
+                        title: item.title,
+                        imageURL: item.imageURL,
+                        year: item.year,
+                        score: item.score
+                    )) {
+                        RealLibraryItemRow(item: item) {
+                            openTrackingSheet(for: item)
+                        }
+                        .padding(.horizontal, 24)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+    }
+
+    // MARK: - Nooks Content
+
+    @ViewBuilder
+    private var nooksContent: some View {
+        if viewModel.isLoadingNooks && viewModel.nooks.isEmpty {
+            VStack(spacing: 16) {
+                ForEach(0..<4, id: \.self) { _ in
+                    SearchShimmerRow()
+                        .padding(.horizontal, 24)
+                }
+            }
+            .padding(.top, 8)
+        } else if viewModel.filteredNooks.isEmpty {
+            SearchEmptyState(
+                icon: "squares-four-fill",
+                title: "No nooks yet",
+                subtitle: "Tap + to create a nook and curate collections of your favorite media"
+            )
+        } else {
+            Text("\(viewModel.filteredNooks.count) NOOK\(viewModel.filteredNooks.count == 1 ? "" : "S")")
+                .font(NookFont.tabLabel)
+                .tracking(1)
+                .foregroundStyle(Color.nook.searchSectionLabel)
+                .padding(.horizontal, 24)
+                .padding(.top, 8)
+                .padding(.bottom, 16)
+
+            LazyVStack(spacing: 12) {
+                ForEach(viewModel.filteredNooks) { summary in
+                    NavigationLink(value: NookItem(from: summary)) {
+                        ProfileNookCard(
+                            title: summary.name,
+                            itemCount: summary.itemCount,
+                            likes: summary.likesCount,
+                            coverURL: summary.coverURL
+                        )
+                        .padding(.horizontal, 24)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
     }
 
     // MARK: - Filter Chips
@@ -462,6 +560,7 @@ private struct LibraryTopBar: ViewModifier {
     @Binding var searchText: String
     var isSearchFocused: FocusState<Bool>.Binding
     @Binding var selectedSort: LibrarySortOption
+    var mode: LibraryContentMode = .media
 
     func body(content: Content) -> some View {
         if #available(iOS 26, *) {
@@ -534,7 +633,9 @@ private struct LibraryTopBar: ViewModifier {
             }
             .buttonStyle(.plain)
 
-            sortButton
+            if mode == .media {
+                sortButton
+            }
         }
         .background(.white, in: Capsule())
         .glassEffect(.regular.interactive(), in: .capsule)
@@ -560,7 +661,9 @@ private struct LibraryTopBar: ViewModifier {
             }
             .buttonStyle(.plain)
 
-            sortButton
+            if mode == .media {
+                sortButton
+            }
         }
         .background(Color.nook.searchBarBackground)
         .clipShape(Capsule())

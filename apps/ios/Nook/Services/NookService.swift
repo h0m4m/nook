@@ -2,12 +2,15 @@ import Foundation
 import Supabase
 
 final class NookService: Sendable {
+    /// Embedded owner profile + item count for list/grid surfaces.
+    private static let summarySelect =
+        "*, user_profile:user_profiles!nooks_user_id_user_profiles_fkey(full_name, username, avatar_url), items:nook_items(count)"
+
     func createNook(
         name: String,
         description: String?,
         coverData: Data?,
-        privacy: String,
-        layout: String
+        privacy: String
     ) async throws -> UUID {
         let userId = try await supabase.auth.session.user.id
 
@@ -30,7 +33,6 @@ final class NookService: Sendable {
             let description: String?
             let cover_url: String?
             let privacy: String
-            let layout: String
         }
 
         struct NookResult: Decodable {
@@ -44,8 +46,7 @@ final class NookService: Sendable {
                 name: name,
                 description: description,
                 cover_url: coverUrl,
-                privacy: privacy,
-                layout: layout
+                privacy: privacy
             ))
             .select("id")
             .single()
@@ -99,6 +100,22 @@ final class NookService: Sendable {
             .execute()
     }
 
+    /// Replace all items in a nook with the given list (used when editing).
+    func replaceItems(
+        nookId: UUID,
+        items: [(mediaItemId: UUID, note: String?, sortOrder: Int)]
+    ) async throws {
+        try await supabase
+            .from("nook_items")
+            .delete()
+            .eq("nook_id", value: nookId.uuidString)
+            .execute()
+
+        if !items.isEmpty {
+            try await addItems(nookId: nookId, items: items)
+        }
+    }
+
     func getNook(nookId: UUID) async throws -> NookDetail {
         let row: NookRow = try await supabase
             .from("nooks")
@@ -138,22 +155,47 @@ final class NookService: Sendable {
         )
     }
 
-    func getUserNooks(userId: UUID) async throws -> [NookRow] {
-        try await supabase
+    /// Nooks owned by a user, enriched with owner profile + item counts.
+    /// RLS scopes visibility (own → all; others → public/friends-only).
+    func getUserNooks(userId: UUID) async throws -> [NookSummary] {
+        let rows: [NookSummaryRow] = try await supabase
             .from("nooks")
-            .select("*")
+            .select(Self.summarySelect)
             .eq("user_id", value: userId.uuidString)
             .order("created_at", ascending: false)
             .execute()
             .value
+
+        return rows.map { NookSummary(from: $0) }
     }
 
-    func updateNook(nookId: UUID, name: String?, description: String?, privacy: String?, layout: String?) async throws {
+    /// Public nooks for Home "Popular" and Discover.
+    func getPopularNooks(limit: Int = 10) async throws -> [NookSummary] {
+        let rows: [NookSummaryRow] = try await supabase
+            .from("nooks")
+            .select(Self.summarySelect)
+            .eq("privacy", value: "public")
+            .order("likes_count", ascending: false)
+            .order("created_at", ascending: false)
+            .range(from: 0, to: limit - 1)
+            .execute()
+            .value
+
+        return rows.map { NookSummary(from: $0) }
+    }
+
+    func updateNook(
+        nookId: UUID,
+        name: String? = nil,
+        description: String? = nil,
+        privacy: String? = nil,
+        coverUrl: String? = nil
+    ) async throws {
         var updates: [String: AnyEncodable] = [:]
         if let name { updates["name"] = AnyEncodable(name) }
         if let description { updates["description"] = AnyEncodable(description) }
         if let privacy { updates["privacy"] = AnyEncodable(privacy) }
-        if let layout { updates["layout"] = AnyEncodable(layout) }
+        if let coverUrl { updates["cover_url"] = AnyEncodable(coverUrl) }
 
         guard !updates.isEmpty else { return }
 
@@ -164,6 +206,19 @@ final class NookService: Sendable {
             .execute()
     }
 
+    /// Upload a new cover image and return its public URL.
+    func uploadCover(data: Data) async throws -> String {
+        let userId = try await supabase.auth.session.user.id
+        let storageService = StorageService()
+        let url = try await storageService.uploadImage(
+            bucket: "nook-covers",
+            userId: userId,
+            fileName: "\(UUID().uuidString).jpg",
+            data: data
+        )
+        return url.absoluteString
+    }
+
     func deleteNook(nookId: UUID) async throws {
         try await supabase
             .from("nooks")
@@ -172,14 +227,131 @@ final class NookService: Sendable {
             .execute()
     }
 
-    func getPopularNooks(limit: Int = 10) async throws -> [NookRow] {
+    // MARK: - Likes
+
+    func likeNook(nookId: UUID) async throws {
+        let userId = try await supabase.auth.session.user.id
+
+        struct LikeInsert: Encodable {
+            let user_id: String
+            let nook_id: String
+        }
+
         try await supabase
-            .from("nooks")
-            .select("*")
-            .eq("privacy", value: "public")
-            .order("created_at", ascending: false)
-            .range(from: 0, to: limit - 1)
+            .from("nook_likes")
+            .insert(LikeInsert(
+                user_id: userId.uuidString,
+                nook_id: nookId.uuidString
+            ))
+            .execute()
+    }
+
+    func unlikeNook(nookId: UUID) async throws {
+        let userId = try await supabase.auth.session.user.id
+
+        try await supabase
+            .from("nook_likes")
+            .delete()
+            .eq("user_id", value: userId.uuidString)
+            .eq("nook_id", value: nookId.uuidString)
+            .execute()
+    }
+
+    func isNookLiked(nookId: UUID) async throws -> Bool {
+        let userId = try await supabase.auth.session.user.id
+
+        struct LikeRow: Decodable {
+            let user_id: UUID
+        }
+
+        let rows: [LikeRow] = try await supabase
+            .from("nook_likes")
+            .select("user_id")
+            .eq("user_id", value: userId.uuidString)
+            .eq("nook_id", value: nookId.uuidString)
             .execute()
             .value
+
+        return !rows.isEmpty
+    }
+
+    // MARK: - Comments
+
+    func getComments(nookId: UUID) async throws -> [NookCommentModel] {
+        let rows: [NookCommentRow] = try await supabase
+            .from("nook_comments")
+            .select("*, user_profile:user_profiles!nook_comments_user_id_user_profiles_fkey(full_name, username, avatar_url)")
+            .eq("nook_id", value: nookId.uuidString)
+            .order("created_at", ascending: true)
+            .execute()
+            .value
+
+        return rows.map { NookCommentModel(from: $0) }
+    }
+
+    func addComment(nookId: UUID, body: String, parentCommentId: UUID? = nil) async throws {
+        let userId = try await supabase.auth.session.user.id
+
+        struct CommentInsert: Encodable {
+            let nook_id: String
+            let user_id: String
+            let parent_comment_id: String?
+            let body: String
+        }
+
+        try await supabase
+            .from("nook_comments")
+            .insert(CommentInsert(
+                nook_id: nookId.uuidString,
+                user_id: userId.uuidString,
+                parent_comment_id: parentCommentId?.uuidString,
+                body: body
+            ))
+            .execute()
+    }
+
+    // MARK: - Comment Likes
+
+    func likeComment(commentId: UUID) async throws {
+        let userId = try await supabase.auth.session.user.id
+
+        struct LikeInsert: Encodable {
+            let user_id: String
+            let comment_id: String
+        }
+
+        try await supabase
+            .from("nook_comment_likes")
+            .insert(LikeInsert(
+                user_id: userId.uuidString,
+                comment_id: commentId.uuidString
+            ))
+            .execute()
+    }
+
+    func unlikeComment(commentId: UUID) async throws {
+        let userId = try await supabase.auth.session.user.id
+
+        try await supabase
+            .from("nook_comment_likes")
+            .delete()
+            .eq("user_id", value: userId.uuidString)
+            .eq("comment_id", value: commentId.uuidString)
+            .execute()
+    }
+
+    func getLikedCommentIds(nookId: UUID) async throws -> Set<UUID> {
+        let userId = try await supabase.auth.session.user.id
+
+        struct Row: Decodable { let comment_id: UUID }
+
+        let rows: [Row] = try await supabase
+            .from("nook_comment_likes")
+            .select("comment_id")
+            .eq("user_id", value: userId.uuidString)
+            .execute()
+            .value
+
+        return Set(rows.map(\.comment_id))
     }
 }

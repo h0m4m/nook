@@ -116,8 +116,8 @@ struct HomeView: View {
 
     private func loadPopularNooks() async {
         let nookService = NookService()
-        if let rows = try? await nookService.getPopularNooks(limit: 10) {
-            popularNooks = rows.map { NookItem(from: $0) }
+        if let summaries = try? await nookService.getPopularNooks(limit: 10) {
+            popularNooks = summaries.map { NookItem(from: $0) }
         }
     }
 }

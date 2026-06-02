@@ -87,6 +87,9 @@ struct MainTabView: View {
                 .navigationDestination(for: NookItem.self) { nook in
                     NookDetailView(nook: nook)
                 }
+                .navigationDestination(for: DiscoverNooksRoute.self) { _ in
+                    DiscoverNooksView()
+                }
                 .navigationDestination(for: UserProfile.self) { user in
                     if user.isCurrentUser {
                         MyProfileView(router: router)

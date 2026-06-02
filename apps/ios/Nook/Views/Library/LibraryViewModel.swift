@@ -2,6 +2,25 @@ import Foundation
 import SwiftUI
 import Supabase
 
+enum LibraryContentMode: CaseIterable, Identifiable {
+    case media
+    case nooks
+
+    var id: String {
+        switch self {
+        case .media: "media"
+        case .nooks: "nooks"
+        }
+    }
+
+    var label: String {
+        switch self {
+        case .media: "Media"
+        case .nooks: "Nooks"
+        }
+    }
+}
+
 @MainActor
 @Observable
 final class LibraryViewModel {
@@ -12,7 +31,13 @@ final class LibraryViewModel {
     var isLoading = false
     var error: AppError?
 
+    var mode: LibraryContentMode = .media
+    var nooks: [NookSummary] = []
+    var isLoadingNooks = false
+    var hasLoadedNooks = false
+
     private let trackingService = TrackingService()
+    private let nookService = NookService()
 
     var filteredItems: [TrackedMediaItem] {
         var results = items
@@ -56,6 +81,11 @@ final class LibraryViewModel {
         return results
     }
 
+    var filteredNooks: [NookSummary] {
+        guard !searchText.isEmpty else { return nooks }
+        return nooks.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
+    }
+
     func loadLibrary() async {
         guard let userId = try? await supabase.auth.session.user.id else { return }
 
@@ -69,6 +99,15 @@ final class LibraryViewModel {
             self.error = AppError(from: error)
             isLoading = false
         }
+    }
+
+    func loadNooks() async {
+        guard let userId = try? await supabase.auth.session.user.id else { return }
+
+        isLoadingNooks = true
+        nooks = (try? await nookService.getUserNooks(userId: userId)) ?? []
+        isLoadingNooks = false
+        hasLoadedNooks = true
     }
 
     func trackMedia(

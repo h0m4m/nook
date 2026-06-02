@@ -10,6 +10,7 @@ struct MyProfileView: View {
     @State private var showEditProfile = false
     @State private var recentTracked: [TrackedMediaItem] = []
     @State private var userReviews: [Review] = []
+    @State private var userNooks: [NookSummary] = []
 
     var body: some View {
         ZStack(alignment: .top) {
@@ -51,6 +52,9 @@ struct MyProfileView: View {
         }
         .task { await loadProfile() }
         .refreshable { await loadProfile() }
+        .onReceive(NotificationCenter.default.publisher(for: .nooksDidChange)) { _ in
+            Task { await loadProfile() }
+        }
     }
 
     // MARK: - Loading State
@@ -411,16 +415,32 @@ struct MyProfileView: View {
     // MARK: - Nooks Tab
 
     private var nooksContent: some View {
-        VStack(spacing: 8) {
-            Text("No nooks yet")
-                .font(NookFont.labelBold)
-                .foregroundStyle(Color.nook.detailMeta)
-            Text("Your nooks will appear here")
-                .font(NookFont.bodySmall)
-                .foregroundStyle(Color.nook.detailMeta.opacity(0.7))
+        VStack(spacing: 12) {
+            if userNooks.isEmpty {
+                VStack(spacing: 8) {
+                    Text("No nooks yet")
+                        .font(NookFont.labelBold)
+                        .foregroundStyle(Color.nook.detailMeta)
+                    Text("Tap + to create your first nook")
+                        .font(NookFont.bodySmall)
+                        .foregroundStyle(Color.nook.detailMeta.opacity(0.7))
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.top, 24)
+            } else {
+                ForEach(userNooks) { summary in
+                    NavigationLink(value: NookItem(from: summary)) {
+                        ProfileNookCard(
+                            title: summary.name,
+                            itemCount: summary.itemCount,
+                            likes: summary.likesCount,
+                            coverURL: summary.coverURL
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
         }
-        .frame(maxWidth: .infinity)
-        .padding(.top, 24)
     }
 
     // MARK: - Posts Tab
@@ -471,12 +491,14 @@ struct MyProfileView: View {
                 isCurrentUser: true
             )
 
-            // Load recent tracked items and reviews in parallel
+            // Load recent tracked items, reviews, and nooks in parallel
             async let trackedItems = TrackingService().getLibrary(userId: user.id)
             async let reviews = ReviewService().getReviewsByUser(userId: user.id)
+            async let nooks = NookService().getUserNooks(userId: user.id)
 
             recentTracked = (try? await trackedItems) ?? []
             userReviews = (try? await reviews) ?? []
+            userNooks = (try? await nooks) ?? []
 
             isLoading = false
         } catch {
@@ -858,13 +880,18 @@ struct ProfileNookCard: View {
     let title: String
     let itemCount: Int
     let likes: Int
-    let placeholderColor: Color
+    var coverURL: URL? = nil
+    var placeholderColor: Color = Color.nook.secondary
 
     var body: some View {
         HStack(spacing: 16) {
-            RoundedRectangle(cornerRadius: NookRadii.sm)
-                .fill(placeholderColor)
-                .frame(width: 80, height: 80)
+            MediaPosterImage(
+                url: coverURL,
+                width: 80,
+                height: 80,
+                cornerRadius: NookRadii.sm,
+                fallbackColor: placeholderColor
+            )
 
             VStack(alignment: .leading, spacing: 6) {
                 Text(title)

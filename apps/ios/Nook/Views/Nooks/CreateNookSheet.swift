@@ -12,68 +12,16 @@ struct CreateNookSheet: View {
     @State private var showCropSheet = false
     @State private var mediaItems: [MediaSearchResult] = []
     @State private var mediaNotes: [UUID: String] = [:]
-    @State private var mediaDbIds: [UUID: UUID] = [:] // mediaSearchResult.id → media_items.id
     @State private var showAddMedia = false
     @State private var editingNoteItem: MediaSearchResult?
     @State private var editingNoteText = ""
     @State private var privacy: NookPrivacy = .publicVisible
-    @State private var layout: NookLayout = .grid
     @State private var showPrivacyPicker = false
-    @State private var showLayoutPicker = false
     @State private var isPublishing = false
     @FocusState private var focusedField: Field?
 
     private enum Field {
         case name, description
-    }
-
-    enum NookPrivacy: CaseIterable {
-        case publicVisible
-        case friendsOnly
-        case privateOnly
-
-        var label: String {
-            switch self {
-            case .publicVisible: "Public"
-            case .friendsOnly: "Friends Only"
-            case .privateOnly: "Only Me"
-            }
-        }
-
-        var subtitle: String {
-            switch self {
-            case .publicVisible: "Visible to everyone"
-            case .friendsOnly: "Only friends can see"
-            case .privateOnly: "Only you can see"
-            }
-        }
-
-        var icon: String {
-            switch self {
-            case .publicVisible: "lock-simple-open"
-            case .friendsOnly: "users-bold"
-            case .privateOnly: "eye-slash-bold"
-            }
-        }
-    }
-
-    enum NookLayout: CaseIterable {
-        case grid
-        case list
-
-        var label: String {
-            switch self {
-            case .grid: "Grid View"
-            case .list: "List View"
-            }
-        }
-
-        var subtitle: String {
-            switch self {
-            case .grid: "Show items as a poster grid"
-            case .list: "Show items as a detailed list"
-            }
-        }
     }
 
     private var canPublish: Bool {
@@ -354,7 +302,7 @@ struct CreateNookSheet: View {
                     addMediaGridCard
                 }
                 .padding(.horizontal, 24)
-            } else if layout == .grid {
+            } else {
                 let columns = [
                     GridItem(.flexible(), spacing: 12),
                     GridItem(.flexible(), spacing: 12),
@@ -370,26 +318,6 @@ struct CreateNookSheet: View {
                     addMediaInlineButton
                         .padding(.horizontal, 24)
                         .padding(.top, 4)
-                }
-            } else {
-                VStack(spacing: 0) {
-                    ForEach(Array(mediaItems.enumerated()), id: \.element.id) { index, item in
-                        mediaListRow(item, at: index)
-
-                        if index < mediaItems.count - 1 {
-                            Rectangle()
-                                .fill(Color(hex: 0xE6E2E0))
-                                .frame(height: 1)
-                                .padding(.leading, 88)
-                                .padding(.trailing, 24)
-                        }
-                    }
-                }
-
-                if mediaItems.count < 10 {
-                    addMediaInlineButton
-                        .padding(.horizontal, 24)
-                        .padding(.top, 8)
                 }
             }
         }
@@ -524,87 +452,6 @@ struct CreateNookSheet: View {
         }
     }
 
-    private func mediaListRow(_ item: MediaSearchResult, at index: Int) -> some View {
-        let category = SearchMediaCategory.from(apiMediaType: item.mediaType)
-
-        return HStack(spacing: 14) {
-            MediaPosterImage(
-                url: item.imageURL,
-                width: 48,
-                height: 64,
-                cornerRadius: 12,
-                fallbackColor: category?.dotColor.opacity(0.3) ?? Color.nook.searchShimmerBase
-            )
-            .shadow(color: .black.opacity(0.08), radius: 1.5, x: 0, y: 1)
-
-            VStack(alignment: .leading, spacing: 3) {
-                HStack(spacing: 4) {
-                    if let cat = category {
-                        Text(cat.uppercaseLabel)
-                            .font(NookFont.tabLabel)
-                            .tracking(0.5)
-                            .foregroundStyle(cat.dotColor)
-                    }
-
-                    if item.year != nil {
-                        Circle()
-                            .fill(Color(hex: 0x78716C))
-                            .frame(width: 3, height: 3)
-
-                        Text(item.year ?? "")
-                            .font(NookFont.tabLabel)
-                            .tracking(0.5)
-                            .foregroundStyle(Color(hex: 0x78716C))
-                    }
-                }
-
-                Text(item.title)
-                    .font(NookFont.labelSmall)
-                    .foregroundStyle(Color(hex: 0x1C1918))
-                    .lineLimit(1)
-
-                if let note = mediaNotes[item.id] {
-                    Text(note)
-                        .font(NookFont.caption)
-                        .foregroundStyle(Color(hex: 0x78716C))
-                        .lineLimit(1)
-                } else {
-                    Text("Add a note")
-                        .font(NookFont.caption)
-                        .foregroundStyle(Color(hex: 0x78716C).opacity(0.6))
-                        .italic()
-                }
-            }
-
-            Spacer(minLength: 8)
-
-            // Remove
-            Button {
-                withAnimation(.easeOut(duration: 0.2)) {
-                    _ = mediaItems.remove(at: index)
-                    mediaNotes.removeValue(forKey: item.id)
-                }
-            } label: {
-                Image("x-bold")
-                    .renderingMode(.template)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 12, height: 12)
-                    .foregroundStyle(Color(hex: 0x78716C))
-                    .frame(width: 28, height: 28)
-                    .background(Color(hex: 0xF2EFEE), in: Circle())
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(.horizontal, 24)
-        .padding(.vertical, 12)
-        .contentShape(Rectangle())
-        .onTapGesture {
-            editingNoteText = mediaNotes[item.id] ?? ""
-            editingNoteItem = item
-        }
-    }
-
     // MARK: - Settings Card
 
     private var settingsCard: some View {
@@ -617,20 +464,6 @@ struct CreateNookSheet: View {
                 )
             }
             .buttonStyle(.plain)
-
-            Rectangle()
-                .fill(Color(hex: 0xE6E2E0).opacity(0.5))
-                .frame(height: 1)
-                .padding(.horizontal, 20)
-
-            Button { showLayoutPicker = true } label: {
-                settingsRow(
-                    icon: "layout",
-                    title: "Layout",
-                    subtitle: layout.label
-                )
-            }
-            .buttonStyle(.plain)
         }
         .background(Color.white)
         .clipShape(RoundedRectangle(cornerRadius: settingsRadius, style: .continuous))
@@ -639,22 +472,12 @@ struct CreateNookSheet: View {
                 .strokeBorder(Color(hex: 0xE6E2E0), lineWidth: 1)
         )
         .sheet(isPresented: $showPrivacyPicker) {
-            SettingsPickerSheet(
+            NookSettingsPickerSheet(
                 title: "Privacy",
                 options: NookPrivacy.allCases.map { ($0, $0.icon, $0.label, $0.subtitle) },
                 selected: privacy
             ) { privacy = $0 }
             .presentationDetents([.height(320)])
-            .presentationDragIndicator(.visible)
-            .presentationBackground(Color(hex: 0xFDFBF9))
-        }
-        .sheet(isPresented: $showLayoutPicker) {
-            SettingsPickerSheet(
-                title: "Layout",
-                options: NookLayout.allCases.map { ($0, "layout", $0.label, $0.subtitle) },
-                selected: layout
-            ) { layout = $0 }
-            .presentationDetents([.height(280)])
             .presentationDragIndicator(.visible)
             .presentationBackground(Color(hex: 0xFDFBF9))
         }
@@ -723,25 +546,13 @@ struct CreateNookSheet: View {
             do {
                 let nookService = NookService()
 
-                let privacyValue: String = switch privacy {
-                case .publicVisible: "public"
-                case .friendsOnly: "friends_only"
-                case .privateOnly: "private"
-                }
-
-                let layoutValue: String = switch layout {
-                case .grid: "grid"
-                case .list: "list"
-                }
-
                 let coverData = coverImage?.jpegData(compressionQuality: 0.8)
 
                 let nookId = try await nookService.createNook(
                     name: name.trimmingCharacters(in: .whitespacesAndNewlines),
                     description: nookDescription.isEmpty ? nil : nookDescription,
                     coverData: coverData,
-                    privacy: privacyValue,
-                    layout: layoutValue
+                    privacy: privacy.dbValue
                 )
 
                 // Add media items — resolve dbIds by fetching detail for each
@@ -773,6 +584,7 @@ struct CreateNookSheet: View {
                 generator.notificationOccurred(.success)
 
                 await MainActor.run {
+                    NotificationCenter.default.post(name: .nooksDidChange, object: nil)
                     dismiss()
                 }
             } catch {
@@ -780,92 +592,6 @@ struct CreateNookSheet: View {
                     isPublishing = false
                 }
             }
-        }
-    }
-}
-
-// MARK: - Settings Picker Sheet
-
-private struct SettingsPickerSheet<T: Equatable>: View {
-    let title: String
-    let options: [(value: T, icon: String, label: String, subtitle: String)]
-    let selected: T
-    var onSelect: (T) -> Void
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        VStack(spacing: 0) {
-            // Header
-            Text(title)
-                .font(NookFont.labelBoldSmall)
-                .foregroundStyle(Color(hex: 0x1C1918))
-                .padding(.top, 20)
-                .padding(.bottom, 20)
-
-            // Options
-            VStack(spacing: 0) {
-                ForEach(Array(options.enumerated()), id: \.offset) { index, option in
-                    Button {
-                        onSelect(option.value)
-                        dismiss()
-                    } label: {
-                        HStack(spacing: 12) {
-                            Image(option.icon)
-                                .renderingMode(.template)
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .frame(width: 18, height: 18)
-                                .foregroundStyle(Color(hex: 0x43313D))
-                                .frame(width: 36, height: 36)
-                                .background(
-                                    Color(hex: 0xF2EFEE),
-                                    in: RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                )
-
-                            VStack(alignment: .leading, spacing: 1) {
-                                Text(option.label)
-                                    .font(NookFont.labelBoldSmall)
-                                    .foregroundStyle(Color(hex: 0x1C1918))
-
-                                Text(option.subtitle)
-                                    .font(NookFont.caption)
-                                    .foregroundStyle(Color(hex: 0x78716C))
-                            }
-
-                            Spacer()
-
-                            if option.value == selected {
-                                Image("check-bold")
-                                    .renderingMode(.template)
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fit)
-                                    .frame(width: 16, height: 16)
-                                    .foregroundStyle(Color(hex: 0x43313D))
-                            }
-                        }
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 16)
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-
-                    if index < options.count - 1 {
-                        Rectangle()
-                            .fill(Color(hex: 0xE6E2E0).opacity(0.5))
-                            .frame(height: 1)
-                            .padding(.horizontal, 20)
-                    }
-                }
-            }
-            .background(Color.white)
-            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .strokeBorder(Color(hex: 0xE6E2E0), lineWidth: 1)
-            )
-            .padding(.horizontal, 20)
-
-            Spacer()
         }
     }
 }
