@@ -10,6 +10,9 @@ packages:
   Supabase:
     url: https://github.com/supabase/supabase-swift.git
     from: "2.0.0"
+  GoogleSignIn:
+    url: https://github.com/google/GoogleSignIn-iOS
+    from: "9.0.0"
 
 targets:
   Nook:
@@ -19,6 +22,9 @@ targets:
       - path: Nook
     settings:
       base:
+        # Info.plist is hand-maintained (holds GIDClientID + the Google URL
+        # scheme), so reference it statically instead of generating it.
+        INFOPLIST_FILE: Nook/Info.plist
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
         INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
@@ -26,19 +32,15 @@ targets:
         SWIFT_VERSION: "6.0"
         MARKETING_VERSION: "0.1.0"
         CURRENT_PROJECT_VERSION: 1
-        PRODUCT_BUNDLE_IDENTIFIER: com.nook.app
+        PRODUCT_BUNDLE_IDENTIFIER: app.getnook
+        DEVELOPMENT_TEAM: 8PP9FS9CAY
         CODE_SIGN_STYLE: Automatic
+        CODE_SIGN_ENTITLEMENTS: Nook/Nook.entitlements
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        TARGETED_DEVICE_FAMILY: "1,2"
     dependencies:
       - package: Supabase
-    info:
-      path: Nook/Info.plist
-      properties:
-        UILaunchScreen:
-          UIColorName: AccentColor
-        UIAppFonts:
-          - PlusJakartaSans-Regular.ttf
-          - PlusJakartaSans-Medium.ttf
-          - PlusJakartaSans-SemiBold.ttf
-          - PlusJakartaSans-Bold.ttf
-          - Outfit-Bold.ttf
-          - PlusJakartaSans-Italic.ttf
+      - package: GoogleSignIn
+        product: GoogleSignIn
+      - package: GoogleSignIn
+        product: GoogleSignInSwift
