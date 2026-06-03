@@ -1,5 +1,9 @@
 import SwiftUI
 
+/// Path-based route so notifications sit in the same NavigationStack as the
+/// club/profile destinations they push to (otherwise pushes land underneath).
+struct NotificationsRoute: Hashable {}
+
 // MARK: - Notification Models
 
 struct NotificationItem: Identifiable {

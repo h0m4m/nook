@@ -1796,13 +1796,13 @@ private extension ClubDetailView {
                         Button {
                             vm?.setMemberRole(userId: member.userId, role: "member")
                         } label: {
-                            sizedMenuLabel("Remove Manager", icon: "star")
+                            sizedMenuLabel("Remove Manager", icon: "star-menu")
                         }
                     } else {
                         Button {
                             vm?.setMemberRole(userId: member.userId, role: "manager")
                         } label: {
-                            sizedMenuLabel("Make Manager", icon: "star-fill")
+                            sizedMenuLabel("Make Manager", icon: "star-fill-menu")
                         }
                     }
                 }
