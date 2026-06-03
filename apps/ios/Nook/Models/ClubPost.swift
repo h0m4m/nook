@@ -14,6 +14,7 @@ struct ClubPostRow: Codable, Sendable {
     let updatedAt: Date
     let userProfile: ReviewAuthor?
     let images: [ClubPostImageRow]?
+    let media: [ClubPostMediaRow]?
     // PostgREST may serialize the one-to-one poll embed as a single object (unique FK)
     // or an array depending on version; decode tolerantly.
     let poll: SingleOrArray<ClubPollRow>?
@@ -30,7 +31,70 @@ struct ClubPostRow: Codable, Sendable {
         case updatedAt = "updated_at"
         case userProfile = "user_profile"
         case images
+        case media
         case poll
+    }
+}
+
+// MARK: - Attached media (specific movies/shows/anime referenced in a post)
+
+struct ClubPostMediaRow: Codable, Sendable {
+    let position: Int
+    let mediaItem: MediaItemRef?
+
+    enum CodingKeys: String, CodingKey {
+        case position
+        case mediaItem = "media_item"
+    }
+}
+
+struct MediaItemRef: Codable, Sendable {
+    let id: UUID
+    let source: String
+    let sourceId: String
+    let mediaType: String
+    let title: String
+    let imageUrl: String?
+    let year: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, source, title, year
+        case sourceId = "source_id"
+        case mediaType = "media_type"
+        case imageUrl = "image_url"
+    }
+}
+
+struct ClubPostMediaModel: Identifiable, Hashable, Sendable {
+    let id: UUID            // media_items.id
+    let source: String
+    let sourceId: String
+    let mediaType: String
+    let title: String
+    let imageURL: URL?
+    let year: String?
+
+    init(from ref: MediaItemRef) {
+        self.id = ref.id
+        self.source = ref.source
+        self.sourceId = ref.sourceId
+        self.mediaType = ref.mediaType
+        self.title = ref.title
+        self.imageURL = ref.imageUrl.flatMap { URL(string: $0) }
+        self.year = ref.year
+    }
+
+    /// A search-result projection so we can reuse MediaDetailRoute(from:).
+    var asSearchResult: MediaSearchResult {
+        MediaSearchResult(
+            mediaId: sourceId,
+            source: source,
+            mediaType: mediaType,
+            title: title,
+            imageURL: imageURL,
+            year: year,
+            score: nil
+        )
     }
 }
 
@@ -161,11 +225,12 @@ struct ClubPostModel: Identifiable, Hashable, Sendable {
     let authorName: String
     let authorAvatarURL: URL?
     let body: String
-    let isPinned: Bool
-    let likesCount: Int
+    var isPinned: Bool
+    var likesCount: Int
     let commentsCount: Int
     let createdAt: Date
     let imageURLs: [URL]
+    let attachedMedia: [ClubPostMediaModel]
     let poll: ClubPollModel?
 
     init(from row: ClubPostRow) {
@@ -182,6 +247,9 @@ struct ClubPostModel: Identifiable, Hashable, Sendable {
         self.imageURLs = (row.images ?? [])
             .sorted { $0.position < $1.position }
             .compactMap { URL(string: $0.url) }
+        self.attachedMedia = (row.media ?? [])
+            .sorted { $0.position < $1.position }
+            .compactMap { $0.mediaItem.map { ClubPostMediaModel(from: $0) } }
         self.poll = row.poll?.first.map { ClubPollModel(from: $0) }
     }
 }

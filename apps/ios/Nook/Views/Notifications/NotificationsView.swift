@@ -1,5 +1,9 @@
 import SwiftUI
 
+/// Path-based route so notifications sit in the same NavigationStack as the
+/// club/profile destinations they push to (otherwise pushes land underneath).
+struct NotificationsRoute: Hashable {}
+
 // MARK: - Notification Models
 
 struct NotificationItem: Identifiable {
@@ -100,26 +104,20 @@ struct NotificationsView: View {
     private var notificationsList: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 0) {
-                if !realNotifications.isEmpty {
-                    // Real notifications with navigation
-                    ForEach(realNotifications) { notif in
-                        NavigationLink(value: UserProfile.profileFor(name: notif.actorName)) {
-                            RealNotificationRow(notification: notif)
-                        }
-                        .buttonStyle(.plain)
-                    }
+                if realNotifications.isEmpty {
+                    notificationsEmptyState
                 } else {
-                    ForEach(groupedNotifications, id: \.0) { section, items in
-                        sectionHeader(section.rawValue)
-
-                        ForEach(items) { notification in
-                            NotificationRow(notification: notification)
-
-                            if notification.id != items.last?.id {
-                                Divider()
-                                    .foregroundStyle(Color.nook.notificationDivider)
-                                    .padding(.leading, 68)
+                    ForEach(realNotifications) { notif in
+                        if notif.referenceType == "club", let clubId = notif.referenceId {
+                            NavigationLink(value: ClubItem(navigationId: clubId)) {
+                                RealNotificationRow(notification: notif)
                             }
+                            .buttonStyle(.plain)
+                        } else {
+                            NavigationLink(value: UserProfile.profileFor(name: notif.actorName)) {
+                                RealNotificationRow(notification: notif)
+                            }
+                            .buttonStyle(.plain)
                         }
                     }
                 }
@@ -127,6 +125,29 @@ struct NotificationsView: View {
             .padding(.bottom, 100)
         }
         .modifier(SoftScrollEdge())
+    }
+
+    private var notificationsEmptyState: some View {
+        VStack(spacing: 12) {
+            Image("bell")
+                .renderingMode(.template)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 40, height: 40)
+                .foregroundStyle(Color.nook.notificationSectionHeader)
+
+            Text("No notifications yet")
+                .font(NookFont.labelBold)
+                .foregroundStyle(Color.nook.notificationTitle)
+
+            Text("Invites, joins and replies will show up here.")
+                .font(NookFont.labelMediumSmall)
+                .foregroundStyle(Color.nook.notificationSectionHeader)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 100)
+        .padding(.horizontal, 40)
     }
 
     // MARK: - Section Header

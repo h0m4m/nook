@@ -1,23 +1,13 @@
 import PhotosUI
 import SwiftUI
 
-enum PollDuration: String, CaseIterable {
-    case oneDay = "1 Day"
-    case threeDays = "3 Days"
-    case oneWeek = "1 Week"
-
-    var seconds: TimeInterval {
-        switch self {
-        case .oneDay: 86_400
-        case .threeDays: 259_200
-        case .oneWeek: 604_800
-        }
-    }
-}
+/// Polls always run for exactly one day.
+private let pollDurationSeconds: TimeInterval = 86_400
 
 struct ComposePostView: View {
     let clubName: String
     var clubId: UUID?
+    var accent: Color = Color.nook.primary
     @Environment(\.dismiss) private var dismiss
     @State private var postBody = ""
     @State private var attachedImages: [UIImage] = []
@@ -26,15 +16,18 @@ struct ComposePostView: View {
     @State private var isPosting = false
     @State private var showPoll = false
     @State private var pollOptions: [String] = ["", ""]
-    @State private var pollDuration = PollDuration.oneDay
+    @State private var attachedMedia: [MediaSearchResult] = []
+    @State private var showMediaPicker = false
     @FocusState private var isBodyFocused: Bool
+
     @FocusState private var focusedPollOption: Int?
 
     private var canPost: Bool {
         let hasText = !postBody.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         let hasImages = !attachedImages.isEmpty
+        let hasMedia = !attachedMedia.isEmpty
         let hasValidPoll = showPoll && pollOptions.filter({ !$0.trimmingCharacters(in: .whitespaces).isEmpty }).count >= 2
-        return hasText || hasImages || hasValidPoll
+        return hasText || hasImages || hasMedia || hasValidPoll
     }
 
     var body: some View {
@@ -61,6 +54,12 @@ struct ComposePostView: View {
                 guard !newItems.isEmpty else { return }
                 appendImages(from: newItems)
                 pickerSelection = []
+            }
+            .sheet(isPresented: $showMediaPicker) {
+                AddMediaToNookSheet(mediaItems: $attachedMedia)
+                    .presentationDetents([.large])
+                    .presentationDragIndicator(.visible)
+                    .presentationBackground(Color.nook.searchBackground)
             }
         }
     }
@@ -122,7 +121,7 @@ private extension ComposePostView {
                     .frame(height: 36)
                     .background(
                         Capsule()
-                            .fill(canPost ? Color.nook.primary : Color.nook.primary.opacity(0.4))
+                            .fill(canPost ? accent : accent.opacity(0.4))
                     )
             }
             .buttonStyle(.plain)
@@ -189,6 +188,11 @@ private extension ComposePostView {
                 if !attachedImages.isEmpty {
                     imageCarousel
                         .padding(.top, 8)
+                }
+
+                if !attachedMedia.isEmpty {
+                    mediaCarousel
+                        .padding(.top, 12)
                 }
 
                 if showPoll {
@@ -277,6 +281,84 @@ private extension ComposePostView {
     }
 }
 
+// MARK: - Attached Media Carousel
+
+private extension ComposePostView {
+    var mediaCarousel: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 12) {
+                ForEach(attachedMedia) { item in
+                    mediaCard(item)
+                }
+            }
+            .padding(.horizontal, 20)
+        }
+    }
+
+    func mediaCard(_ item: MediaSearchResult) -> some View {
+        let category = SearchMediaCategory.from(apiMediaType: item.mediaType)
+        return ZStack(alignment: .topTrailing) {
+            VStack(alignment: .leading, spacing: 6) {
+                MediaPosterImage(
+                    url: item.imageURL,
+                    width: 92,
+                    height: 128,
+                    fallbackColor: category?.dotColor.opacity(0.3) ?? Color.nook.searchShimmerBase
+                )
+
+                Text(item.title)
+                    .font(NookFont.captionBold)
+                    .foregroundStyle(Color.nook.clubDetailTitle)
+                    .lineLimit(1)
+                    .frame(width: 92, alignment: .leading)
+            }
+
+            Button {
+                withAnimation(.easeOut(duration: 0.2)) {
+                    attachedMedia.removeAll { $0.id == item.id }
+                }
+            } label: {
+                Image("x-bold")
+                    .renderingMode(.template)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 11, height: 11)
+                    .foregroundStyle(.white)
+                    .frame(width: 24, height: 24)
+                    .background(.black.opacity(0.55), in: Circle())
+            }
+            .buttonStyle(.plain)
+            .padding(4)
+        }
+    }
+}
+
+// MARK: - Toolbar helpers
+
+private extension ComposePostView {
+    func toolbarIconButton(_ icon: String, active: Bool, badge: Int? = nil, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Image(icon)
+                    .renderingMode(.template)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 22, height: 22)
+                    .foregroundStyle(active ? accent : Color.nook.clubDetailTitle)
+
+                if let badge, badge > 0 {
+                    Text("\(badge)")
+                        .font(NookFont.captionBold)
+                        .foregroundStyle(Color.nook.clubDetailMeta)
+                }
+            }
+            .frame(height: 32)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+}
+
 // MARK: - Bottom Toolbar
 
 private extension ComposePostView {
@@ -286,40 +368,44 @@ private extension ComposePostView {
                 .fill(Color.nook.detailTabBorder)
                 .frame(height: 1)
 
-            HStack(spacing: 16) {
-                Button {
-                    showPhotoPicker = true
-                } label: {
-                    HStack(spacing: 6) {
-                        Image("image")
-                            .renderingMode(.template)
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(width: 22, height: 22)
-                            .foregroundStyle(Color.nook.clubDetailTitle)
+            HStack(spacing: 18) {
+                // Photo — hidden once specific media is attached (mutually exclusive).
+                if attachedMedia.isEmpty {
+                    Button {
+                        showPhotoPicker = true
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image("image")
+                                .renderingMode(.template)
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(width: 22, height: 22)
+                                .foregroundStyle(Color.nook.clubDetailTitle)
 
-                        if !attachedImages.isEmpty {
-                            Text("\(attachedImages.count)")
-                                .font(NookFont.captionBold)
-                                .foregroundStyle(Color.nook.clubDetailMeta)
+                            if !attachedImages.isEmpty {
+                                Text("\(attachedImages.count)")
+                                    .font(NookFont.captionBold)
+                                    .foregroundStyle(Color.nook.clubDetailMeta)
+                            }
                         }
                     }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
 
-                Button {
+                // Poll — always available.
+                toolbarIconButton("chart-bar", active: showPoll) {
                     withAnimation(.easeOut(duration: 0.2)) {
                         showPoll.toggle()
-                        if showPoll {
-                            pollOptions = ["", ""]
-                        }
+                        if showPoll { pollOptions = ["", ""] }
                     }
-                } label: {
-                    Image(systemName: "chart.bar.xaxis")
-                        .font(.system(size: 18))
-                        .foregroundStyle(showPoll ? Color.nook.primary : Color.nook.clubDetailTitle)
                 }
-                .buttonStyle(.plain)
+
+                // Attach media — hidden once photos are attached (mutually exclusive).
+                if attachedImages.isEmpty {
+                    toolbarIconButton("bookmark-simple", active: !attachedMedia.isEmpty, badge: attachedMedia.count) {
+                        showMediaPicker = true
+                    }
+                }
 
                 Spacer()
 
@@ -331,6 +417,8 @@ private extension ComposePostView {
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 12)
+            .animation(.easeOut(duration: 0.2), value: attachedImages.isEmpty)
+            .animation(.easeOut(duration: 0.2), value: attachedMedia.isEmpty)
         }
         .background(Color.nook.clubDetailBackground)
     }
@@ -402,38 +490,17 @@ private extension ComposePostView {
             }
             .padding(.horizontal, 16)
 
-            // Duration picker
-            HStack {
-                Text("Duration")
-                    .font(NookFont.labelMediumSmall)
-                    .foregroundStyle(Color.nook.clubDetailTitle)
+            // Polls always run for 1 day.
+            HStack(spacing: 6) {
+                Image(systemName: "clock")
+                    .font(.system(size: 11))
+                    .foregroundStyle(Color.nook.clubDetailMeta)
+
+                Text("Poll closes in 1 day")
+                    .font(NookFont.caption)
+                    .foregroundStyle(Color.nook.clubDetailMeta)
 
                 Spacer()
-
-                Menu {
-                    ForEach(PollDuration.allCases, id: \.self) { duration in
-                        Button {
-                            pollDuration = duration
-                        } label: {
-                            HStack {
-                                Text(duration.rawValue)
-                                if pollDuration == duration {
-                                    Image(systemName: "checkmark")
-                                }
-                            }
-                        }
-                    }
-                } label: {
-                    HStack(spacing: 4) {
-                        Text(pollDuration.rawValue)
-                            .font(NookFont.labelMediumSmall)
-                            .foregroundStyle(Color.nook.clubDetailMeta)
-
-                        Image(systemName: "chevron.down")
-                            .font(.system(size: 10, weight: .semibold))
-                            .foregroundStyle(Color.nook.clubDetailMeta)
-                    }
-                }
             }
             .padding(.horizontal, 16)
             .padding(.top, 16)
@@ -497,17 +564,30 @@ private extension ComposePostView {
 
         let trimmedBody = postBody.trimmingCharacters(in: .whitespacesAndNewlines)
         let images = attachedImages
+        let media = attachedMedia
         let pollDraft = buildPollDraft()
 
         Task {
             do {
                 if let clubId {
                     let clubService = ClubService()
+                    let mediaAPI = MediaAPIService()
                     let imageDatas = images.compactMap { $0.jpegData(compressionQuality: 0.8) }
+
+                    // Resolve each picked media to its media_items row id (upserts via media-detail).
+                    var mediaItemIds: [UUID] = []
+                    for item in media {
+                        if let detail = try? await mediaAPI.detail(source: item.source, sourceId: item.mediaId, mediaType: item.mediaType),
+                           let dbId = detail.dbId {
+                            mediaItemIds.append(dbId)
+                        }
+                    }
+
                     try await clubService.createPost(
                         clubId: clubId,
                         body: trimmedBody,
                         imageDatas: imageDatas,
+                        mediaItemIds: mediaItemIds,
                         poll: pollDraft
                     )
                 }
@@ -532,7 +612,7 @@ private extension ComposePostView {
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
         guard options.count >= 2 else { return nil }
-        return ClubPollDraft(options: options, closesAt: Date().addingTimeInterval(pollDuration.seconds))
+        return ClubPollDraft(options: options, closesAt: Date().addingTimeInterval(pollDurationSeconds))
     }
 }
 

@@ -43,6 +43,18 @@ enum ClubCategory: CaseIterable, Identifiable {
         }
     }
 
+    /// Hex used as the club accent when no explicit theme color is set.
+    var accentHex: UInt {
+        switch self {
+        case .movies: 0xE57373
+        case .tvShows: 0x64B5F6
+        case .anime: 0xBA68C8
+        case .manga: 0x66BB6A
+        case .books: 0xD4A373
+        case .games: 0xFFA726
+        }
+    }
+
     var iconName: String {
         switch self {
         case .movies: "reel"
@@ -100,6 +112,7 @@ struct ClubItem: Identifiable, Hashable {
     let category: ClubCategory
     let bannerColor: Color
     let bannerURL: URL?
+    let themeHex: UInt?
     var isJoined: Bool
 
     static func == (lhs: ClubItem, rhs: ClubItem) -> Bool {
@@ -110,6 +123,26 @@ struct ClubItem: Identifiable, Hashable {
         hasher.combine(id)
     }
 
+    /// Resolved accent hex — the explicit theme, else the category color.
+    var resolvedAccentHex: UInt {
+        themeHex ?? category.accentHex
+    }
+
+    /// Solid accent used for buttons, tabs and other primary surfaces.
+    var accentColor: Color {
+        Color(hex: resolvedAccentHex)
+    }
+
+    /// Parse a stored 6-digit hex string (e.g. "BA68C8") into a UInt.
+    static func parseHex(_ string: String?) -> UInt? {
+        guard let string, let value = UInt(string.replacingOccurrences(of: "#", with: ""), radix: 16) else { return nil }
+        return value
+    }
+
+    static func color(fromHex hex: UInt?) -> Color? {
+        hex.map { Color(hex: $0) }
+    }
+
     init(
         name: String,
         memberCount: String,
@@ -117,6 +150,7 @@ struct ClubItem: Identifiable, Hashable {
         category: ClubCategory,
         bannerColor: Color,
         bannerURL: URL? = nil,
+        themeHex: UInt? = nil,
         isJoined: Bool = false,
         dbId: UUID? = nil
     ) {
@@ -126,6 +160,7 @@ struct ClubItem: Identifiable, Hashable {
         self.category = category
         self.bannerColor = bannerColor
         self.bannerURL = bannerURL
+        self.themeHex = themeHex
         self.isJoined = isJoined
         self.dbId = dbId
     }
@@ -136,9 +171,25 @@ struct ClubItem: Identifiable, Hashable {
         self.memberCount = "\(row.memberCount) Members"
         self.description = row.description ?? ""
         self.category = ClubCategory.from(dbValue: row.category)
-        self.bannerColor = ClubCategory.from(dbValue: row.category).dotColor.opacity(0.3)
+        self.themeHex = ClubItem.parseHex(row.themeColor)
+        let theme = ClubItem.color(fromHex: ClubItem.parseHex(row.themeColor))
+        self.bannerColor = (theme ?? ClubCategory.from(dbValue: row.category).dotColor).opacity(0.3)
         self.bannerURL = row.bannerUrl.flatMap { URL(string: $0) }
         self.isJoined = isJoined
+    }
+
+    /// Minimal item for navigating to a club by id (e.g. from a notification);
+    /// the detail screen loads the real club from this dbId.
+    init(navigationId dbId: UUID) {
+        self.dbId = dbId
+        self.name = ""
+        self.memberCount = ""
+        self.description = ""
+        self.category = .anime
+        self.themeHex = nil
+        self.bannerColor = Color(hex: ClubCategory.anime.accentHex).opacity(0.3)
+        self.bannerURL = nil
+        self.isJoined = false
     }
 }
 

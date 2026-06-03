@@ -29,6 +29,12 @@ struct InviteMemberView: View {
                     isSearchFocused = true
                 }
             }
+            .task {
+                // Pre-mark people already invited so re-searching shows "Invited".
+                if let clubId, let invited = try? await service.getInvitedUserIds(clubId: clubId) {
+                    invitedUsers.formUnion(invited)
+                }
+            }
         }
     }
 

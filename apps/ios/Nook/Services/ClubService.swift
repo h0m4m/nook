@@ -15,6 +15,7 @@ final class ClubService: Sendable {
     *, \
     user_profile:user_profiles!club_posts_user_id_user_profiles_fkey(id, full_name, username, avatar_url), \
     images:club_post_images(id, url, position), \
+    media:club_post_media(position, media_item:media_items(id, source, source_id, media_type, title, image_url, year)), \
     poll:club_post_polls(id, total_votes, closes_at, options:club_poll_options(id, text, position, votes_count))
     """
 
@@ -25,6 +26,7 @@ final class ClubService: Sendable {
         description: String?,
         category: String,
         privacy: String,
+        themeColor: String?,
         bannerData: Data?,
         iconData: Data?
     ) async throws -> UUID {
@@ -59,6 +61,7 @@ final class ClubService: Sendable {
             let description: String?
             let category: String
             let privacy: String
+            let theme_color: String?
             let banner_url: String?
             let icon_url: String?
         }
@@ -75,6 +78,7 @@ final class ClubService: Sendable {
                 description: description,
                 category: category,
                 privacy: privacy,
+                theme_color: themeColor,
                 banner_url: bannerUrl,
                 icon_url: iconUrl
             ))
@@ -100,6 +104,50 @@ final class ClubService: Sendable {
             .execute()
 
         return result.id
+    }
+
+    /// Update editable club details (owner/manager only — enforced by RLS; the
+    /// name is immutable and a 7-day cooldown is enforced by a DB trigger).
+    /// New banner/icon images are uploaded only when their `Data` is provided.
+    func updateClub(
+        clubId: UUID,
+        description: String?,
+        category: String,
+        privacy: String,
+        themeColor: String?,
+        bannerData: Data?,
+        iconData: Data?
+    ) async throws {
+        let userId = try await supabase.auth.session.user.id
+        let storageService = StorageService()
+
+        var updates: [String: AnyEncodable] = [
+            "description": AnyEncodable(description),
+            "category": AnyEncodable(category),
+            "privacy": AnyEncodable(privacy),
+            "theme_color": AnyEncodable(themeColor),
+        ]
+
+        if let bannerData {
+            let url = try await storageService.uploadImage(
+                bucket: "club-assets", userId: userId,
+                fileName: "banner-\(UUID().uuidString).jpg", data: bannerData
+            )
+            updates["banner_url"] = AnyEncodable(url.absoluteString)
+        }
+        if let iconData {
+            let url = try await storageService.uploadImage(
+                bucket: "club-assets", userId: userId,
+                fileName: "icon-\(UUID().uuidString).jpg", data: iconData
+            )
+            updates["icon_url"] = AnyEncodable(url.absoluteString)
+        }
+
+        try await supabase
+            .from("clubs")
+            .update(updates)
+            .eq("id", value: clubId.uuidString)
+            .execute()
     }
 
     func getClub(clubId: UUID) async throws -> ClubRow {
@@ -139,6 +187,15 @@ final class ClubService: Sendable {
             .value
 
         return clubs
+    }
+
+    /// Delete a club (owner only — enforced by RLS). Cascades to members/posts/etc.
+    func deleteClub(clubId: UUID) async throws {
+        try await supabase
+            .from("clubs")
+            .delete()
+            .eq("id", value: clubId.uuidString)
+            .execute()
     }
 
     func getPublicClubs() async throws -> [ClubRow] {
@@ -185,6 +242,42 @@ final class ClubService: Sendable {
                 club_id: clubId.uuidString,
                 user_id: userId.uuidString,
                 role: "member"
+            ))
+            .execute()
+
+        // Any join resolves a pending invite + its notification.
+        try? await clearMyInvite(clubId: clubId)
+        await notifyClubOwner(clubId: clubId, actorId: userId, type: "club_join")
+    }
+
+    /// Notify the club owner of an action (best-effort).
+    private func notifyClubOwner(clubId: UUID, actorId: UUID, type: String) async {
+        struct OwnerRow: Decodable { let owner_id: UUID }
+        guard let club: OwnerRow = try? await supabase
+            .from("clubs")
+            .select("owner_id")
+            .eq("id", value: clubId.uuidString)
+            .single()
+            .execute()
+            .value,
+            club.owner_id != actorId
+        else { return }
+
+        struct NotifInsert: Encodable {
+            let user_id: String
+            let actor_id: String
+            let type: String
+            let reference_id: String
+            let reference_type: String
+        }
+        _ = try? await supabase
+            .from("notifications")
+            .insert(NotifInsert(
+                user_id: club.owner_id.uuidString,
+                actor_id: actorId.uuidString,
+                type: type,
+                reference_id: clubId.uuidString,
+                reference_type: "club"
             ))
             .execute()
     }
@@ -264,6 +357,7 @@ final class ClubService: Sendable {
         clubId: UUID,
         body: String,
         imageDatas: [Data] = [],
+        mediaItemIds: [UUID] = [],
         poll: ClubPollDraft? = nil
     ) async throws -> UUID {
         let userId = try await supabase.auth.session.user.id
@@ -308,6 +402,18 @@ final class ClubService: Sendable {
                 inserts.append(ImageInsert(post_id: postId.uuidString, url: url.absoluteString, position: index))
             }
             try await supabase.from("club_post_images").insert(inserts).execute()
+        }
+
+        if !mediaItemIds.isEmpty {
+            struct MediaInsert: Encodable {
+                let post_id: String
+                let media_item_id: String
+                let position: Int
+            }
+            let inserts = mediaItemIds.enumerated().map { index, id in
+                MediaInsert(post_id: postId.uuidString, media_item_id: id.uuidString, position: index)
+            }
+            try await supabase.from("club_post_media").insert(inserts).execute()
         }
 
         if let poll, poll.options.count >= 2 {
@@ -372,32 +478,73 @@ final class ClubService: Sendable {
         return ClubPostModel(from: row)
     }
 
-    /// Posts in a club whose body mentions the current user (`@username`).
+    /// Posts in a club that involve the current user: an @mention of my username,
+    /// a comment by someone else on my post, or a reply by someone else to my comment.
     func getMentions(clubId: UUID) async throws -> [ClubPostModel] {
-        let userId = try await supabase.auth.session.user.id
+        struct IdRow: Decodable { let post_id: UUID }
 
-        struct ProfileRow: Decodable { let username: String? }
-        let profile: ProfileRow = try await supabase
-            .from("user_profiles")
-            .select("username")
-            .eq("id", value: userId.uuidString)
-            .single()
+        let idRows: [IdRow] = try await supabase
+            .rpc("get_club_mention_post_ids", params: ["p_club_id": clubId.uuidString])
             .execute()
             .value
 
-        guard let username = profile.username, !username.isEmpty else { return [] }
+        let ids = idRows.map { $0.post_id.uuidString }
+        guard !ids.isEmpty else { return [] }
 
         let rows: [ClubPostRow] = try await supabase
             .from("club_posts")
             .select(Self.postSelect)
-            .eq("club_id", value: clubId.uuidString)
-            .ilike("body", pattern: "%@\(username)%")
+            .in("id", values: ids)
             .order("created_at", ascending: false)
             .limit(50)
             .execute()
             .value
 
         return rows.map { ClubPostModel(from: $0) }
+    }
+
+    // MARK: - Moderation: pin / delete post
+
+    /// Pin or unpin a post (owner/admin only — enforced by RLS).
+    func setPinned(postId: UUID, pinned: Bool) async throws {
+        struct PinUpdate: Encodable { let is_pinned: Bool }
+        try await supabase
+            .from("club_posts")
+            .update(PinUpdate(is_pinned: pinned))
+            .eq("id", value: postId.uuidString)
+            .execute()
+    }
+
+    /// Delete a post (author or owner/admin — enforced by RLS).
+    func deletePost(postId: UUID) async throws {
+        try await supabase
+            .from("club_posts")
+            .delete()
+            .eq("id", value: postId.uuidString)
+            .execute()
+    }
+
+    // MARK: - Member management
+
+    /// Promote/demote a member (owner only — enforced by RLS).
+    func setMemberRole(clubId: UUID, userId: UUID, role: String) async throws {
+        struct RoleUpdate: Encodable { let role: String }
+        try await supabase
+            .from("club_members")
+            .update(RoleUpdate(role: role))
+            .eq("club_id", value: clubId.uuidString)
+            .eq("user_id", value: userId.uuidString)
+            .execute()
+    }
+
+    /// Remove a member from a club (owner/admin only — enforced by RLS).
+    func removeMember(clubId: UUID, userId: UUID) async throws {
+        try await supabase
+            .from("club_members")
+            .delete()
+            .eq("club_id", value: clubId.uuidString)
+            .eq("user_id", value: userId.uuidString)
+            .execute()
     }
 
     // MARK: - Post Likes
@@ -558,17 +705,9 @@ final class ClubService: Sendable {
 
     // MARK: - Polls
 
-    /// Casts (or moves) the current user's vote on a poll. One vote per poll.
+    /// Casts the current user's vote. Votes are final — one vote per poll, no changing.
     func voteOnPoll(pollId: UUID, optionId: UUID) async throws {
         let userId = try await supabase.auth.session.user.id
-
-        // Remove any existing vote so a re-vote moves the count cleanly.
-        try await supabase
-            .from("club_poll_votes")
-            .delete()
-            .eq("poll_id", value: pollId.uuidString)
-            .eq("user_id", value: userId.uuidString)
-            .execute()
 
         struct VoteInsert: Encodable {
             let poll_id: String
@@ -576,6 +715,8 @@ final class ClubService: Sendable {
             let user_id: String
         }
 
+        // Insert only; the (poll_id, user_id) primary key makes a second vote fail,
+        // which enforces "vote locks after casting" at the database level too.
         try await supabase
             .from("club_poll_votes")
             .insert(VoteInsert(
@@ -625,8 +766,33 @@ final class ClubService: Sendable {
         return rows
     }
 
+    /// Invite a user: records a pending invite (grants visibility/join rights for
+    /// private clubs) and sends them a notification.
     func inviteToClub(clubId: UUID, userId: UUID) async throws {
         let currentUserId = try await supabase.auth.session.user.id
+
+        struct InviteUpsert: Encodable {
+            let club_id: String
+            let invitee_id: String
+            let inviter_id: String
+            let status: String
+        }
+
+        // ignoreDuplicates: an existing invite is left as-is (re-inviting is a no-op,
+        // not an error — the inviter has no UPDATE rights on the row).
+        try await supabase
+            .from("club_invites")
+            .upsert(
+                InviteUpsert(
+                    club_id: clubId.uuidString,
+                    invitee_id: userId.uuidString,
+                    inviter_id: currentUserId.uuidString,
+                    status: "pending"
+                ),
+                onConflict: "club_id,invitee_id",
+                ignoreDuplicates: true
+            )
+            .execute()
 
         struct NotifInsert: Encodable {
             let user_id: String
@@ -636,7 +802,7 @@ final class ClubService: Sendable {
             let reference_type: String
         }
 
-        try await supabase
+        _ = try? await supabase
             .from("notifications")
             .insert(NotifInsert(
                 user_id: userId.uuidString,
@@ -645,6 +811,66 @@ final class ClubService: Sendable {
                 reference_id: clubId.uuidString,
                 reference_type: "club"
             ))
+            .execute()
+    }
+
+    /// Invitee ids with a pending invite to this club that the current user can
+    /// see (their own sent invites, or all if owner/manager).
+    func getInvitedUserIds(clubId: UUID) async throws -> Set<UUID> {
+        struct Row: Decodable { let invitee_id: UUID }
+        let rows: [Row] = try await supabase
+            .from("club_invites")
+            .select("invitee_id")
+            .eq("club_id", value: clubId.uuidString)
+            .eq("status", value: "pending")
+            .execute()
+            .value
+        return Set(rows.map(\.invitee_id))
+    }
+
+    /// Whether the current user has a pending invite to this club.
+    func hasPendingInvite(clubId: UUID) async throws -> Bool {
+        let userId = try await supabase.auth.session.user.id
+
+        struct Row: Decodable { let id: UUID }
+        let rows: [Row] = try await supabase
+            .from("club_invites")
+            .select("id")
+            .eq("club_id", value: clubId.uuidString)
+            .eq("invitee_id", value: userId.uuidString)
+            .eq("status", value: "pending")
+            .execute()
+            .value
+
+        return !rows.isEmpty
+    }
+
+    /// Accept an invite: join the club (which also clears the invite + notification).
+    func acceptInvite(clubId: UUID) async throws {
+        try await joinClub(clubId: clubId)
+    }
+
+    /// Decline an invite: clear it (the invitee loses access to a private club).
+    func declineInvite(clubId: UUID) async throws {
+        try await clearMyInvite(clubId: clubId)
+    }
+
+    private func clearMyInvite(clubId: UUID) async throws {
+        let userId = try await supabase.auth.session.user.id
+        try await supabase
+            .from("club_invites")
+            .delete()
+            .eq("club_id", value: clubId.uuidString)
+            .eq("invitee_id", value: userId.uuidString)
+            .execute()
+
+        // Keep notifications in sync — resolve the invite notification too.
+        _ = try? await supabase
+            .from("notifications")
+            .delete()
+            .eq("user_id", value: userId.uuidString)
+            .eq("type", value: "club_invite")
+            .eq("reference_id", value: clubId.uuidString)
             .execute()
     }
 

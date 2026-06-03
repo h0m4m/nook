@@ -42,7 +42,6 @@ struct MainTabView: View {
     @State private var isFabMenuOpen = false
     @State private var showTrackMediaSheet = false
     @State private var showCreateNookSheet = false
-    @State private var showNotifications = false
     @State private var showProfileMenu = false
 
     var body: some View {
@@ -57,7 +56,7 @@ struct MainTabView: View {
                                 showProfileMenu = true
                             },
                             onNotificationsTapped: {
-                                showNotifications = true
+                                navPath.append(NotificationsRoute())
                             }
                         )
                     case .search:
@@ -97,7 +96,7 @@ struct MainTabView: View {
                         OtherProfileView(profile: user)
                     }
                 }
-                .navigationDestination(isPresented: $showNotifications) {
+                .navigationDestination(for: NotificationsRoute.self) { _ in
                     NotificationsView()
                 }
             }

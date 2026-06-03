@@ -1,4 +1,5 @@
 import PhotosUI
+import Supabase
 import SwiftUI
 
 // MARK: - Club Privacy
@@ -57,36 +58,93 @@ struct BannerColorOption: Identifiable, Equatable {
 // MARK: - Create Club Sheet
 
 struct CreateClubSheet: View {
+    /// When set, the sheet edits this club instead of creating a new one.
+    let existingClub: ClubRow?
+    /// Called after a successful edit so the caller can refresh.
+    var onSaved: (() -> Void)?
+
     @Environment(\.dismiss) private var dismiss
-    @State private var name = ""
-    @State private var clubDescription = ""
-    @State private var selectedCategories: Set<ClubCategory> = []
-    @State private var selectedThemeColor: BannerColorOption = BannerColorOption.palette[0]
-    @State private var privacy: ClubPrivacy = .publicOpen
+    @State private var name: String
+    @State private var clubDescription: String
+    @State private var selectedCategories: Set<ClubCategory>
+    @State private var selectedThemeColor: BannerColorOption
+    @State private var privacy: ClubPrivacy
     @State private var showPrivacyPicker = false
     @State private var isCreating = false
     @State private var similarClubs: [ClubItem] = []
     @State private var nameCheckTask: Task<Void, Never>?
+    @State private var createError: String?
     @FocusState private var focusedField: Field?
+
+    static let nameMinLength = 3
+    static let nameMaxLength = 50
+    static let descriptionMaxLength = 500
 
     // Banner image
     @State private var bannerImage: UIImage?
     @State private var bannerPickerSelection: [PhotosPickerItem] = []
     @State private var showBannerPicker = false
     @State private var cropRequest: CropRequest?
+    @State private var existingBannerURL: URL?
 
     // Icon image
     @State private var iconImage: UIImage?
     @State private var iconPickerSelection: [PhotosPickerItem] = []
     @State private var showIconPicker = false
+    @State private var existingIconURL: URL?
+
+    init(editing existingClub: ClubRow? = nil, onSaved: (() -> Void)? = nil) {
+        self.existingClub = existingClub
+        self.onSaved = onSaved
+        _name = State(initialValue: existingClub?.name ?? "")
+        _clubDescription = State(initialValue: existingClub?.description ?? "")
+        _selectedCategories = State(initialValue: existingClub.map { [ClubCategory.from(dbValue: $0.category)] } ?? [])
+        let hex = existingClub.flatMap { ClubItem.parseHex($0.themeColor) }
+        _selectedThemeColor = State(initialValue: BannerColorOption.palette.first { $0.hex == hex } ?? BannerColorOption.palette[0])
+        _privacy = State(initialValue: (existingClub?.privacy == "public" || existingClub == nil) ? .publicOpen : .privateHidden)
+        _existingBannerURL = State(initialValue: existingClub?.bannerUrl.flatMap { URL(string: $0) })
+        _existingIconURL = State(initialValue: existingClub?.iconUrl.flatMap { URL(string: $0) })
+    }
+
+    private var isEditing: Bool { existingClub != nil }
+
+    /// Whether editing is currently allowed (7-day cooldown after the last edit).
+    private var editCooldownActive: Bool {
+        guard let club = existingClub else { return false }
+        return !club.canEditDetailsNow
+    }
+
+    private var editCooldownMessage: String? {
+        guard editCooldownActive, let next = existingClub?.nextEditAllowedAt else { return nil }
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        return "Club details were edited recently. You can edit again on \(formatter.string(from: next))."
+    }
 
     private enum Field {
         case name, description
     }
 
+    private var trimmedName: String {
+        name.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     private var canCreate: Bool {
-        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        return !trimmedName.isEmpty && !selectedCategories.isEmpty
+        // In edit mode the (immutable) name is already valid; gate on cooldown.
+        let nameValid = isEditing
+            || (trimmedName.count >= Self.nameMinLength && trimmedName.count <= Self.nameMaxLength)
+        return nameValid
+            && clubDescription.count <= Self.descriptionMaxLength
+            && !selectedCategories.isEmpty
+            && !editCooldownActive
+    }
+
+    /// Inline hint shown under the name field when it's invalid.
+    private var nameValidationHint: String? {
+        if trimmedName.isEmpty { return nil }
+        if trimmedName.count < Self.nameMinLength { return "Name must be at least \(Self.nameMinLength) characters" }
+        if trimmedName.count > Self.nameMaxLength { return "Name must be \(Self.nameMaxLength) characters or fewer" }
+        return nil
     }
 
     // Club detail banner: full-width × 192pt on ~393pt screen
@@ -108,7 +166,13 @@ struct CreateClubSheet: View {
                         .padding(.horizontal, 24)
                         .padding(.bottom, 4)
 
-                    if !similarClubs.isEmpty {
+                    if editCooldownMessage != nil {
+                        cooldownNotice
+                            .padding(.horizontal, 24)
+                            .padding(.top, 12)
+                    }
+
+                    if !isEditing && !similarClubs.isEmpty {
                         duplicateWarning
                             .padding(.horizontal, 24)
                             .padding(.bottom, 12)
@@ -168,6 +232,11 @@ struct CreateClubSheet: View {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                 focusedField = .name
             }
+        }
+        .alert(isEditing ? "Couldn't save changes" : "Couldn't create club", isPresented: Binding(get: { createError != nil }, set: { if !$0 { createError = nil } })) {
+            Button("OK", role: .cancel) { createError = nil }
+        } message: {
+            Text(createError ?? "")
         }
     }
 
@@ -230,7 +299,7 @@ struct CreateClubSheet: View {
 
     private var sheetHeader: some View {
         ZStack {
-            Text("New Club")
+            Text(isEditing ? "Edit Club" : "New Club")
                 .font(.custom("PlusJakartaSans-Bold", size: 18))
                 .foregroundStyle(Color.nook.createClubTitle)
 
@@ -252,9 +321,9 @@ struct CreateClubSheet: View {
                 Spacer()
 
                 Button {
-                    createClub()
+                    if isEditing { saveEdits() } else { createClub() }
                 } label: {
-                    Text("Create")
+                    Text(isEditing ? "Save" : "Create")
                         .font(NookFont.labelBoldSmall)
                         .foregroundStyle(.white)
                         .padding(.horizontal, 20)
@@ -293,6 +362,20 @@ struct CreateClubSheet: View {
                                 RoundedRectangle(cornerRadius: 24, style: .continuous)
                                     .strokeBorder(Color.nook.createClubBorder, lineWidth: 1)
                             )
+                    } else if let existingBannerURL {
+                        AsyncImage(url: existingBannerURL) { phase in
+                            switch phase {
+                            case .success(let image): image.resizable().scaledToFill()
+                            default: selectedThemeColor.color
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
+                        .aspectRatio(bannerCropAspect, contentMode: .fit)
+                        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                                .strokeBorder(Color.nook.createClubBorder, lineWidth: 1)
+                        )
                     } else {
                         RoundedRectangle(cornerRadius: 24, style: .continuous)
                             .fill(selectedThemeColor.color)
@@ -319,7 +402,7 @@ struct CreateClubSheet: View {
                             .frame(width: 14, height: 14)
                             .foregroundStyle(Color.nook.createClubTitle)
 
-                        Text(bannerImage == nil ? "Add Banner" : "Change")
+                        Text(bannerImage == nil && existingBannerURL == nil ? "Add Banner" : "Change")
                             .font(NookFont.captionBold)
                             .foregroundStyle(Color.nook.createClubTitle)
                     }
@@ -347,6 +430,15 @@ struct CreateClubSheet: View {
                             .scaledToFill()
                             .frame(width: 68, height: 68)
                             .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    } else if let existingIconURL {
+                        AsyncImage(url: existingIconURL) { phase in
+                            switch phase {
+                            case .success(let image): image.resizable().scaledToFill()
+                            default: selectedThemeColor.color.opacity(1.5)
+                            }
+                        }
+                        .frame(width: 68, height: 68)
+                        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
                     } else {
                         RoundedRectangle(cornerRadius: 18, style: .continuous)
                             .fill(selectedThemeColor.color.opacity(1.5))
@@ -431,17 +523,59 @@ struct CreateClubSheet: View {
                     .foregroundStyle(Color.nook.createClubTitle.opacity(0.25))
             )
             .font(.custom("PlusJakartaSans-Bold", size: 24))
-            .foregroundStyle(Color.nook.createClubTitle)
+            .foregroundStyle(isEditing ? Color.nook.createClubTitle.opacity(0.5) : Color.nook.createClubTitle)
             .focused($focusedField, equals: .name)
+            .disabled(isEditing)
             .padding(.top, 36)
             .padding(.bottom, 16)
             .onChange(of: name) { _, newValue in
-                checkForDuplicates(newValue)
+                if !isEditing { checkForDuplicates(newValue) }
             }
 
             Rectangle()
                 .fill(Color.nook.createClubBorder)
                 .frame(height: 1)
+
+            if isEditing {
+                Text("A club's name can't be changed.")
+                    .font(NookFont.caption)
+                    .foregroundStyle(Color.nook.createClubMeta)
+                    .padding(.top, 8)
+            } else if let hint = nameValidationHint {
+                Text(hint)
+                    .font(NookFont.caption)
+                    .foregroundStyle(Color.nook.createClubWarningText)
+                    .padding(.top, 8)
+            }
+        }
+    }
+
+    // MARK: - Cooldown notice
+
+    @ViewBuilder
+    private var cooldownNotice: some View {
+        if let message = editCooldownMessage {
+            HStack(spacing: 8) {
+                Image("warning-bold")
+                    .renderingMode(.template)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 16, height: 16)
+                    .foregroundStyle(Color.nook.createClubWarningIcon)
+                Text(message)
+                    .font(NookFont.caption)
+                    .foregroundStyle(Color.nook.createClubWarningText)
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(Color.nook.createClubWarningBackground)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .strokeBorder(Color.nook.createClubWarningBorder, lineWidth: 1)
+                    )
+            )
         }
     }
 
@@ -538,6 +672,11 @@ struct CreateClubSheet: View {
                 .frame(minHeight: 80)
                 .padding(.leading, -5)
                 .padding(.top, 6)
+                .onChange(of: clubDescription) { _, newValue in
+                    if newValue.count > Self.descriptionMaxLength {
+                        clubDescription = String(newValue.prefix(Self.descriptionMaxLength))
+                    }
+                }
         }
     }
 
@@ -743,12 +882,14 @@ struct CreateClubSheet: View {
 
                 let bannerData = bannerImage?.jpegData(compressionQuality: 0.8)
                 let iconData = iconImage?.jpegData(compressionQuality: 0.8)
+                let themeHex = String(format: "%06X", selectedThemeColor.hex)
 
                 _ = try await clubService.createClub(
                     name: name.trimmingCharacters(in: .whitespacesAndNewlines),
                     description: clubDescription.isEmpty ? nil : clubDescription,
                     category: categoryValue,
                     privacy: privacyValue,
+                    themeColor: themeHex,
                     bannerData: bannerData,
                     iconData: iconData
                 )
@@ -762,9 +903,72 @@ struct CreateClubSheet: View {
             } catch {
                 await MainActor.run {
                     isCreating = false
+                    createError = Self.friendlyError(error)
+                    let generator = UINotificationFeedbackGenerator()
+                    generator.notificationOccurred(.error)
                 }
             }
         }
+    }
+
+    // MARK: - Edit
+
+    private func saveEdits() {
+        guard canCreate, let club = existingClub else { return }
+        isCreating = true
+
+        Task {
+            do {
+                let clubService = ClubService()
+
+                let privacyValue: String = switch privacy {
+                case .publicOpen: "public"
+                case .privateHidden: "members_only"
+                }
+                let categoryValue = selectedCategories.first?.id ?? "mixed"
+                let themeHex = String(format: "%06X", selectedThemeColor.hex)
+                // Only re-upload images the user actually replaced.
+                let bannerData = bannerImage?.jpegData(compressionQuality: 0.8)
+                let iconData = iconImage?.jpegData(compressionQuality: 0.8)
+
+                try await clubService.updateClub(
+                    clubId: club.id,
+                    description: clubDescription.isEmpty ? nil : clubDescription,
+                    category: categoryValue,
+                    privacy: privacyValue,
+                    themeColor: themeHex,
+                    bannerData: bannerData,
+                    iconData: iconData
+                )
+
+                let generator = UINotificationFeedbackGenerator()
+                generator.notificationOccurred(.success)
+
+                await MainActor.run {
+                    onSaved?()
+                    dismiss()
+                }
+            } catch {
+                await MainActor.run {
+                    isCreating = false
+                    createError = Self.friendlyError(error)
+                    let generator = UINotificationFeedbackGenerator()
+                    generator.notificationOccurred(.error)
+                }
+            }
+        }
+    }
+
+    /// Surface the server's message (e.g. the create-club limit) cleanly.
+    private static func friendlyError(_ error: Error) -> String {
+        let raw: String
+        if let pg = error as? PostgrestError {
+            raw = pg.message
+        } else {
+            raw = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+        }
+        let message = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        return message.isEmpty ? "Couldn't save changes. Please try again." : message
     }
 }
 

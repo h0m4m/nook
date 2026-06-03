@@ -548,7 +548,7 @@ private struct MediaNoteSheet: View {
 
 // MARK: - Add Media Sub-Sheet
 
-private struct AddMediaToNookSheet: View {
+struct AddMediaToNookSheet: View {
     @Binding var mediaItems: [MediaSearchResult]
     @Environment(\.dismiss) private var dismiss
     @State private var viewModel = SearchViewModel()
