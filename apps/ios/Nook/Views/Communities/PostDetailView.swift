@@ -99,7 +99,7 @@ struct PostDetailView: View {
         comments.reduce(0) { $0 + 1 + totalReplyCount($1) }
     }
 
-    private var canModerate: Bool { viewerRole == "owner" || viewerRole == "admin" }
+    private var canModerate: Bool { viewerRole == "owner" || viewerRole == "manager" }
     private var canDelete: Bool { canModerate || (post.userId != nil && post.userId == currentUserId) }
 
     var body: some View {

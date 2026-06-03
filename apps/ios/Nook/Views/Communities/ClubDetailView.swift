@@ -190,6 +190,8 @@ struct ClubDetailView: View {
     @State private var searchText = ""
     @State private var isMuted = false
     @State private var showReportConfirmation = false
+    @State private var showDeleteClubConfirmation = false
+    @State private var isDeletingClub = false
     @State private var descFullHeight: CGFloat = 0
     @State private var descClampedHeight: CGFloat = 0
     @State private var detailVM: ClubDetailViewModel?
@@ -252,6 +254,28 @@ struct ClubDetailView: View {
             Button("OK", role: .cancel) {}
         } message: {
             Text("Thanks for keeping the community safe. Our team will review this club.")
+        }
+        .confirmationDialog(
+            "Delete \(club.name)?",
+            isPresented: $showDeleteClubConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Delete Club", role: .destructive) {
+                isDeletingClub = true
+                Task {
+                    let success = await detailVM?.deleteClub() ?? false
+                    if success {
+                        let generator = UINotificationFeedbackGenerator()
+                        generator.notificationOccurred(.success)
+                        dismiss()
+                    } else {
+                        isDeletingClub = false
+                    }
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This permanently deletes the club and all its posts, comments and members. This can't be undone.")
         }
     }
 
@@ -498,7 +522,14 @@ private extension ClubDetailView {
                 Label("Report Club", image: "warning-red")
             }
 
-            if isJoined {
+            // Owner-only: delete the entire club.
+            if detailVM?.isOwner == true {
+                Button(role: .destructive) {
+                    showDeleteClubConfirmation = true
+                } label: {
+                    Label("Delete Club", image: "trash")
+                }
+            } else if isJoined {
                 Button(role: .destructive) {
                     let generator = UIImpactFeedbackGenerator(style: .light)
                     generator.impactOccurred()
@@ -1553,8 +1584,7 @@ private extension ClubDetailView {
     }
 
     func memberRow(_ member: ClubMemberRow) -> some View {
-        let isOwnerRole = member.role == "owner"
-        let isAdminRole = member.role == "owner" || member.role == "admin"
+        let isElevated = member.role == "owner" || member.role == "manager"
 
         return HStack(spacing: 12) {
             ClubAvatarView(
@@ -1570,45 +1600,47 @@ private extension ClubDetailView {
 
             Text(Self.roleLabel(member.role))
                 .font(NookFont.captionSemiBold)
-                .foregroundStyle(isAdminRole ? accent : Color.nook.clubDetailMeta)
+                .foregroundStyle(isElevated ? accent : Color.nook.clubDetailMeta)
 
-            memberManagementMenu(member, isOwnerRole: isOwnerRole)
+            memberManagementMenu(member)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
     }
 
-    /// Owner/admin actions on a member row (promote/demote/remove), gated by viewer role.
+    /// Owner/manager actions on a member row. Owners promote/demote managers and
+    /// remove anyone (non-owner); managers can remove plain members.
     @ViewBuilder
-    func memberManagementMenu(_ member: ClubMemberRow, isOwnerRole: Bool) -> some View {
+    func memberManagementMenu(_ member: ClubMemberRow) -> some View {
         let vm = detailVM
         let viewerIsOwner = vm?.isOwner ?? false
-        let viewerIsAdmin = vm?.isOwnerOrAdmin ?? false
-        let isSelf = member.userId == vm?.currentUserId
-        // Can't manage the owner or yourself.
-        let canManage = !isOwnerRole && !isSelf && (viewerIsOwner || (viewerIsAdmin && member.role == "member"))
+        let canRemove = vm?.canRemoveMember(member) ?? false
+        // Owner can change roles for any non-owner; that includes promote/demote.
+        let canChangeRole = viewerIsOwner && member.role != "owner" && member.userId != vm?.currentUserId
 
-        if canManage {
+        if canRemove || canChangeRole {
             Menu {
-                if viewerIsOwner {
-                    if member.role == "admin" {
+                if canChangeRole {
+                    if member.role == "manager" {
                         Button {
                             vm?.setMemberRole(userId: member.userId, role: "member")
                         } label: {
-                            sizedMenuLabel("Remove Admin", icon: "star")
+                            sizedMenuLabel("Remove Manager", icon: "star")
                         }
                     } else {
                         Button {
-                            vm?.setMemberRole(userId: member.userId, role: "admin")
+                            vm?.setMemberRole(userId: member.userId, role: "manager")
                         } label: {
-                            sizedMenuLabel("Make Admin", icon: "star-fill")
+                            sizedMenuLabel("Make Manager", icon: "star-fill")
                         }
                     }
                 }
-                Button(role: .destructive) {
-                    vm?.removeMember(userId: member.userId)
-                } label: {
-                    sizedMenuLabel("Remove from Club", icon: "user-minus")
+                if canRemove {
+                    Button(role: .destructive) {
+                        vm?.removeMember(userId: member.userId)
+                    } label: {
+                        sizedMenuLabel("Remove from Club", icon: "user-minus")
+                    }
                 }
             } label: {
                 Image("dots-three-bold")
@@ -1645,8 +1677,7 @@ private extension ClubDetailView {
     static func roleLabel(_ role: String) -> String {
         switch role {
         case "owner": "Owner"
-        case "admin": "Admin"
-        case "moderator", "supervisor": "Supervisor"
+        case "manager", "admin": "Manager"
         default: "Member"
         }
     }

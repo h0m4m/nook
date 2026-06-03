@@ -145,6 +145,15 @@ final class ClubService: Sendable {
         return clubs
     }
 
+    /// Delete a club (owner only — enforced by RLS). Cascades to members/posts/etc.
+    func deleteClub(clubId: UUID) async throws {
+        try await supabase
+            .from("clubs")
+            .delete()
+            .eq("id", value: clubId.uuidString)
+            .execute()
+    }
+
     func getPublicClubs() async throws -> [ClubRow] {
         try await supabase
             .from("clubs")

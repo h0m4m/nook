@@ -30,8 +30,9 @@ final class ClubDetailViewModel {
     }
 
     var isOwner: Bool { role == "owner" }
-    var isOwnerOrAdmin: Bool {
-        role == "owner" || role == "admin"
+    /// Owner or manager — the elevated tier that can moderate.
+    var isOwnerOrManager: Bool {
+        role == "owner" || role == "manager"
     }
 
     /// Accent color: the explicit theme color, else the club's category color.
@@ -46,7 +47,15 @@ final class ClubDetailViewModel {
     }
 
     /// Can the current user moderate (pin / delete any post)?
-    var canModerate: Bool { isOwnerOrAdmin }
+    var canModerate: Bool { isOwnerOrManager }
+
+    /// Can the current user remove this member? Owner removes any non-owner;
+    /// a manager can remove only plain members.
+    func canRemoveMember(_ member: ClubMemberRow) -> Bool {
+        guard member.userId != currentUserId, member.role != "owner" else { return false }
+        if isOwner { return true }
+        return role == "manager" && member.role == "member"
+    }
 
     /// Can the current user delete this specific post (own post, or moderator)?
     func canDeletePost(_ post: ClubPostModel) -> Bool {
@@ -246,6 +255,17 @@ final class ClubDetailViewModel {
 
     func isPinned(_ postId: UUID) -> Bool {
         posts.first { $0.id == postId }?.isPinned ?? false
+    }
+
+    /// Delete the entire club (owner only, enforced by RLS). Returns true on success.
+    func deleteClub() async -> Bool {
+        do {
+            try await clubService.deleteClub(clubId: clubId)
+            return true
+        } catch {
+            self.error = AppError(from: error)
+            return false
+        }
     }
 
     // MARK: - Member management
