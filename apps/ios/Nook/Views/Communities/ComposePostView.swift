@@ -369,28 +369,30 @@ private extension ComposePostView {
                 .frame(height: 1)
 
             HStack(spacing: 18) {
-                // Photo
-                Button {
-                    showPhotoPicker = true
-                } label: {
-                    HStack(spacing: 6) {
-                        Image("image")
-                            .renderingMode(.template)
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(width: 22, height: 22)
-                            .foregroundStyle(Color.nook.clubDetailTitle)
+                // Photo — hidden once specific media is attached (mutually exclusive).
+                if attachedMedia.isEmpty {
+                    Button {
+                        showPhotoPicker = true
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image("image")
+                                .renderingMode(.template)
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(width: 22, height: 22)
+                                .foregroundStyle(Color.nook.clubDetailTitle)
 
-                        if !attachedImages.isEmpty {
-                            Text("\(attachedImages.count)")
-                                .font(NookFont.captionBold)
-                                .foregroundStyle(Color.nook.clubDetailMeta)
+                            if !attachedImages.isEmpty {
+                                Text("\(attachedImages.count)")
+                                    .font(NookFont.captionBold)
+                                    .foregroundStyle(Color.nook.clubDetailMeta)
+                            }
                         }
                     }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
 
-                // Poll
+                // Poll — always available.
                 toolbarIconButton("chart-bar", active: showPoll) {
                     withAnimation(.easeOut(duration: 0.2)) {
                         showPoll.toggle()
@@ -398,9 +400,11 @@ private extension ComposePostView {
                     }
                 }
 
-                // Attach media (movies/shows/anime…)
-                toolbarIconButton("bookmark-simple", active: !attachedMedia.isEmpty, badge: attachedMedia.count) {
-                    showMediaPicker = true
+                // Attach media — hidden once photos are attached (mutually exclusive).
+                if attachedImages.isEmpty {
+                    toolbarIconButton("bookmark-simple", active: !attachedMedia.isEmpty, badge: attachedMedia.count) {
+                        showMediaPicker = true
+                    }
                 }
 
                 Spacer()
@@ -413,6 +417,8 @@ private extension ComposePostView {
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 12)
+            .animation(.easeOut(duration: 0.2), value: attachedImages.isEmpty)
+            .animation(.easeOut(duration: 0.2), value: attachedMedia.isEmpty)
         }
         .background(Color.nook.clubDetailBackground)
     }
