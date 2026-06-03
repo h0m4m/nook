@@ -24,6 +24,13 @@ function getTitle(attrs: Record<string, unknown>): string {
   return titles?.en || (attrs.canonicalTitle as string) || titles?.en_jp || '';
 }
 
+// Kitsu lists music videos / PVs (subtype "music") as "anime". They are not
+// real entries for a tracker and rarely have English titles, so we exclude them
+// from search results and recommendations.
+function isMusic(attrs: Record<string, unknown> | undefined): boolean {
+  return (attrs?.subtype as string) === 'music';
+}
+
 function getScore(averageRating: string | undefined): number | null {
   if (!averageRating) return null;
   const val = parseFloat(averageRating);
@@ -94,18 +101,20 @@ export async function search(
   const data = await resp.json();
   const items = (data.data || []) as Array<Record<string, unknown>>;
 
-  const results: SearchResult[] = items.map((item) => {
-    const attrs = item.attributes as Record<string, unknown>;
-    return {
-      media_id: item.id as string,
-      source: 'kitsu',
-      media_type: mediaType,
-      title: getTitle(attrs),
-      image_url: imageUrl(attrs.posterImage as Record<string, unknown>),
-      year: getYear(attrs.startDate as string),
-      score: getScore(attrs.averageRating as string),
-    };
-  });
+  const results: SearchResult[] = items
+    .filter((item) => !isMusic(item.attributes as Record<string, unknown>))
+    .map((item) => {
+      const attrs = item.attributes as Record<string, unknown>;
+      return {
+        media_id: item.id as string,
+        source: 'kitsu',
+        media_type: mediaType,
+        title: getTitle(attrs),
+        image_url: imageUrl(attrs.posterImage as Record<string, unknown>),
+        year: getYear(attrs.startDate as string),
+        score: getScore(attrs.averageRating as string),
+      };
+    });
 
   // Use meta.count if available, otherwise estimate
   const totalCount =
@@ -247,6 +256,7 @@ async function fetchSimilar(
         if (!media || seenIds.has(String(media.id))) continue;
 
         const attrs = media.attributes as Record<string, unknown>;
+        if (isMusic(attrs)) continue; // skip music videos / PVs
         const img = imageUrl(attrs.posterImage as Record<string, unknown>);
         if (!img) continue; // skip items with no poster
 
@@ -306,6 +316,7 @@ async function fetchSimilar(
                 if (seenIds.has(String(item.id))) continue;
 
                 const attrs = item.attributes as Record<string, unknown>;
+                if (isMusic(attrs)) continue; // skip music videos / PVs
                 const img = imageUrl(attrs.posterImage as Record<string, unknown>);
                 if (!img) continue;
 

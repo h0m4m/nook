@@ -1,7 +1,7 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
-import * as thetvdb from '../_shared/providers/tmdb.ts';
-import * as kitsu from '../_shared/providers/mal.ts';
+import * as thetvdb from '../_shared/providers/thetvdb.ts';
+import * as kitsu from '../_shared/providers/kitsu.ts';
 import * as openlibrary from '../_shared/providers/openlibrary.ts';
 import type { SearchResult, SearchResponse } from '../_shared/types.ts';
 
