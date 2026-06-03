@@ -191,6 +191,7 @@ struct ClubDetailView: View {
     @State private var isMuted = false
     @State private var showReportConfirmation = false
     @State private var showDeleteClubConfirmation = false
+    @State private var showEditSheet = false
     @State private var isDeletingClub = false
     @State private var descFullHeight: CGFloat = 0
     @State private var descClampedHeight: CGFloat = 0
@@ -249,6 +250,14 @@ struct ClubDetailView: View {
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
                 .presentationBackground(Color.nook.clubDetailBackground)
+        }
+        .sheet(isPresented: $showEditSheet) {
+            if let clubRow = detailVM?.club {
+                CreateClubSheet(editing: clubRow, onSaved: {
+                    Task { await detailVM?.loadClub() }
+                })
+                .presentationBackground(Color.nook.createClubBackground)
+            }
         }
         .alert("Report received", isPresented: $showReportConfirmation) {
             Button("OK", role: .cancel) {}
@@ -501,6 +510,15 @@ private extension ClubDetailView {
         Menu {
             ShareLink(item: shareURL) {
                 Label("Share Club", image: "export")
+            }
+
+            // Owner/managers can edit club details.
+            if detailVM?.canModerate == true {
+                Button {
+                    showEditSheet = true
+                } label: {
+                    Label("Edit Club", image: "gear")
+                }
             }
 
             Button {

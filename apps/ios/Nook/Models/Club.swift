@@ -15,6 +15,7 @@ struct ClubRow: Codable, Sendable {
     let memberCount: Int
     let createdAt: Date
     let updatedAt: Date
+    let detailsUpdatedAt: Date?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -29,6 +30,16 @@ struct ClubRow: Codable, Sendable {
         case memberCount = "member_count"
         case createdAt = "created_at"
         case updatedAt = "updated_at"
+        case detailsUpdatedAt = "details_updated_at"
+    }
+
+    /// When the next edit is allowed (7-day cooldown after the last details edit).
+    var nextEditAllowedAt: Date? {
+        detailsUpdatedAt.map { $0.addingTimeInterval(7 * 24 * 60 * 60) }
+    }
+    var canEditDetailsNow: Bool {
+        guard let next = nextEditAllowedAt else { return true }
+        return Date() >= next
     }
 }
 

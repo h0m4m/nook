@@ -106,6 +106,50 @@ final class ClubService: Sendable {
         return result.id
     }
 
+    /// Update editable club details (owner/manager only — enforced by RLS; the
+    /// name is immutable and a 7-day cooldown is enforced by a DB trigger).
+    /// New banner/icon images are uploaded only when their `Data` is provided.
+    func updateClub(
+        clubId: UUID,
+        description: String?,
+        category: String,
+        privacy: String,
+        themeColor: String?,
+        bannerData: Data?,
+        iconData: Data?
+    ) async throws {
+        let userId = try await supabase.auth.session.user.id
+        let storageService = StorageService()
+
+        var updates: [String: AnyEncodable] = [
+            "description": AnyEncodable(description),
+            "category": AnyEncodable(category),
+            "privacy": AnyEncodable(privacy),
+            "theme_color": AnyEncodable(themeColor),
+        ]
+
+        if let bannerData {
+            let url = try await storageService.uploadImage(
+                bucket: "club-assets", userId: userId,
+                fileName: "banner-\(UUID().uuidString).jpg", data: bannerData
+            )
+            updates["banner_url"] = AnyEncodable(url.absoluteString)
+        }
+        if let iconData {
+            let url = try await storageService.uploadImage(
+                bucket: "club-assets", userId: userId,
+                fileName: "icon-\(UUID().uuidString).jpg", data: iconData
+            )
+            updates["icon_url"] = AnyEncodable(url.absoluteString)
+        }
+
+        try await supabase
+            .from("clubs")
+            .update(updates)
+            .eq("id", value: clubId.uuidString)
+            .execute()
+    }
+
     func getClub(clubId: UUID) async throws -> ClubRow {
         try await supabase
             .from("clubs")
