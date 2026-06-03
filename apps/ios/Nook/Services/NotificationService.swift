@@ -9,7 +9,7 @@ final class NotificationService: Sendable {
 
         let rows: [NotificationDBRow] = try await supabase
             .from("notifications")
-            .select("*, actor:user_profiles!actor_id(id, full_name, username, avatar_url)")
+            .select("*, actor:user_profiles!notifications_actor_id_user_profiles_fkey(id, full_name, username, avatar_url)")
             .eq("user_id", value: userId.uuidString)
             .order("created_at", ascending: false)
             .range(from: offset, to: offset + limit - 1)

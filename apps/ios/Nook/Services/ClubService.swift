@@ -245,6 +245,8 @@ final class ClubService: Sendable {
             ))
             .execute()
 
+        // Any join resolves a pending invite + its notification.
+        try? await clearMyInvite(clubId: clubId)
         await notifyClubOwner(clubId: clubId, actorId: userId, type: "club_join")
     }
 
@@ -843,10 +845,9 @@ final class ClubService: Sendable {
         return !rows.isEmpty
     }
 
-    /// Accept an invite: join the club and clear the invite.
+    /// Accept an invite: join the club (which also clears the invite + notification).
     func acceptInvite(clubId: UUID) async throws {
         try await joinClub(clubId: clubId)
-        try? await clearMyInvite(clubId: clubId)
     }
 
     /// Decline an invite: clear it (the invitee loses access to a private club).
@@ -861,6 +862,15 @@ final class ClubService: Sendable {
             .delete()
             .eq("club_id", value: clubId.uuidString)
             .eq("invitee_id", value: userId.uuidString)
+            .execute()
+
+        // Keep notifications in sync — resolve the invite notification too.
+        _ = try? await supabase
+            .from("notifications")
+            .delete()
+            .eq("user_id", value: userId.uuidString)
+            .eq("type", value: "club_invite")
+            .eq("reference_id", value: clubId.uuidString)
             .execute()
     }
 
