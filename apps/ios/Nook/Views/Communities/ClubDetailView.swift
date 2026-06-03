@@ -1027,9 +1027,14 @@ private extension ClubDetailView {
 
     var postsTab: some View {
         VStack(spacing: 16) {
-            if !isSearchActive && isMemberNow {
-                composeBar
-                    .padding(.top, 16)
+            if !isSearchActive {
+                if isMemberNow {
+                    composeBar
+                        .padding(.top, 16)
+                } else if detailVM?.hasPendingInvite != true {
+                    joinToPostPrompt
+                        .padding(.top, 16)
+                }
             }
 
             if let vm = detailVM, vm.isLoadingPosts, vm.posts.isEmpty {
@@ -1057,8 +1062,57 @@ private extension ClubDetailView {
             }
         }
         .padding(.horizontal, 16)
-        .padding(.top, isSearchActive ? 16 : 0)
+        // Keep posts off the tab bar even when there's no compose/prompt above.
+        .padding(.top, (isSearchActive || (!isMemberNow && detailVM?.hasPendingInvite == true)) ? 16 : 0)
         .padding(.bottom, 100)
+    }
+
+    /// Shown to non-members (without a pending invite) in place of the composer.
+    var joinToPostPrompt: some View {
+        Button {
+            let generator = UIImpactFeedbackGenerator(style: .light)
+            generator.impactOccurred()
+            Task {
+                await detailVM?.joinClub()
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
+                    isJoined = detailVM?.isMember ?? true
+                }
+            }
+        } label: {
+            HStack(spacing: 12) {
+                Image("users-three-fill")
+                    .renderingMode(.template)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 18, height: 18)
+                    .foregroundStyle(accent)
+
+                Text("Join the club to share posts")
+                    .font(NookFont.labelMediumSmall)
+                    .foregroundStyle(Color.nook.clubDetailMeta)
+
+                Spacer()
+
+                Text("Join")
+                    .font(NookFont.labelBoldSmall)
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 16)
+                    .frame(height: 32)
+                    .background(Capsule().fill(accent))
+            }
+            .padding(.horizontal, 13)
+            .padding(.vertical, 13)
+            .background(
+                RoundedRectangle(cornerRadius: NookRadii.sm, style: .continuous)
+                    .fill(Color.nook.clubDetailComposeCard)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: NookRadii.sm, style: .continuous)
+                            .strokeBorder(Color.nook.clubDetailComposeBorder, lineWidth: 1)
+                    )
+                    .shadow(color: .black.opacity(0.04), radius: 3, y: 1)
+            )
+        }
+        .buttonStyle(.plain)
     }
 
     /// Long-press actions on a pinned card (moderators).
@@ -1247,16 +1301,29 @@ private extension ClubDetailView {
 // MARK: - Post Card
 
 private extension ClubDetailView {
+    func authorProfile(_ post: ClubPost) -> UserProfile? {
+        clubProfileValue(userId: post.userId, name: post.authorName, avatar: post.authorAvatarURL, currentUserId: detailVM?.currentUserId)
+    }
+
     func postCard(_ post: ClubPost) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             // Header: avatar + name + time + menu
             HStack(spacing: 12) {
-                ClubAvatarView(url: post.authorAvatarURL, size: 40)
+                ClubAvatarView(url: post.authorAvatarURL, size: 40, profile: authorProfile(post))
 
                 HStack(spacing: 6) {
-                    Text(post.authorName)
-                        .font(NookFont.labelSmall)
-                        .foregroundStyle(Color.nook.clubDetailTitle)
+                    if let profile = authorProfile(post) {
+                        NavigationLink(value: profile) {
+                            Text(post.authorName)
+                                .font(NookFont.labelSmall)
+                                .foregroundStyle(Color.nook.clubDetailTitle)
+                        }
+                        .buttonStyle(.plain)
+                    } else {
+                        Text(post.authorName)
+                            .font(NookFont.labelSmall)
+                            .foregroundStyle(Color.nook.clubDetailTitle)
+                    }
 
                     Text(post.timeAgo)
                         .font(NookFont.caption)
@@ -1672,16 +1739,33 @@ private extension ClubDetailView {
 
     func memberRow(_ member: ClubMemberRow) -> some View {
         let isElevated = member.role == "owner" || member.role == "manager"
+        let memberName = member.userProfile?.fullName ?? member.userProfile?.username ?? "Member"
+        let memberProfile = clubProfileValue(
+            userId: member.userId,
+            name: memberName,
+            avatar: member.userProfile?.avatarUrl.flatMap { URL(string: $0) },
+            currentUserId: detailVM?.currentUserId
+        )
 
         return HStack(spacing: 12) {
             ClubAvatarView(
                 url: member.userProfile?.avatarUrl.flatMap { URL(string: $0) },
-                size: 40
+                size: 40,
+                profile: memberProfile
             )
 
-            Text(member.userProfile?.fullName ?? member.userProfile?.username ?? "Member")
-                .font(NookFont.labelSmall)
-                .foregroundStyle(Color.nook.clubDetailTitle)
+            if let memberProfile {
+                NavigationLink(value: memberProfile) {
+                    Text(memberName)
+                        .font(NookFont.labelSmall)
+                        .foregroundStyle(Color.nook.clubDetailTitle)
+                }
+                .buttonStyle(.plain)
+            } else {
+                Text(memberName)
+                    .font(NookFont.labelSmall)
+                    .foregroundStyle(Color.nook.clubDetailTitle)
+            }
 
             Spacer()
 
@@ -1775,8 +1859,19 @@ private extension ClubDetailView {
 struct ClubAvatarView: View {
     let url: URL?
     let size: CGFloat
+    /// When set, the avatar links to this user's profile.
+    var profile: UserProfile? = nil
 
     var body: some View {
+        if let profile {
+            NavigationLink(value: profile) { avatar }
+                .buttonStyle(.plain)
+        } else {
+            avatar
+        }
+    }
+
+    private var avatar: some View {
         Group {
             if let url {
                 AsyncImage(url: url) { phase in
@@ -1804,6 +1899,27 @@ struct ClubAvatarView: View {
                     .foregroundStyle(Color.nook.mutedForeground)
             )
     }
+}
+
+/// Build a navigable profile value for a club author/member.
+func clubProfileValue(userId: UUID?, name: String, avatar: URL?, currentUserId: UUID?) -> UserProfile? {
+    guard let userId else { return nil }
+    return UserProfile(
+        id: userId.uuidString,
+        displayName: name,
+        username: "",
+        bio: "",
+        avatarURL: avatar,
+        followersCount: 0,
+        followingCount: 0,
+        trackedMedia: 0,
+        reviewsWritten: 0,
+        curatedNooks: 0,
+        clubs: 0,
+        tasteIdentity: [],
+        recentActivity: [],
+        isCurrentUser: userId == currentUserId
+    )
 }
 
 // MARK: - Attached Media Strip

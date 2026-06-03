@@ -59,6 +59,7 @@ struct NotificationModel: Identifiable, Hashable, Sendable {
         case "like_post": "\(actorName) liked your post"
         case "comment_post": "\(actorName) commented on your post"
         case "club_invite": "\(actorName) invited you to a club"
+        case "club_join": "\(actorName) joined your club"
         case "nook_mention": "\(actorName) mentioned you in a nook"
         default: "\(actorName) interacted with you"
         }

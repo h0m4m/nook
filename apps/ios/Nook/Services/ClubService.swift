@@ -244,6 +244,40 @@ final class ClubService: Sendable {
                 role: "member"
             ))
             .execute()
+
+        await notifyClubOwner(clubId: clubId, actorId: userId, type: "club_join")
+    }
+
+    /// Notify the club owner of an action (best-effort).
+    private func notifyClubOwner(clubId: UUID, actorId: UUID, type: String) async {
+        struct OwnerRow: Decodable { let owner_id: UUID }
+        guard let club: OwnerRow = try? await supabase
+            .from("clubs")
+            .select("owner_id")
+            .eq("id", value: clubId.uuidString)
+            .single()
+            .execute()
+            .value,
+            club.owner_id != actorId
+        else { return }
+
+        struct NotifInsert: Encodable {
+            let user_id: String
+            let actor_id: String
+            let type: String
+            let reference_id: String
+            let reference_type: String
+        }
+        _ = try? await supabase
+            .from("notifications")
+            .insert(NotifInsert(
+                user_id: club.owner_id.uuidString,
+                actor_id: actorId.uuidString,
+                type: type,
+                reference_id: clubId.uuidString,
+                reference_type: "club"
+            ))
+            .execute()
     }
 
     func leaveClub(clubId: UUID) async throws {
@@ -742,6 +776,8 @@ final class ClubService: Sendable {
             let status: String
         }
 
+        // ignoreDuplicates: an existing invite is left as-is (re-inviting is a no-op,
+        // not an error — the inviter has no UPDATE rights on the row).
         try await supabase
             .from("club_invites")
             .upsert(
@@ -751,7 +787,8 @@ final class ClubService: Sendable {
                     inviter_id: currentUserId.uuidString,
                     status: "pending"
                 ),
-                onConflict: "club_id,invitee_id"
+                onConflict: "club_id,invitee_id",
+                ignoreDuplicates: true
             )
             .execute()
 
@@ -773,6 +810,20 @@ final class ClubService: Sendable {
                 reference_type: "club"
             ))
             .execute()
+    }
+
+    /// Invitee ids with a pending invite to this club that the current user can
+    /// see (their own sent invites, or all if owner/manager).
+    func getInvitedUserIds(clubId: UUID) async throws -> Set<UUID> {
+        struct Row: Decodable { let invitee_id: UUID }
+        let rows: [Row] = try await supabase
+            .from("club_invites")
+            .select("invitee_id")
+            .eq("club_id", value: clubId.uuidString)
+            .eq("status", value: "pending")
+            .execute()
+            .value
+        return Set(rows.map(\.invitee_id))
     }
 
     /// Whether the current user has a pending invite to this club.

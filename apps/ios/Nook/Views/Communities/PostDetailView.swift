@@ -134,7 +134,7 @@ struct PostDetailView: View {
         .toolbar(.hidden, for: .navigationBar)
         .modifier(InteractivePopGesture())
         .navigationDestination(for: ClubPostComment.self) { comment in
-            ClubCommentThreadView(root: comment, accent: accent)
+            ClubCommentThreadView(root: comment, accent: accent, currentUserId: currentUserId)
         }
         .onTapGesture { isCommentFocused = false }
         .task { await loadData() }
@@ -174,6 +174,10 @@ struct PostDetailView: View {
     private func totalReplyCount(_ comment: ClubPostComment) -> Int {
         comment.replies.reduce(0) { $0 + 1 + totalReplyCount($1) }
     }
+
+    func profileFor(userId: UUID?, name: String, avatar: URL?) -> UserProfile? {
+        clubProfileValue(userId: userId, name: name, avatar: avatar, currentUserId: currentUserId)
+    }
 }
 
 // MARK: - Post Content
@@ -182,12 +186,21 @@ private extension PostDetailView {
     var postContent: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 12) {
-                ClubAvatarView(url: post.authorAvatarURL, size: 44)
+                ClubAvatarView(url: post.authorAvatarURL, size: 44, profile: profileFor(userId: post.userId, name: post.authorName, avatar: post.authorAvatarURL))
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(post.authorName)
-                        .font(NookFont.labelSmall)
-                        .foregroundStyle(Color.nook.clubDetailTitle)
+                    if let profile = profileFor(userId: post.userId, name: post.authorName, avatar: post.authorAvatarURL) {
+                        NavigationLink(value: profile) {
+                            Text(post.authorName)
+                                .font(NookFont.labelSmall)
+                                .foregroundStyle(Color.nook.clubDetailTitle)
+                        }
+                        .buttonStyle(.plain)
+                    } else {
+                        Text(post.authorName)
+                            .font(NookFont.labelSmall)
+                            .foregroundStyle(Color.nook.clubDetailTitle)
+                    }
 
                     Text(post.timeAgo)
                         .font(NookFont.caption)
@@ -517,13 +530,22 @@ private extension PostDetailView {
                 Rectangle().fill(Color.nook.detailTabBorder).frame(width: 2)
             }
 
-            ClubAvatarView(url: comment.authorAvatarURL, size: depth == 0 ? 36 : 28)
+            ClubAvatarView(url: comment.authorAvatarURL, size: depth == 0 ? 36 : 28, profile: profileFor(userId: comment.userId, name: comment.authorName, avatar: comment.authorAvatarURL))
 
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 6) {
-                    Text(comment.authorName)
-                        .font(NookFont.captionBold)
-                        .foregroundStyle(Color.nook.clubDetailTitle)
+                    if let profile = profileFor(userId: comment.userId, name: comment.authorName, avatar: comment.authorAvatarURL) {
+                        NavigationLink(value: profile) {
+                            Text(comment.authorName)
+                                .font(NookFont.captionBold)
+                                .foregroundStyle(Color.nook.clubDetailTitle)
+                        }
+                        .buttonStyle(.plain)
+                    } else {
+                        Text(comment.authorName)
+                            .font(NookFont.captionBold)
+                            .foregroundStyle(Color.nook.clubDetailTitle)
+                    }
 
                     if let date = comment.createdAt {
                         Text(relativeTime(from: date))
@@ -911,6 +933,7 @@ private struct PostDetailSoftScrollEdge: ViewModifier {
 struct ClubCommentThreadView: View {
     let root: ClubPostComment
     var accent: Color = Color.nook.clubDetailJoinedButton
+    var currentUserId: UUID? = nil
     @Environment(\.dismiss) private var dismiss
 
     private static let maxDepth = 3
@@ -928,8 +951,12 @@ struct ClubCommentThreadView: View {
         .toolbar(.hidden, for: .navigationBar)
         .modifier(InteractivePopGesture())
         .navigationDestination(for: ClubPostComment.self) { comment in
-            ClubCommentThreadView(root: comment, accent: accent)
+            ClubCommentThreadView(root: comment, accent: accent, currentUserId: currentUserId)
         }
+    }
+
+    private func profileFor(_ comment: ClubPostComment) -> UserProfile? {
+        clubProfileValue(userId: comment.userId, name: comment.authorName, avatar: comment.authorAvatarURL, currentUserId: currentUserId)
     }
 
     private func relativeTime(from date: Date) -> String {
@@ -959,13 +986,11 @@ struct ClubCommentThreadView: View {
             if depth > 0 {
                 Rectangle().fill(Color.nook.detailTabBorder).frame(width: 2)
             }
-            ClubAvatarView(url: comment.authorAvatarURL, size: depth == 0 ? 36 : 28)
+            ClubAvatarView(url: comment.authorAvatarURL, size: depth == 0 ? 36 : 28, profile: profileFor(comment))
 
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 6) {
-                    Text(comment.authorName)
-                        .font(NookFont.captionBold)
-                        .foregroundStyle(Color.nook.clubDetailTitle)
+                    threadAuthorName(comment)
                     if let date = comment.createdAt {
                         Text(relativeTime(from: date))
                             .font(NookFont.caption)
@@ -982,6 +1007,19 @@ struct ClubCommentThreadView: View {
         .padding(.leading, 24 + CGFloat(depth) * 24)
         .padding(.trailing, 24)
         .padding(.vertical, 12)
+    }
+
+    @ViewBuilder
+    private func threadAuthorName(_ comment: ClubPostComment) -> some View {
+        let label = Text(comment.authorName)
+            .font(NookFont.captionBold)
+            .foregroundStyle(Color.nook.clubDetailTitle)
+        if let profile = profileFor(comment) {
+            NavigationLink(value: profile) { label }
+                .buttonStyle(.plain)
+        } else {
+            label
+        }
     }
 }
 
