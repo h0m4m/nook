@@ -103,10 +103,17 @@ struct NotificationsView: View {
                 if !realNotifications.isEmpty {
                     // Real notifications with navigation
                     ForEach(realNotifications) { notif in
-                        NavigationLink(value: UserProfile.profileFor(name: notif.actorName)) {
-                            RealNotificationRow(notification: notif)
+                        if notif.referenceType == "club", let clubId = notif.referenceId {
+                            NavigationLink(value: ClubItem(navigationId: clubId)) {
+                                RealNotificationRow(notification: notif)
+                            }
+                            .buttonStyle(.plain)
+                        } else {
+                            NavigationLink(value: UserProfile.profileFor(name: notif.actorName)) {
+                                RealNotificationRow(notification: notif)
+                            }
+                            .buttonStyle(.plain)
                         }
-                        .buttonStyle(.plain)
                     }
                 } else {
                     ForEach(groupedNotifications, id: \.0) { section, items in

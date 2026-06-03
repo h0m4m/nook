@@ -177,6 +177,20 @@ struct ClubItem: Identifiable, Hashable {
         self.bannerURL = row.bannerUrl.flatMap { URL(string: $0) }
         self.isJoined = isJoined
     }
+
+    /// Minimal item for navigating to a club by id (e.g. from a notification);
+    /// the detail screen loads the real club from this dbId.
+    init(navigationId dbId: UUID) {
+        self.dbId = dbId
+        self.name = ""
+        self.memberCount = ""
+        self.description = ""
+        self.category = .anime
+        self.themeHex = nil
+        self.bannerColor = Color(hex: ClubCategory.anime.accentHex).opacity(0.3)
+        self.bannerURL = nil
+        self.isJoined = false
+    }
 }
 
 // MARK: - Clubs View

@@ -13,6 +13,7 @@ final class ClubDetailViewModel {
     var blockedUserIds: Set<UUID> = []
     var isMember = false
     var isMuted = false
+    var hasPendingInvite = false
     var role: String?
     var currentUserId: UUID?
     var isLoading = false
@@ -110,6 +111,9 @@ final class ClubDetailViewModel {
             isMuted = membership?.notificationsMuted ?? false
             members = try await membersResult
             blockedUserIds = (try? await clubService.getBlockedUserIds()) ?? []
+            if !isMember {
+                hasPendingInvite = (try? await clubService.hasPendingInvite(clubId: clubId)) ?? false
+            }
             isLoading = false
 
             await loadPosts(page: 1)
@@ -155,11 +159,32 @@ final class ClubDetailViewModel {
         }
     }
 
+    /// Accept a pending invite — join and clear the invite.
+    func acceptInvite() async {
+        do {
+            try await clubService.acceptInvite(clubId: clubId)
+            isMember = true
+            role = "member"
+            hasPendingInvite = false
+            club = try? await clubService.getClub(clubId: clubId)
+            members = (try? await clubService.getMembers(clubId: clubId)) ?? members
+        } catch {
+            self.error = AppError(from: error)
+        }
+    }
+
+    /// Decline a pending invite.
+    func declineInvite() async {
+        hasPendingInvite = false
+        try? await clubService.declineInvite(clubId: clubId)
+    }
+
     func joinClub() async {
         do {
             try await clubService.joinClub(clubId: clubId)
             isMember = true
             role = "member"
+            hasPendingInvite = false
             club = try? await clubService.getClub(clubId: clubId)
             members = (try? await clubService.getMembers(clubId: clubId)) ?? members
         } catch {

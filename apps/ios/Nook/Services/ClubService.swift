@@ -686,8 +686,30 @@ final class ClubService: Sendable {
         return rows
     }
 
+    /// Invite a user: records a pending invite (grants visibility/join rights for
+    /// private clubs) and sends them a notification.
     func inviteToClub(clubId: UUID, userId: UUID) async throws {
         let currentUserId = try await supabase.auth.session.user.id
+
+        struct InviteUpsert: Encodable {
+            let club_id: String
+            let invitee_id: String
+            let inviter_id: String
+            let status: String
+        }
+
+        try await supabase
+            .from("club_invites")
+            .upsert(
+                InviteUpsert(
+                    club_id: clubId.uuidString,
+                    invitee_id: userId.uuidString,
+                    inviter_id: currentUserId.uuidString,
+                    status: "pending"
+                ),
+                onConflict: "club_id,invitee_id"
+            )
+            .execute()
 
         struct NotifInsert: Encodable {
             let user_id: String
@@ -697,7 +719,7 @@ final class ClubService: Sendable {
             let reference_type: String
         }
 
-        try await supabase
+        _ = try? await supabase
             .from("notifications")
             .insert(NotifInsert(
                 user_id: userId.uuidString,
@@ -706,6 +728,44 @@ final class ClubService: Sendable {
                 reference_id: clubId.uuidString,
                 reference_type: "club"
             ))
+            .execute()
+    }
+
+    /// Whether the current user has a pending invite to this club.
+    func hasPendingInvite(clubId: UUID) async throws -> Bool {
+        let userId = try await supabase.auth.session.user.id
+
+        struct Row: Decodable { let id: UUID }
+        let rows: [Row] = try await supabase
+            .from("club_invites")
+            .select("id")
+            .eq("club_id", value: clubId.uuidString)
+            .eq("invitee_id", value: userId.uuidString)
+            .eq("status", value: "pending")
+            .execute()
+            .value
+
+        return !rows.isEmpty
+    }
+
+    /// Accept an invite: join the club and clear the invite.
+    func acceptInvite(clubId: UUID) async throws {
+        try await joinClub(clubId: clubId)
+        try? await clearMyInvite(clubId: clubId)
+    }
+
+    /// Decline an invite: clear it (the invitee loses access to a private club).
+    func declineInvite(clubId: UUID) async throws {
+        try await clearMyInvite(clubId: clubId)
+    }
+
+    private func clearMyInvite(clubId: UUID) async throws {
+        let userId = try await supabase.auth.session.user.id
+        try await supabase
+            .from("club_invites")
+            .delete()
+            .eq("club_id", value: clubId.uuidString)
+            .eq("invitee_id", value: userId.uuidString)
             .execute()
     }
 

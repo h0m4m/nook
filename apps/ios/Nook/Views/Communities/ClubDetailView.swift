@@ -378,7 +378,7 @@ private extension ClubDetailView {
             navButton(icon: "caret-left-bold") { dismiss() }
 
             if showHeaderBar {
-                Text(club.name)
+                Text(displayClubName)
                     .font(NookFont.labelBold)
                     .foregroundStyle(Color.nook.clubDetailTitle)
                     .lineLimit(1)
@@ -688,6 +688,12 @@ private extension ClubDetailView {
                 .padding(.top, 12)
                 .padding(.horizontal, 16)
 
+            if detailVM?.hasPendingInvite == true && !isJoined {
+                inviteBanner
+                    .padding(.top, 16)
+                    .padding(.horizontal, 16)
+            }
+
             tabBar
                 .padding(.top, 20)
 
@@ -695,15 +701,78 @@ private extension ClubDetailView {
         }
         .background(Color.nook.clubDetailBackground)
     }
+
+    var inviteBanner: some View {
+        HStack(spacing: 12) {
+            Image("users-three-fill")
+                .renderingMode(.template)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 20, height: 20)
+                .foregroundStyle(accent)
+
+            Text("You've been invited to join")
+                .font(NookFont.labelMediumSmall)
+                .foregroundStyle(Color.nook.clubDetailTitle)
+
+            Spacer()
+
+            Button {
+                Task {
+                    await detailVM?.declineInvite()
+                }
+            } label: {
+                Text("Decline")
+                    .font(NookFont.labelBoldSmall)
+                    .foregroundStyle(Color.nook.clubDetailMeta)
+                    .padding(.horizontal, 12)
+                    .frame(height: 32)
+            }
+            .buttonStyle(.plain)
+
+            Button {
+                let generator = UIImpactFeedbackGenerator(style: .light)
+                generator.impactOccurred()
+                Task {
+                    await detailVM?.acceptInvite()
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
+                        isJoined = detailVM?.isMember ?? true
+                    }
+                }
+            } label: {
+                Text("Join")
+                    .font(NookFont.labelBoldSmall)
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 18)
+                    .frame(height: 32)
+                    .background(Capsule().fill(accent))
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .background(
+            RoundedRectangle(cornerRadius: NookRadii.sm, style: .continuous)
+                .fill(accent.opacity(0.08))
+                .overlay(
+                    RoundedRectangle(cornerRadius: NookRadii.sm, style: .continuous)
+                        .strokeBorder(accent.opacity(0.25), lineWidth: 1)
+                )
+        )
+    }
 }
 
 // MARK: - Club Info (name, members, join)
 
 private extension ClubDetailView {
+    var displayClubName: String {
+        club.name.isEmpty ? (detailVM?.club?.name ?? "") : club.name
+    }
+
     var clubInfo: some View {
         HStack(alignment: .top) {
             VStack(alignment: .leading, spacing: 4) {
-                Text(club.name)
+                Text(displayClubName)
                     .font(NookFont.outfitHeadingMedium)
                     .foregroundStyle(Color.nook.clubDetailTitle)
                     .onGeometryChange(for: Bool.self) { proxy in

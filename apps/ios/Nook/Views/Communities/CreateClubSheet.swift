@@ -1,4 +1,5 @@
 import PhotosUI
+import Supabase
 import SwiftUI
 
 // MARK: - Club Privacy
@@ -67,7 +68,12 @@ struct CreateClubSheet: View {
     @State private var isCreating = false
     @State private var similarClubs: [ClubItem] = []
     @State private var nameCheckTask: Task<Void, Never>?
+    @State private var createError: String?
     @FocusState private var focusedField: Field?
+
+    static let nameMinLength = 3
+    static let nameMaxLength = 50
+    static let descriptionMaxLength = 500
 
     // Banner image
     @State private var bannerImage: UIImage?
@@ -84,9 +90,23 @@ struct CreateClubSheet: View {
         case name, description
     }
 
+    private var trimmedName: String {
+        name.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     private var canCreate: Bool {
-        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        return !trimmedName.isEmpty && !selectedCategories.isEmpty
+        trimmedName.count >= Self.nameMinLength
+            && trimmedName.count <= Self.nameMaxLength
+            && clubDescription.count <= Self.descriptionMaxLength
+            && !selectedCategories.isEmpty
+    }
+
+    /// Inline hint shown under the name field when it's invalid.
+    private var nameValidationHint: String? {
+        if trimmedName.isEmpty { return nil }
+        if trimmedName.count < Self.nameMinLength { return "Name must be at least \(Self.nameMinLength) characters" }
+        if trimmedName.count > Self.nameMaxLength { return "Name must be \(Self.nameMaxLength) characters or fewer" }
+        return nil
     }
 
     // Club detail banner: full-width × 192pt on ~393pt screen
@@ -168,6 +188,11 @@ struct CreateClubSheet: View {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                 focusedField = .name
             }
+        }
+        .alert("Couldn't create club", isPresented: Binding(get: { createError != nil }, set: { if !$0 { createError = nil } })) {
+            Button("OK", role: .cancel) { createError = nil }
+        } message: {
+            Text(createError ?? "")
         }
     }
 
@@ -442,6 +467,13 @@ struct CreateClubSheet: View {
             Rectangle()
                 .fill(Color.nook.createClubBorder)
                 .frame(height: 1)
+
+            if let hint = nameValidationHint {
+                Text(hint)
+                    .font(NookFont.caption)
+                    .foregroundStyle(Color.nook.createClubWarningText)
+                    .padding(.top, 8)
+            }
         }
     }
 
@@ -538,6 +570,11 @@ struct CreateClubSheet: View {
                 .frame(minHeight: 80)
                 .padding(.leading, -5)
                 .padding(.top, 6)
+                .onChange(of: clubDescription) { _, newValue in
+                    if newValue.count > Self.descriptionMaxLength {
+                        clubDescription = String(newValue.prefix(Self.descriptionMaxLength))
+                    }
+                }
         }
     }
 
@@ -764,9 +801,24 @@ struct CreateClubSheet: View {
             } catch {
                 await MainActor.run {
                     isCreating = false
+                    createError = Self.friendlyError(error)
+                    let generator = UINotificationFeedbackGenerator()
+                    generator.notificationOccurred(.error)
                 }
             }
         }
+    }
+
+    /// Surface the server's message (e.g. the create-club limit) cleanly.
+    private static func friendlyError(_ error: Error) -> String {
+        let raw: String
+        if let pg = error as? PostgrestError {
+            raw = pg.message
+        } else {
+            raw = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+        }
+        let message = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        return message.isEmpty ? "Couldn't create the club. Please try again." : message
     }
 }
 
