@@ -56,6 +56,7 @@ struct ClubPost: Identifiable, Hashable {
     let isPinned: Bool
     let poll: PostPoll?
     let pollModel: ClubPollModel?
+    let attachedMedia: [ClubPostMediaModel]
     let themeHex: UInt?
 
     /// The club accent color carried into the post detail.
@@ -81,6 +82,7 @@ struct ClubPost: Identifiable, Hashable {
         isPinned: Bool = false,
         poll: PostPoll? = nil,
         pollModel: ClubPollModel? = nil,
+        attachedMedia: [ClubPostMediaModel] = [],
         themeHex: UInt? = nil,
         dbId: UUID? = nil,
         clubId: UUID? = nil,
@@ -102,6 +104,7 @@ struct ClubPost: Identifiable, Hashable {
         self.isPinned = isPinned
         self.poll = poll
         self.pollModel = pollModel
+        self.attachedMedia = attachedMedia
         self.themeHex = themeHex
         self.dbId = dbId
         self.clubId = clubId
@@ -130,6 +133,7 @@ struct ClubPost: Identifiable, Hashable {
         self.isPinned = model.isPinned
         self.poll = nil
         self.pollModel = model.poll
+        self.attachedMedia = model.attachedMedia
         self.themeHex = themeHex
     }
 
@@ -1171,6 +1175,13 @@ private extension ClubDetailView {
                     .padding(.horizontal, 17)
             }
 
+            // Attached media (optional)
+            if !post.attachedMedia.isEmpty {
+                ClubPostMediaStrip(media: post.attachedMedia)
+                    .padding(.top, 12)
+                    .padding(.horizontal, 17)
+            }
+
             // Footer: like + comment + share
             postFooter(post)
                 .padding(.top, 12)
@@ -1674,6 +1685,97 @@ struct ClubAvatarView: View {
                     .font(.system(size: size * 0.4))
                     .foregroundStyle(Color.nook.mutedForeground)
             )
+    }
+}
+
+// MARK: - Attached Media Strip
+
+/// Renders the specific media (movies/shows/anime…) attached to a post. Each
+/// card navigates to that title's media detail.
+struct ClubPostMediaStrip: View {
+    let media: [ClubPostMediaModel]
+
+    var body: some View {
+        if media.count == 1, let item = media.first {
+            NavigationLink(value: MediaDetailRoute(from: item.asSearchResult)) {
+                wideCard(item)
+            }
+            .buttonStyle(.plain)
+        } else {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 10) {
+                    ForEach(media) { item in
+                        NavigationLink(value: MediaDetailRoute(from: item.asSearchResult)) {
+                            posterCard(item)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+        }
+    }
+
+    private func fallback(_ item: ClubPostMediaModel) -> Color {
+        SearchMediaCategory.from(apiMediaType: item.mediaType)?.dotColor.opacity(0.3) ?? Color.nook.searchShimmerBase
+    }
+
+    private func wideCard(_ item: ClubPostMediaModel) -> some View {
+        let category = SearchMediaCategory.from(apiMediaType: item.mediaType)
+        return HStack(spacing: 12) {
+            MediaPosterImage(url: item.imageURL, width: 52, height: 70, fallbackColor: fallback(item))
+
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 4) {
+                    if let cat = category {
+                        Text(cat.uppercaseLabel)
+                            .font(NookFont.tabLabel)
+                            .tracking(0.5)
+                            .foregroundStyle(cat.dotColor)
+                    }
+                    if let year = item.year {
+                        Circle().fill(Color.nook.clubDetailMeta).frame(width: 3, height: 3)
+                        Text(year)
+                            .font(NookFont.tabLabel)
+                            .tracking(0.5)
+                            .foregroundStyle(Color.nook.clubDetailMeta)
+                    }
+                }
+                Text(item.title)
+                    .font(NookFont.labelBoldSmall)
+                    .foregroundStyle(Color.nook.clubDetailTitle)
+                    .lineLimit(2)
+            }
+
+            Spacer(minLength: 0)
+
+            Image("caret-left-bold")
+                .renderingMode(.template)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 12, height: 12)
+                .foregroundStyle(Color.nook.clubDetailMeta)
+                .rotationEffect(.degrees(180))
+        }
+        .padding(10)
+        .background(
+            RoundedRectangle(cornerRadius: NookRadii.sm, style: .continuous)
+                .fill(Color.nook.clubDetailComposeCard)
+                .overlay(
+                    RoundedRectangle(cornerRadius: NookRadii.sm, style: .continuous)
+                        .strokeBorder(Color.nook.clubDetailComposeBorder, lineWidth: 1)
+                )
+        )
+    }
+
+    private func posterCard(_ item: ClubPostMediaModel) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            MediaPosterImage(url: item.imageURL, width: 88, height: 122, fallbackColor: fallback(item))
+            Text(item.title)
+                .font(NookFont.captionBold)
+                .foregroundStyle(Color.nook.clubDetailTitle)
+                .lineLimit(1)
+                .frame(width: 88, alignment: .leading)
+        }
     }
 }
 

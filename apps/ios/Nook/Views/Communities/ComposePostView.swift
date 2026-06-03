@@ -16,17 +16,18 @@ struct ComposePostView: View {
     @State private var isPosting = false
     @State private var showPoll = false
     @State private var pollOptions: [String] = ["", ""]
-    @State private var draftSaved = false
+    @State private var attachedMedia: [MediaSearchResult] = []
+    @State private var showMediaPicker = false
     @FocusState private var isBodyFocused: Bool
 
-    private var draftKey: String { "club-post-draft-\(clubId?.uuidString ?? "preview")" }
     @FocusState private var focusedPollOption: Int?
 
     private var canPost: Bool {
         let hasText = !postBody.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         let hasImages = !attachedImages.isEmpty
+        let hasMedia = !attachedMedia.isEmpty
         let hasValidPoll = showPoll && pollOptions.filter({ !$0.trimmingCharacters(in: .whitespaces).isEmpty }).count >= 2
-        return hasText || hasImages || hasValidPoll
+        return hasText || hasImages || hasMedia || hasValidPoll
     }
 
     var body: some View {
@@ -39,13 +40,9 @@ struct ComposePostView: View {
             .background(Color.nook.clubDetailBackground)
             .navigationBarHidden(true)
             .onAppear {
-                restoreDraftIfNeeded()
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                     isBodyFocused = true
                 }
-            }
-            .onChange(of: postBody) { _, _ in
-                if draftSaved { draftSaved = false }
             }
             .photosPicker(
                 isPresented: $showPhotoPicker,
@@ -57,6 +54,9 @@ struct ComposePostView: View {
                 guard !newItems.isEmpty else { return }
                 appendImages(from: newItems)
                 pickerSelection = []
+            }
+            .sheet(isPresented: $showMediaPicker) {
+                AddMediaToPostSheet(selectedMedia: $attachedMedia, accent: accent)
             }
         }
     }
@@ -187,6 +187,11 @@ private extension ComposePostView {
                         .padding(.top, 8)
                 }
 
+                if !attachedMedia.isEmpty {
+                    mediaCarousel
+                        .padding(.top, 12)
+                }
+
                 if showPoll {
                     pollEditor
                         .padding(.top, 16)
@@ -273,52 +278,81 @@ private extension ComposePostView {
     }
 }
 
+// MARK: - Attached Media Carousel
+
+private extension ComposePostView {
+    var mediaCarousel: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 12) {
+                ForEach(attachedMedia) { item in
+                    mediaCard(item)
+                }
+            }
+            .padding(.horizontal, 20)
+        }
+    }
+
+    func mediaCard(_ item: MediaSearchResult) -> some View {
+        let category = SearchMediaCategory.from(apiMediaType: item.mediaType)
+        return ZStack(alignment: .topTrailing) {
+            VStack(alignment: .leading, spacing: 6) {
+                MediaPosterImage(
+                    url: item.imageURL,
+                    width: 92,
+                    height: 128,
+                    fallbackColor: category?.dotColor.opacity(0.3) ?? Color.nook.searchShimmerBase
+                )
+
+                Text(item.title)
+                    .font(NookFont.captionBold)
+                    .foregroundStyle(Color.nook.clubDetailTitle)
+                    .lineLimit(1)
+                    .frame(width: 92, alignment: .leading)
+            }
+
+            Button {
+                withAnimation(.easeOut(duration: 0.2)) {
+                    attachedMedia.removeAll { $0.id == item.id }
+                }
+            } label: {
+                Image("x-bold")
+                    .renderingMode(.template)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 11, height: 11)
+                    .foregroundStyle(.white)
+                    .frame(width: 24, height: 24)
+                    .background(.black.opacity(0.55), in: Circle())
+            }
+            .buttonStyle(.plain)
+            .padding(4)
+        }
+    }
+}
+
 // MARK: - Toolbar helpers
 
 private extension ComposePostView {
-    func toolbarIconButton(_ icon: String, active: Bool, action: @escaping () -> Void) -> some View {
+    func toolbarIconButton(_ icon: String, active: Bool, badge: Int? = nil, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Image(icon)
-                .renderingMode(.template)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(width: 22, height: 22)
-                .foregroundStyle(active ? accent : Color.nook.clubDetailTitle)
-                .frame(width: 32, height: 32)
-                .contentShape(Rectangle())
+            HStack(spacing: 6) {
+                Image(icon)
+                    .renderingMode(.template)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 22, height: 22)
+                    .foregroundStyle(active ? accent : Color.nook.clubDetailTitle)
+
+                if let badge, badge > 0 {
+                    Text("\(badge)")
+                        .font(NookFont.captionBold)
+                        .foregroundStyle(Color.nook.clubDetailMeta)
+                }
+            }
+            .frame(height: 32)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-    }
-
-    /// Insert an "@" at the end of the body to start a mention.
-    func insertMention() {
-        if !postBody.isEmpty && !postBody.hasSuffix(" ") && !postBody.hasSuffix("\n") {
-            postBody += " "
-        }
-        postBody += "@"
-        isBodyFocused = true
-    }
-
-    /// Save the current text as a draft for this club (restored next time).
-    func saveDraft() {
-        let generator = UINotificationFeedbackGenerator()
-        let trimmed = postBody.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmed.isEmpty {
-            UserDefaults.standard.removeObject(forKey: draftKey)
-        } else {
-            UserDefaults.standard.set(postBody, forKey: draftKey)
-        }
-        generator.notificationOccurred(.success)
-        withAnimation(.easeOut(duration: 0.2)) { draftSaved = true }
-    }
-
-    func restoreDraftIfNeeded() {
-        guard postBody.isEmpty, let saved = UserDefaults.standard.string(forKey: draftKey), !saved.isEmpty else { return }
-        postBody = saved
-    }
-
-    func clearDraft() {
-        UserDefaults.standard.removeObject(forKey: draftKey)
     }
 }
 
@@ -361,14 +395,9 @@ private extension ComposePostView {
                     }
                 }
 
-                // Mention
-                toolbarIconButton("at", active: false) {
-                    insertMention()
-                }
-
-                // Save draft
-                toolbarIconButton("bookmark-simple", active: draftSaved) {
-                    saveDraft()
+                // Attach media (movies/shows/anime…)
+                toolbarIconButton("bookmark-simple", active: !attachedMedia.isEmpty, badge: attachedMedia.count) {
+                    showMediaPicker = true
                 }
 
                 Spacer()
@@ -526,17 +555,30 @@ private extension ComposePostView {
 
         let trimmedBody = postBody.trimmingCharacters(in: .whitespacesAndNewlines)
         let images = attachedImages
+        let media = attachedMedia
         let pollDraft = buildPollDraft()
 
         Task {
             do {
                 if let clubId {
                     let clubService = ClubService()
+                    let mediaAPI = MediaAPIService()
                     let imageDatas = images.compactMap { $0.jpegData(compressionQuality: 0.8) }
+
+                    // Resolve each picked media to its media_items row id (upserts via media-detail).
+                    var mediaItemIds: [UUID] = []
+                    for item in media {
+                        if let detail = try? await mediaAPI.detail(source: item.source, sourceId: item.mediaId, mediaType: item.mediaType),
+                           let dbId = detail.dbId {
+                            mediaItemIds.append(dbId)
+                        }
+                    }
+
                     try await clubService.createPost(
                         clubId: clubId,
                         body: trimmedBody,
                         imageDatas: imageDatas,
+                        mediaItemIds: mediaItemIds,
                         poll: pollDraft
                     )
                 }
@@ -545,7 +587,6 @@ private extension ComposePostView {
                 generator.notificationOccurred(.success)
 
                 await MainActor.run {
-                    clearDraft()
                     dismiss()
                 }
             } catch {
@@ -563,6 +604,189 @@ private extension ComposePostView {
             .filter { !$0.isEmpty }
         guard options.count >= 2 else { return nil }
         return ClubPollDraft(options: options, closesAt: Date().addingTimeInterval(pollDurationSeconds))
+    }
+}
+
+// MARK: - Add Media To Post Sheet
+
+struct AddMediaToPostSheet: View {
+    @Binding var selectedMedia: [MediaSearchResult]
+    var accent: Color = Color.nook.primary
+    @Environment(\.dismiss) private var dismiss
+    @State private var viewModel = SearchViewModel()
+    @FocusState private var isSearchFocused: Bool
+
+    private static let maxSelection = 8
+
+    private var selectedKeys: Set<String> {
+        Set(selectedMedia.map(Self.key))
+    }
+
+    private static func key(_ item: MediaSearchResult) -> String {
+        "\(item.source)|\(item.mediaId)"
+    }
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 0) {
+                searchBar
+
+                ScrollView {
+                    LazyVStack(spacing: 0) {
+                        switch viewModel.searchState {
+                        case .idle:
+                            hint("Search for movies, shows, anime, games and more to attach.")
+                        case .loading:
+                            ProgressView().frame(maxWidth: .infinity).padding(.top, 60)
+                        case .noResults:
+                            hint("No results for \"\(viewModel.searchText)\".")
+                        case .results:
+                            ForEach(viewModel.results) { item in
+                                mediaRow(item)
+                            }
+                        }
+                    }
+                    .padding(.top, 8)
+                    .padding(.bottom, 40)
+                }
+            }
+            .background(Color.nook.searchBackground)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    Text("Add Media")
+                        .font(NookFont.labelBoldSmall)
+                        .foregroundStyle(Color.nook.clubDetailTitle)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                        .font(NookFont.labelBoldSmall)
+                        .foregroundStyle(accent)
+                }
+            }
+            .onChange(of: viewModel.searchText) { _, _ in viewModel.search() }
+            .onChange(of: viewModel.selectedFilter) { _, _ in
+                if !viewModel.searchText.isEmpty { viewModel.search() }
+            }
+            .onAppear {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { isSearchFocused = true }
+            }
+        }
+    }
+
+    private func hint(_ text: String) -> some View {
+        Text(text)
+            .font(NookFont.labelMediumSmall)
+            .foregroundStyle(Color.nook.clubDetailMeta)
+            .multilineTextAlignment(.center)
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, 40)
+            .padding(.top, 60)
+    }
+
+    private var searchBar: some View {
+        HStack(spacing: 12) {
+            Image("magnifying-glass-bold")
+                .renderingMode(.template)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 18, height: 18)
+                .foregroundStyle(Color.nook.searchBarPlaceholder)
+
+            TextField(
+                "Search media",
+                text: $viewModel.searchText,
+                prompt: Text("Search media")
+                    .font(NookFont.labelMediumSmall)
+                    .foregroundStyle(Color.nook.searchBarPlaceholder)
+            )
+            .font(NookFont.labelMediumSmall)
+            .foregroundStyle(Color.nook.searchBarText)
+            .focused($isSearchFocused)
+            .autocorrectionDisabled()
+
+            if !viewModel.searchText.isEmpty {
+                Button { viewModel.searchText = "" } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 16))
+                        .foregroundStyle(Color.nook.searchBarPlaceholder)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 16)
+        .frame(height: 44)
+        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color.nook.secondary))
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+    }
+
+    private func mediaRow(_ item: MediaSearchResult) -> some View {
+        let isAdded = selectedKeys.contains(Self.key(item))
+        let category = SearchMediaCategory.from(apiMediaType: item.mediaType)
+
+        return HStack(spacing: 16) {
+            MediaPosterImage(
+                url: item.imageURL,
+                width: 56,
+                height: 72,
+                fallbackColor: category?.dotColor.opacity(0.3) ?? Color.nook.searchShimmerBase
+            )
+
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 4) {
+                    if let cat = category {
+                        Text(cat.uppercaseLabel)
+                            .font(NookFont.tabLabel)
+                            .tracking(0.5)
+                            .foregroundStyle(cat.dotColor)
+                    }
+                    if let year = item.year {
+                        Circle().fill(Color.nook.searchSectionLabel).frame(width: 3, height: 3)
+                        Text(year)
+                            .font(NookFont.tabLabel)
+                            .tracking(0.5)
+                            .foregroundStyle(Color.nook.searchSectionLabel)
+                    }
+                }
+
+                Text(item.title)
+                    .font(NookFont.labelBold)
+                    .foregroundStyle(Color.nook.searchBarText)
+                    .lineLimit(2)
+            }
+
+            Spacer(minLength: 8)
+
+            Button {
+                toggle(item, isAdded: isAdded)
+            } label: {
+                Image(isAdded ? "check-bold" : "plus-bold")
+                    .renderingMode(.template)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 14, height: 14)
+                    .foregroundStyle(isAdded ? .white : accent)
+                    .frame(width: 36, height: 36)
+                    .background(isAdded ? accent : Color.clear, in: Circle())
+                    .overlay(Circle().strokeBorder(isAdded ? Color.clear : accent.opacity(0.5), lineWidth: 1.5))
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+    }
+
+    private func toggle(_ item: MediaSearchResult, isAdded: Bool) {
+        let generator = UIImpactFeedbackGenerator(style: .light)
+        generator.impactOccurred()
+        withAnimation(.easeOut(duration: 0.2)) {
+            if isAdded {
+                selectedMedia.removeAll { Self.key($0) == Self.key(item) }
+            } else if selectedMedia.count < Self.maxSelection {
+                selectedMedia.append(item)
+            }
+        }
     }
 }
 

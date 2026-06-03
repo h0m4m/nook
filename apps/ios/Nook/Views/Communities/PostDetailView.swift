@@ -235,6 +235,12 @@ private extension PostDetailView {
                     .padding(.horizontal, 20)
             }
 
+            if !post.attachedMedia.isEmpty {
+                ClubPostMediaStrip(media: post.attachedMedia)
+                    .padding(.top, 14)
+                    .padding(.horizontal, 20)
+            }
+
             interactionBar
                 .padding(.top, 16)
                 .padding(.horizontal, 20)

@@ -15,6 +15,7 @@ final class ClubService: Sendable {
     *, \
     user_profile:user_profiles!club_posts_user_id_user_profiles_fkey(id, full_name, username, avatar_url), \
     images:club_post_images(id, url, position), \
+    media:club_post_media(position, media_item:media_items(id, source, source_id, media_type, title, image_url, year)), \
     poll:club_post_polls(id, total_votes, closes_at, options:club_poll_options(id, text, position, votes_count))
     """
 
@@ -267,6 +268,7 @@ final class ClubService: Sendable {
         clubId: UUID,
         body: String,
         imageDatas: [Data] = [],
+        mediaItemIds: [UUID] = [],
         poll: ClubPollDraft? = nil
     ) async throws -> UUID {
         let userId = try await supabase.auth.session.user.id
@@ -311,6 +313,18 @@ final class ClubService: Sendable {
                 inserts.append(ImageInsert(post_id: postId.uuidString, url: url.absoluteString, position: index))
             }
             try await supabase.from("club_post_images").insert(inserts).execute()
+        }
+
+        if !mediaItemIds.isEmpty {
+            struct MediaInsert: Encodable {
+                let post_id: String
+                let media_item_id: String
+                let position: Int
+            }
+            let inserts = mediaItemIds.enumerated().map { index, id in
+                MediaInsert(post_id: postId.uuidString, media_item_id: id.uuidString, position: index)
+            }
+            try await supabase.from("club_post_media").insert(inserts).execute()
         }
 
         if let poll, poll.options.count >= 2 {
@@ -375,26 +389,23 @@ final class ClubService: Sendable {
         return ClubPostModel(from: row)
     }
 
-    /// Posts in a club whose body mentions the current user (`@username`).
+    /// Posts in a club that involve the current user: an @mention of my username,
+    /// a comment by someone else on my post, or a reply by someone else to my comment.
     func getMentions(clubId: UUID) async throws -> [ClubPostModel] {
-        let userId = try await supabase.auth.session.user.id
+        struct IdRow: Decodable { let post_id: UUID }
 
-        struct ProfileRow: Decodable { let username: String? }
-        let profile: ProfileRow = try await supabase
-            .from("user_profiles")
-            .select("username")
-            .eq("id", value: userId.uuidString)
-            .single()
+        let idRows: [IdRow] = try await supabase
+            .rpc("get_club_mention_post_ids", params: ["p_club_id": clubId.uuidString])
             .execute()
             .value
 
-        guard let username = profile.username, !username.isEmpty else { return [] }
+        let ids = idRows.map { $0.post_id.uuidString }
+        guard !ids.isEmpty else { return [] }
 
         let rows: [ClubPostRow] = try await supabase
             .from("club_posts")
             .select(Self.postSelect)
-            .eq("club_id", value: clubId.uuidString)
-            .ilike("body", pattern: "%@\(username)%")
+            .in("id", values: ids)
             .order("created_at", ascending: false)
             .limit(50)
             .execute()
