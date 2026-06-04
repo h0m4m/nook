@@ -167,7 +167,7 @@ private struct ReviewCard: View {
 
     private var cardHeader: some View {
         HStack(alignment: .top, spacing: 0) {
-            NavigationLink(value: UserProfile.profileFor(name: item.reviewerName)) {
+            NavigationLink(value: item.reviewerUserId.map { UserProfile.reference(id: $0, displayName: item.reviewerName) } ?? .profileFor(name: item.reviewerName)) {
                 HStack(spacing: 8) {
                     Circle()
                         .fill(Color.nook.secondary)

@@ -9,6 +9,10 @@ struct OtherProfileView: View {
     @State private var followingCount: Int = 0
     @State private var userReviews: [Review] = []
     @State private var userNooks: [NookSummary] = []
+    @State private var showReportSheet = false
+    @State private var showReportConfirmation = false
+
+    private let moderation = ModerationService()
 
     var body: some View {
         ZStack(alignment: .top) {
@@ -37,8 +41,43 @@ struct OtherProfileView: View {
         .navigationBarBackButtonHidden()
         .toolbar(.hidden, for: .navigationBar)
         .modifier(InteractivePopGesture())
+        .sheet(isPresented: $showReportSheet) {
+            ReportSheet(subject: "account") { reason, details in
+                submitReport(reason: reason, details: details)
+            }
+        }
+        .alert("Report received", isPresented: $showReportConfirmation) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("Thanks for helping keep Nook safe. We'll review this account.")
+        }
         .task {
             await loadFollowState()
+        }
+    }
+
+    private func submitReport(reason: ReportReason, details: String?) {
+        guard let userId = UUID(uuidString: profile.id) else { return }
+        Task {
+            try? await moderation.report(
+                targetType: "user",
+                targetId: userId,
+                reportedUserId: userId,
+                reason: reason,
+                details: details
+            )
+        }
+        showReportConfirmation = true
+    }
+
+    private func blockUser() {
+        guard let userId = UUID(uuidString: profile.id) else { return }
+        // Block, then dismiss. Awaiting first defers the dismiss past the menu's
+        // own dismissal — calling dismiss() synchronously inside a Menu action is
+        // swallowed while the menu is still closing.
+        Task { @MainActor in
+            await BlockStore.shared.block(userId: userId)
+            dismiss()
         }
     }
 
@@ -66,9 +105,58 @@ struct OtherProfileView: View {
 
             Spacer()
 
-            navButton(icon: "export") {}
+            // Only show moderation actions when we have a real user id to act on.
+            if UUID(uuidString: profile.id) != nil {
+                moreMenu
+            }
         }
         .padding(.horizontal, 16)
+    }
+
+    private var moreMenu: some View {
+        Menu {
+            Button(role: .destructive) {
+                showReportSheet = true
+            } label: {
+                sizedMenuLabel("Report", icon: "flag")
+            }
+
+            Button(role: .destructive) {
+                blockUser()
+            } label: {
+                sizedMenuLabel("Block user", icon: "user-minus")
+            }
+        } label: {
+            navMenuLabel(icon: "dots-three-bold")
+        }
+        .menuStyle(.button)
+        .buttonStyle(.plain)
+        .frame(width: 48, height: 48)
+        .contentShape(Rectangle())
+    }
+
+    @ViewBuilder
+    private func navMenuLabel(icon: String) -> some View {
+        if #available(iOS 26, *) {
+            Image(icon)
+                .renderingMode(.template)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 20, height: 20)
+                .foregroundStyle(.primary)
+                .frame(width: 40, height: 40)
+                .contentShape(Circle())
+                .glassEffect(.regular, in: .circle)
+        } else {
+            Image(icon)
+                .renderingMode(.template)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 20, height: 20)
+                .foregroundStyle(.primary)
+                .frame(width: 40, height: 40)
+                .background(.ultraThinMaterial, in: Circle())
+        }
     }
 
     @ViewBuilder

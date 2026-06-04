@@ -1,10 +1,13 @@
 import SwiftUI
 
 struct CreateNookSheet: View {
+    /// Media items to pre-populate the nook with (e.g. opened from a media detail's "Add to Nook").
+    let initialMedia: [MediaSearchResult]
+
     @Environment(\.dismiss) private var dismiss
     @State private var name = ""
     @State private var nookDescription = ""
-    @State private var mediaItems: [MediaSearchResult] = []
+    @State private var mediaItems: [MediaSearchResult]
     @State private var mediaNotes: [UUID: String] = [:]
     @State private var showAddMedia = false
     @State private var editingNoteItem: MediaSearchResult?
@@ -16,6 +19,11 @@ struct CreateNookSheet: View {
 
     private enum Field {
         case name, description
+    }
+
+    init(initialMedia: [MediaSearchResult] = []) {
+        self.initialMedia = initialMedia
+        self._mediaItems = State(initialValue: initialMedia)
     }
 
     private var canPublish: Bool {

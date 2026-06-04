@@ -21,6 +21,7 @@ enum ActivityFeedType: Hashable {
 
 struct ActivityFeedItem: Identifiable, Hashable {
     let id = UUID()
+    let userId: UUID?
     let userName: String
     let timeAgo: String
     let type: ActivityFeedType
@@ -35,8 +36,10 @@ struct ActivityFeedItem: Identifiable, Hashable {
         timeAgo: String,
         type: ActivityFeedType,
         likes: String? = nil,
-        comments: String? = nil
+        comments: String? = nil,
+        userId: UUID? = nil
     ) {
+        self.userId = userId
         self.userName = userName
         self.timeAgo = timeAgo
         self.type = type
@@ -45,6 +48,7 @@ struct ActivityFeedItem: Identifiable, Hashable {
     }
 
     init(from entry: ActivityFeedEntry) {
+        self.userId = entry.userId
         self.userName = entry.userName
         self.timeAgo = ""
         self.likes = nil

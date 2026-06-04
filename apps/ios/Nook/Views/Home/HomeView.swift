@@ -12,6 +12,18 @@ struct HomeView: View {
     var onAvatarTapped: () -> Void = {}
     var onNotificationsTapped: () -> Void = {}
 
+    // Blocked users are filtered out of every feed at render time, so blocking
+    // someone makes their content vanish here immediately (see BlockStore).
+    private var visibleActivity: [ActivityFeedItem] {
+        activityFeed.filter { !BlockStore.shared.isBlocked($0.userId) }
+    }
+    private var visibleTrending: [ReviewItem] {
+        trendingReviews.filter { !BlockStore.shared.isBlocked($0.reviewerUserId) }
+    }
+    private var visiblePopularNooks: [NookItem] {
+        popularNooks.filter { !BlockStore.shared.isBlocked($0.ownerUserId) }
+    }
+
     var body: some View {
         scrollContent
             .background(Color.nook.background)
@@ -58,8 +70,8 @@ struct HomeView: View {
                     .padding(.horizontal, 24)
                 }
 
-                if !activityFeed.isEmpty {
-                    ActivityFeedSection(items: activityFeed)
+                if !visibleActivity.isEmpty {
+                    ActivityFeedSection(items: visibleActivity)
                         .padding(.top, 32)
                 } else {
                     HomeEmptyCard(
@@ -71,13 +83,13 @@ struct HomeView: View {
                     .padding(.horizontal, 24)
                 }
 
-                if !trendingReviews.isEmpty {
-                    TrendingReviewsSection(items: trendingReviews)
+                if !visibleTrending.isEmpty {
+                    TrendingReviewsSection(items: visibleTrending)
                         .padding(.top, 32)
                 }
 
-                if !popularNooks.isEmpty {
-                    PopularNooksSection(items: popularNooks)
+                if !visiblePopularNooks.isEmpty {
+                    PopularNooksSection(items: visiblePopularNooks)
                         .padding(.top, 32)
                 }
             }

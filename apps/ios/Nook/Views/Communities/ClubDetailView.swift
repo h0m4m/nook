@@ -190,6 +190,7 @@ struct ClubDetailView: View {
     @State private var searchText = ""
     @State private var isMuted = false
     @State private var showReportConfirmation = false
+    @State private var showReportSheet = false
     @State private var showDeleteClubConfirmation = false
     @State private var showEditSheet = false
     @State private var isDeletingClub = false
@@ -259,10 +260,16 @@ struct ClubDetailView: View {
                 .presentationBackground(Color.nook.createClubBackground)
             }
         }
+        .sheet(isPresented: $showReportSheet) {
+            ReportSheet(subject: "club") { reason, details in
+                detailVM?.reportClub(reason: reason, details: details)
+                showReportConfirmation = true
+            }
+        }
         .alert("Report received", isPresented: $showReportConfirmation) {
             Button("OK", role: .cancel) {}
         } message: {
-            Text("Thanks for keeping the community safe. Our team will review this club.")
+            Text("Thanks for keeping the community safe. We'll review this club.")
         }
         .confirmationDialog(
             "Delete \(club.name)?",
@@ -508,8 +515,10 @@ private extension ClubDetailView {
 
     var moreMenu: some View {
         Menu {
-            ShareLink(item: shareURL) {
-                Label("Share Club", image: "export")
+            if FeatureFlags.shareEnabled {
+                ShareLink(item: shareURL) {
+                    Label("Share Club", image: "export")
+                }
             }
 
             // Owner/managers can edit club details.
@@ -534,8 +543,7 @@ private extension ClubDetailView {
             Divider()
 
             Button(role: .destructive) {
-                detailVM?.reportClub(reason: nil)
-                showReportConfirmation = true
+                showReportSheet = true
             } label: {
                 Label("Report Club", image: "warning-red")
             }

@@ -114,7 +114,7 @@ struct NotificationsView: View {
                             }
                             .buttonStyle(.plain)
                         } else {
-                            NavigationLink(value: UserProfile.profileFor(name: notif.actorName)) {
+                            NavigationLink(value: UserProfile.reference(id: notif.actorId, displayName: notif.actorName, avatarURL: notif.actorAvatarURL)) {
                                 RealNotificationRow(notification: notif)
                             }
                             .buttonStyle(.plain)

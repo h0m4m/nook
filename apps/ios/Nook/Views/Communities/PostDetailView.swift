@@ -81,8 +81,11 @@ struct PostDetailView: View {
     @State private var viewerRole: String?
     @State private var isPinned: Bool
     @State private var didLoad = false
+    @State private var showReportSheet = false
+    @State private var showReportConfirmation = false
 
     private let service = ClubService()
+    private let moderation = ModerationService()
 
     init(post: ClubPost) {
         self.post = post
@@ -137,6 +140,16 @@ struct PostDetailView: View {
             ClubCommentThreadView(root: comment, accent: accent, currentUserId: currentUserId)
         }
         .onTapGesture { isCommentFocused = false }
+        .sheet(isPresented: $showReportSheet) {
+            ReportSheet(subject: "post") { reason, details in
+                submitReport(reason: reason, details: details)
+            }
+        }
+        .alert("Report received", isPresented: $showReportConfirmation) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("Thanks for keeping the community safe. We'll review this post.")
+        }
         .task { await loadData() }
     }
 
@@ -356,13 +369,15 @@ private extension PostDetailView {
 
             Spacer()
 
-            ShareLink(item: shareURL) {
-                Image("share-network")
-                    .renderingMode(.template)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 20, height: 20)
-                    .foregroundStyle(Color.nook.clubDetailMeta)
+            if FeatureFlags.shareEnabled {
+                ShareLink(item: shareURL) {
+                    Image("share-network")
+                        .renderingMode(.template)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 20, height: 20)
+                        .foregroundStyle(Color.nook.clubDetailMeta)
+                }
             }
         }
     }
@@ -810,14 +825,32 @@ private extension PostDetailView {
 
 private extension PostDetailView {
     func reportPost() {
+        guard post.dbId != nil else { return }
+        showReportSheet = true
+    }
+
+    func submitReport(reason: ReportReason, details: String?) {
         guard let dbId = post.dbId else { return }
-        Task { try? await service.report(targetType: "post", targetId: dbId, reason: nil) }
+        Task {
+            try? await moderation.report(
+                targetType: "post",
+                targetId: dbId,
+                reportedUserId: post.userId,
+                reason: reason,
+                details: details
+            )
+        }
+        showReportConfirmation = true
     }
 
     func blockAuthor() {
         guard let userId = post.userId else { return }
-        Task { try? await service.blockUser(userId: userId) }
-        dismiss()
+        // Defer dismiss past the menu close (synchronous dismiss in a Menu action
+        // is swallowed while the menu is still dismissing).
+        Task { @MainActor in
+            await BlockStore.shared.block(userId: userId)
+            dismiss()
+        }
     }
 
     func togglePin() {

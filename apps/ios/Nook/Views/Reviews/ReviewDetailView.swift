@@ -57,6 +57,9 @@ struct ReviewDetailView: View {
     @State private var replyingToId: UUID?
     @State private var sortOrder: CommentSort = .top
     @State private var currentUserId: UUID?
+    @State private var showReportConfirmation = false
+    @State private var showReportSheet = false
+    private let moderation = ModerationService()
 
     init(review: ReviewItem) {
         self.review = review
@@ -85,8 +88,24 @@ struct ReviewDetailView: View {
         }
         .background(Color.nook.reviewDetailBackground)
         .modifier(
-            ReviewDetailTopBar(onBack: { dismiss() }, canDelete: canDelete, onDelete: deleteReview)
+            ReviewDetailTopBar(
+                onBack: { dismiss() },
+                canDelete: canDelete,
+                onDelete: deleteReview,
+                onReport: reportReview,
+                onBlock: blockReviewAuthor
+            )
         )
+        .sheet(isPresented: $showReportSheet) {
+            ReportSheet(subject: "review") { reason, details in
+                submitReport(reason: reason, details: details)
+            }
+        }
+        .alert("Report received", isPresented: $showReportConfirmation) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("Thanks for helping keep Nook safe. We'll review this.")
+        }
         .navigationBarBackButtonHidden()
         .toolbar(.hidden, for: .navigationBar)
         .modifier(InteractivePopGesture())
@@ -115,6 +134,42 @@ struct ReviewDetailView: View {
         guard let dbId = review.dbId else { return }
         Task { try? await ReviewService().deleteReview(reviewId: dbId) }
         dismiss()
+    }
+
+    /// Plain-text share payload. We don't have a web app, so sharing a URL would
+    /// just produce a dead link — share a readable description instead.
+    private var shareText: String {
+        let title = review.title.isEmpty ? review.mediaTitle : "\(review.title) — \(review.mediaTitle)"
+        return "\(review.reviewerName)'s review of \(title) on Nook"
+    }
+
+    private func reportReview() {
+        guard review.dbId != nil else { return }
+        showReportSheet = true
+    }
+
+    private func submitReport(reason: ReportReason, details: String?) {
+        guard let dbId = review.dbId else { return }
+        Task {
+            try? await moderation.report(
+                targetType: "review",
+                targetId: dbId,
+                reportedUserId: review.reviewerUserId,
+                reason: reason,
+                details: details
+            )
+        }
+        showReportConfirmation = true
+    }
+
+    private func blockReviewAuthor() {
+        guard let userId = review.reviewerUserId else { return }
+        // Defer dismiss past the menu close (synchronous dismiss in a Menu action
+        // is swallowed while the menu is still dismissing).
+        Task { @MainActor in
+            await BlockStore.shared.block(userId: userId)
+            dismiss()
+        }
     }
     private func ratingLabel(for rating: Double) -> String {
         ProfileReviewCard.ratingLabel(for: rating)
@@ -379,17 +434,17 @@ private extension ReviewDetailView {
             Spacer()
 
             // Share
-            Button {
-                // TODO: Share sheet
-            } label: {
-                Image("share-network")
-                    .renderingMode(.template)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 20, height: 20)
-                    .foregroundStyle(Color.nook.reviewDetailMeta)
+            if FeatureFlags.shareEnabled {
+                ShareLink(item: shareText) {
+                    Image("share-network")
+                        .renderingMode(.template)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 20, height: 20)
+                        .foregroundStyle(Color.nook.reviewDetailMeta)
+                }
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
         }
     }
 }
@@ -942,6 +997,8 @@ private struct ReviewDetailTopBar: ViewModifier {
     let onBack: () -> Void
     var canDelete: Bool = false
     var onDelete: () -> Void = {}
+    var onReport: () -> Void = {}
+    var onBlock: () -> Void = {}
 
     func body(content: Content) -> some View {
         if #available(iOS 26, *) {
@@ -983,21 +1040,17 @@ private struct ReviewDetailTopBar: ViewModifier {
             Spacer()
 
             Menu {
-                Button(role: .destructive) {
-                    // TODO: Report review
-                } label: {
-                    sizedMenuLabel("Report", icon: "flag")
-                }
-
-                Button {
-                    // TODO: Block user
-                } label: {
-                    sizedMenuLabel("Block user", icon: "user-minus")
-                }
-
                 if canDelete {
                     Button(role: .destructive, action: onDelete) {
                         sizedMenuLabel("Delete review", icon: "trash")
+                    }
+                } else {
+                    Button(role: .destructive, action: onReport) {
+                        sizedMenuLabel("Report", icon: "flag")
+                    }
+
+                    Button(action: onBlock) {
+                        sizedMenuLabel("Block user", icon: "user-minus")
                     }
                 }
             } label: {

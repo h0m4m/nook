@@ -48,7 +48,10 @@ struct MediaDetailLoadingView: View {
             trackingStatus: nil,
             reviews: [],
             recommendations: viewModel.recommendations,
-            dbId: viewModel.dbId
+            dbId: viewModel.dbId,
+            source: viewModel.route.source,
+            mediaId: viewModel.route.mediaId,
+            mediaType: viewModel.route.mediaType
         )
     }
 }

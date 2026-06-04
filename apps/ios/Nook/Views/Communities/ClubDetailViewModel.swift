@@ -10,7 +10,6 @@ final class ClubDetailViewModel {
     var mentions: [ClubPostModel] = []
     var members: [ClubMemberRow] = []
     var likedPostIds: Set<UUID> = []
-    var blockedUserIds: Set<UUID> = []
     var isMember = false
     var isMuted = false
     var hasPendingInvite = false
@@ -24,6 +23,7 @@ final class ClubDetailViewModel {
     var hasMorePosts = true
 
     private let clubService = ClubService()
+    private let moderation = ModerationService()
     let clubId: UUID
 
     init(clubId: UUID) {
@@ -68,15 +68,15 @@ final class ClubDetailViewModel {
 
     /// Posts excluding those authored by blocked users.
     var visiblePosts: [ClubPostModel] {
-        posts.filter { !blockedUserIds.contains($0.userId) }
+        posts.filter { !BlockStore.shared.blockedUserIds.contains($0.userId) }
     }
 
     var visibleMentions: [ClubPostModel] {
-        mentions.filter { !blockedUserIds.contains($0.userId) }
+        mentions.filter { !BlockStore.shared.blockedUserIds.contains($0.userId) }
     }
 
     var visibleMembers: [ClubMemberRow] {
-        members.filter { !blockedUserIds.contains($0.userId) }
+        members.filter { !BlockStore.shared.blockedUserIds.contains($0.userId) }
     }
 
     /// Pinned posts, shown first in the feed with a badge.
@@ -110,7 +110,6 @@ final class ClubDetailViewModel {
             role = membership?.role
             isMuted = membership?.notificationsMuted ?? false
             members = try await membersResult
-            blockedUserIds = (try? await clubService.getBlockedUserIds()) ?? []
             if !isMember {
                 hasPendingInvite = (try? await clubService.hasPendingInvite(clubId: clubId)) ?? false
             }
@@ -332,15 +331,18 @@ final class ClubDetailViewModel {
     }
 
     func blockUser(_ userId: UUID) {
-        blockedUserIds.insert(userId)
-        Task {
-            try? await clubService.blockUser(userId: userId)
-        }
+        Task { await BlockStore.shared.block(userId: userId) }
     }
 
-    func reportClub(reason: String?) {
+    func reportClub(reason: ReportReason, details: String?) {
         Task {
-            try? await clubService.report(targetType: "club", targetId: clubId, reason: reason)
+            try? await moderation.report(
+                targetType: "club",
+                targetId: clubId,
+                reportedUserId: nil,
+                reason: reason,
+                details: details
+            )
         }
     }
 }

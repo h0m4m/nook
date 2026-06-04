@@ -30,6 +30,7 @@
 		6D58DF4AD9876C5ED6C3862A /* AppRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BC8194956769B7D778E9F0A /* AppRouter.swift */; };
 		6E2D73EBDDEE4DA6207550BF /* InMemoryCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7B6F6AD6CD4D84DD3F875E9 /* InMemoryCache.swift */; };
 		75BDD51344A68DBC981E1640 /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A63E2633397AA4E21A7BD212 /* NotificationService.swift */; };
+		AA01AA01AA01AA01AA01AA01 /* Moderation.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB02BB02BB02BB02BB02BB02 /* Moderation.swift */; };
 		77C5FE341F1BB1D2B6F2BF60 /* NookService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6AF20BA9D38FCF037278411 /* NookService.swift */; };
 		7AD0E66260A95DAE57C2730A /* MediaDetailRoute.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5883C29336BCC3D35FC8074 /* MediaDetailRoute.swift */; };
 		7C81B47EC64E6781300C9068 /* ClubPost.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D88F9FD9F442983295DD648 /* ClubPost.swift */; };
@@ -141,6 +142,7 @@
 		9C1E1BD95458B81859177F14 /* TrackedMedia.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TrackedMedia.swift; sourceTree = "<group>"; };
 		A4B7743F9C3F4A9DA5DE4D00 /* PlusJakartaSans-Italic.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "PlusJakartaSans-Italic.ttf"; sourceTree = "<group>"; };
 		A63E2633397AA4E21A7BD212 /* NotificationService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NotificationService.swift; sourceTree = "<group>"; };
+		BB02BB02BB02BB02BB02BB02 /* Moderation.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = Moderation.swift; sourceTree = "<group>"; };
 		A7C606984A2F158496A5A281 /* NookDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NookDetailView.swift; sourceTree = "<group>"; };
 		ACT1V1TYFD1234567890AB02 /* ActivityFeedSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivityFeedSection.swift; sourceTree = "<group>"; };
 		AD7EDC639242E213297A4E3B /* NookTextField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NookTextField.swift; sourceTree = "<group>"; };
@@ -264,6 +266,7 @@
 				F6AF20BA9D38FCF037278411 /* NookService.swift */,
 				1EF71350ECDD35D121FC2B7F /* ProfileService.swift */,
 				A63E2633397AA4E21A7BD212 /* NotificationService.swift */,
+				BB02BB02BB02BB02BB02BB02 /* Moderation.swift */,
 				6D6D834D5C1CD2D41B12DAA5 /* StorageService.swift */,
 				B7B2DCE8D67C87C423A9C43A /* ActivityFeedService.swift */,
 			);
@@ -602,6 +605,7 @@
 				77C5FE341F1BB1D2B6F2BF60 /* NookService.swift in Sources */,
 				A0B8C120E8ECCB7041FF8105 /* ProfileService.swift in Sources */,
 				75BDD51344A68DBC981E1640 /* NotificationService.swift in Sources */,
+				AA01AA01AA01AA01AA01AA01 /* Moderation.swift in Sources */,
 				42E0FF185893CEDE141E57A4 /* StorageService.swift in Sources */,
 				83378889CD3F189814C32FF7 /* ActivityFeedService.swift in Sources */,
 				FA4769027ED8381670B61848 /* SearchViewModel.swift in Sources */,

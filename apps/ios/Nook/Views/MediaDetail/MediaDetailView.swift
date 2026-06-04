@@ -34,6 +34,11 @@ struct MediaDetail: Identifiable, Hashable {
     let reviews: [MediaReview]
     let recommendations: [MediaSearchResult]
     let dbId: UUID?
+    /// Source identity (provider, source-specific id, API media type) — used to
+    /// rebuild a `MediaSearchResult` for flows like "Add to Nook".
+    let source: String?
+    let mediaId: String?
+    let mediaType: String?
 
     init(
         title: String,
@@ -57,7 +62,10 @@ struct MediaDetail: Identifiable, Hashable {
         trackingStatus: TrackingStatus? = .inProgress,
         reviews: [MediaReview] = [],
         recommendations: [MediaSearchResult] = [],
-        dbId: UUID? = nil
+        dbId: UUID? = nil,
+        source: String? = nil,
+        mediaId: String? = nil,
+        mediaType: String? = nil
     ) {
         self.title = title
         self.year = year
@@ -81,12 +89,30 @@ struct MediaDetail: Identifiable, Hashable {
         self.reviews = reviews
         self.recommendations = recommendations
         self.dbId = dbId
+        self.source = source
+        self.mediaId = mediaId
+        self.mediaType = mediaType
     }
 
 
     var progress: Double {
         guard totalEpisodes > 0 else { return 0 }
         return Double(currentEpisode) / Double(totalEpisodes)
+    }
+
+    /// Rebuild a `MediaSearchResult` from this detail's source identity.
+    /// Returns nil when the source identity is unavailable (e.g. mock data).
+    var asSearchResult: MediaSearchResult? {
+        guard let source, let mediaId, let mediaType else { return nil }
+        return MediaSearchResult(
+            mediaId: mediaId,
+            source: source,
+            mediaType: mediaType,
+            title: title,
+            imageURL: imageURL,
+            year: year.isEmpty ? nil : year,
+            score: rating > 0 ? rating : nil
+        )
     }
 }
 
@@ -147,12 +173,17 @@ struct MediaDetailView: View {
 
     /// The authoritative DB identifier — prefers the overridden value.
     private var dbId: UUID? { resolvedDbId ?? media.dbId }
+
+    /// Reviews with blocked authors filtered out (instant on block — see BlockStore).
+    private var visibleReviews: [Review] {
+        loadedReviews.filter { !BlockStore.shared.isBlocked($0.userId) }
+    }
     @Environment(\.dismiss) private var dismiss
     @State private var selectedTab: MediaDetailTab = .about
     @State private var isTracking: Bool
     @State private var isRated = false
     @State private var isReviewed = false
-    @State private var isInNook = false
+    @State private var showAddToNookSheet = false
     @State private var showTrackingSheet = false
     @State private var showReviewSheet = false
     @State private var selectedStatus: TrackingStatus?
@@ -212,7 +243,7 @@ struct MediaDetailView: View {
                 }
             }
         }
-        .modifier(DetailTopBar(onDismiss: { dismiss() }))
+        .modifier(DetailTopBar(onDismiss: { dismiss() }, shareItem: "Check out \"\(media.title)\" on Nook"))
         .background(Color.nook.detailBackground.ignoresSafeArea())
         .navigationBarBackButtonHidden()
         .toolbar(.hidden, for: .navigationBar)
@@ -237,6 +268,13 @@ struct MediaDetailView: View {
             .presentationDetents([.large])
             .presentationDragIndicator(.visible)
             .presentationBackground(Color.nook.detailBackground)
+        }
+        .sheet(isPresented: $showAddToNookSheet) {
+            CreateNookSheet(initialMedia: media.asSearchResult.map { [$0] } ?? [])
+                .presentationDetents([.large])
+                .presentationDragIndicator(.hidden)
+                .presentationBackground(Color.nook.detailBackground)
+                .interactiveDismissDisabled()
         }
         .sheet(isPresented: $showReviewSheet, onDismiss: {
             reviewsLoadToken = UUID()
@@ -687,15 +725,25 @@ private extension MediaDetailView {
 
             reviewSheetButton
 
-            actionButton(
-                activeIcon: "folders-fill",
-                inactiveIcon: "folders",
-                activeLabel: "In Nook",
-                inactiveLabel: "Add to Nook",
-                isActive: $isInNook
-            )
+            addToNookButton
         }
         .padding(.vertical, 8)
+    }
+
+    private var addToNookButton: some View {
+        Button {
+            showAddToNookSheet = true
+        } label: {
+            VStack(spacing: 6) {
+                actionIcon(icon: "folders", isActive: false, fgColor: Color.nook.detailTitle)
+
+                Text("Add to Nook")
+                    .font(.custom("PlusJakartaSans-SemiBold", size: 11))
+                    .foregroundStyle(Color.nook.detailActionLabel)
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.plain)
     }
 
     private var reviewSheetButton: some View {
@@ -732,31 +780,6 @@ private extension MediaDetailView {
         } label: {
             VStack(spacing: 6) {
                 actionIcon(icon: resolvedIcon, isActive: isActive, fgColor: fgColor)
-
-                Text(resolvedLabel)
-                    .font(.custom("PlusJakartaSans-SemiBold", size: 11))
-                    .foregroundStyle(labelColor)
-            }
-            .frame(maxWidth: .infinity)
-        }
-        .buttonStyle(.plain)
-    }
-
-    @ViewBuilder
-    func actionButton(activeIcon: String, inactiveIcon: String, activeLabel: String, inactiveLabel: String, isActive: Binding<Bool>) -> some View {
-        let active = isActive.wrappedValue
-        let resolvedIcon = active ? activeIcon : inactiveIcon
-        let resolvedLabel = active ? activeLabel : inactiveLabel
-        let fgColor = active ? Color.nook.detailActionActiveLabel : Color.nook.detailTitle
-        let labelColor = active ? Color.nook.detailActionActiveLabel : Color.nook.detailActionLabel
-
-        Button {
-            withAnimation(.easeOut(duration: 0.2)) {
-                isActive.wrappedValue.toggle()
-            }
-        } label: {
-            VStack(spacing: 6) {
-                actionIcon(icon: resolvedIcon, isActive: active, fgColor: fgColor)
 
                 Text(resolvedLabel)
                     .font(.custom("PlusJakartaSans-SemiBold", size: 11))
@@ -928,7 +951,7 @@ private extension MediaDetailView {
                 ForEach(0..<3, id: \.self) { _ in
                     SearchShimmerRow()
                 }
-            } else if loadedReviews.isEmpty {
+            } else if visibleReviews.isEmpty {
                 VStack(spacing: 12) {
                     Text("No reviews yet")
                         .font(NookFont.labelBold)
@@ -940,7 +963,7 @@ private extension MediaDetailView {
                 .frame(maxWidth: .infinity)
                 .padding(.top, 40)
             } else {
-                ForEach(loadedReviews) { review in
+                ForEach(visibleReviews) { review in
                     NavigationLink(value: ReviewItem(from: review)) {
                         loadedReviewCard(review)
                     }
@@ -2506,6 +2529,7 @@ private struct RichTextEditorView: View {
 
 private struct DetailTopBar: ViewModifier {
     let onDismiss: () -> Void
+    var shareItem: String = "Check out this title on Nook"
 
     func body(content: Content) -> some View {
         if #available(iOS 26, *) {
@@ -2557,36 +2581,34 @@ private struct DetailTopBar: ViewModifier {
 
             Spacer()
 
-            if #available(iOS 26, *) {
-                Button {
-                    // TODO: More options
-                } label: {
-                    Image("export")
-                        .renderingMode(.template)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: 18, height: 18)
-                        .foregroundStyle(.primary)
-                        .frame(width: 34, height: 34)
+            if FeatureFlags.shareEnabled {
+                if #available(iOS 26, *) {
+                    ShareLink(item: shareItem) {
+                        Image("export")
+                            .renderingMode(.template)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 18, height: 18)
+                            .foregroundStyle(.primary)
+                            .frame(width: 34, height: 34)
+                    }
+                    .buttonStyle(.plain)
+                    .glassEffect(.regular.interactive(), in: .circle)
+                } else {
+                    ShareLink(item: shareItem) {
+                        Image("export")
+                            .renderingMode(.template)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 18, height: 18)
+                            .foregroundStyle(Color.nook.detailTitle)
+                            .frame(width: 34, height: 34)
+                            .background(Color.nook.headerIconBackground)
+                            .clipShape(Circle())
+                            .overlay(Circle().stroke(Color.nook.headerIconBorder, lineWidth: 1))
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
-                .glassEffect(.regular.interactive(), in: .circle)
-            } else {
-                Button {
-                    // TODO: More options
-                } label: {
-                    Image("export")
-                        .renderingMode(.template)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: 18, height: 18)
-                        .foregroundStyle(Color.nook.detailTitle)
-                        .frame(width: 34, height: 34)
-                        .background(Color.nook.headerIconBackground)
-                        .clipShape(Circle())
-                        .overlay(Circle().stroke(Color.nook.headerIconBorder, lineWidth: 1))
-                }
-                .buttonStyle(.plain)
             }
         }
         .padding(.horizontal, 20)

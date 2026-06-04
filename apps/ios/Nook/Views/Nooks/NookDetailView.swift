@@ -55,7 +55,11 @@ struct NookDetailView: View {
     @State private var sortOrder: CommentSort = .top
     @State private var currentUserId: UUID?
     @State private var showDeleteConfirm = false
+    @State private var showReportSheet = false
+    @State private var showReportConfirmation = false
     @FocusState private var isCommentFocused: Bool
+
+    private let moderation = ModerationService()
 
     init(nook: NookItem) {
         self._nook = State(initialValue: nook)
@@ -101,6 +105,16 @@ struct NookDetailView: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("This permanently removes the nook and all its items. This can't be undone.")
+        }
+        .sheet(isPresented: $showReportSheet) {
+            ReportSheet(subject: "nook") { reason, details in
+                submitReport(reason: reason, details: details)
+            }
+        }
+        .alert("Report received", isPresented: $showReportConfirmation) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("Thanks for helping keep Nook safe. We'll review this nook.")
         }
         .task {
             await loadDetail()
@@ -241,8 +255,6 @@ struct NookDetailView: View {
 
             Spacer()
 
-            heroButton(icon: "heart", action: toggleLike)
-
             trailingButton
         }
         .padding(.horizontal, 16)
@@ -252,8 +264,10 @@ struct NookDetailView: View {
     private var trailingButton: some View {
         if isOwner {
             heroMenu {
-                ShareLink(item: shareText) {
-                    Label("Share", systemImage: "square.and.arrow.up")
+                if FeatureFlags.shareEnabled {
+                    ShareLink(item: shareText) {
+                        Label("Share", systemImage: "square.and.arrow.up")
+                    }
                 }
 
                 Button(role: .destructive) {
@@ -265,36 +279,50 @@ struct NookDetailView: View {
                 heroButtonLabel(icon: "dots-three-bold", isHeartFilled: false)
             }
         } else {
-            ShareLink(item: shareText) {
-                heroButtonLabel(icon: "export", isHeartFilled: false)
+            heroMenu {
+                Button(role: .destructive) {
+                    showReportSheet = true
+                } label: {
+                    sizedMenuLabel("Report nook", icon: "flag")
+                }
+
+                Button(role: .destructive) {
+                    blockOwner()
+                } label: {
+                    sizedMenuLabel("Block user", icon: "user-minus")
+                }
+            } label: {
+                heroButtonLabel(icon: "dots-three-bold", isHeartFilled: false)
             }
-            .buttonStyle(.plain)
+        }
+    }
+
+    private func submitReport(reason: ReportReason, details: String?) {
+        guard let dbId = nook.dbId else { return }
+        Task {
+            try? await moderation.report(
+                targetType: "nook",
+                targetId: dbId,
+                reportedUserId: nook.ownerUserId,
+                reason: reason,
+                details: details
+            )
+        }
+        showReportConfirmation = true
+    }
+
+    private func blockOwner() {
+        guard let userId = nook.ownerUserId else { return }
+        // Defer dismiss past the menu close (synchronous dismiss in a Menu action
+        // is swallowed while the menu is still dismissing).
+        Task { @MainActor in
+            await BlockStore.shared.block(userId: userId)
+            dismiss()
         }
     }
 
     private var shareText: String {
         "Check out \"\(nook.title)\" on Nook"
-    }
-
-    private func toggleLike() {
-        let generator = UIImpactFeedbackGenerator(style: .light)
-        generator.prepare()
-        let wasLiked = isLiked
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-            isLiked.toggle()
-            likeCount += wasLiked ? -1 : 1
-        }
-        generator.impactOccurred()
-
-        guard let dbId = nook.dbId else { return }
-        Task {
-            let service = NookService()
-            if wasLiked {
-                try? await service.unlikeNook(nookId: dbId)
-            } else {
-                try? await service.likeNook(nookId: dbId)
-            }
-        }
     }
 
     @ViewBuilder

@@ -16,11 +16,15 @@ struct DiscoverNooksView: View {
         GridItem(.flexible(), spacing: 16),
     ]
 
+    private var visibleNooks: [NookSummary] {
+        nooks.filter { !BlockStore.shared.isBlocked($0.userId) }
+    }
+
     var body: some View {
         ScrollView {
             if isLoading {
                 loadingGrid
-            } else if nooks.isEmpty {
+            } else if visibleNooks.isEmpty {
                 SearchEmptyState(
                     icon: "squares-four-fill",
                     title: "No nooks to discover yet",
@@ -29,7 +33,7 @@ struct DiscoverNooksView: View {
                 .padding(.top, 40)
             } else {
                 LazyVGrid(columns: columns, spacing: 20) {
-                    ForEach(nooks) { summary in
+                    ForEach(visibleNooks) { summary in
                         NavigationLink(value: NookItem(from: summary)) {
                             DiscoverNookCard(summary: summary)
                         }

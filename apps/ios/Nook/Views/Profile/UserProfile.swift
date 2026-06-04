@@ -160,6 +160,30 @@ extension UserProfile {
             isCurrentUser: false
         )
     }
+
+    /// A lightweight profile that carries the user's REAL id, for navigation.
+    /// `OtherProfileView` loads the rest (follow state, reviews, nooks) from the id,
+    /// and moderation/follow actions require this real id — never use
+    /// `profileFor(name:)` for navigation to a real account, since its id is a
+    /// name-derived slug, not a UUID.
+    static func reference(id: UUID, displayName: String, avatarURL: URL? = nil) -> UserProfile {
+        UserProfile(
+            id: id.uuidString,
+            displayName: displayName,
+            username: "@\(displayName.lowercased().replacingOccurrences(of: " ", with: ""))",
+            bio: "",
+            avatarURL: avatarURL,
+            followersCount: 0,
+            followingCount: 0,
+            trackedMedia: 0,
+            reviewsWritten: 0,
+            curatedNooks: 0,
+            clubs: 0,
+            tasteIdentity: [],
+            recentActivity: [],
+            isCurrentUser: false
+        )
+    }
 }
 
 // MARK: - Empty State

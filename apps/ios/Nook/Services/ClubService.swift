@@ -874,61 +874,6 @@ final class ClubService: Sendable {
             .execute()
     }
 
-    // MARK: - Moderation
-
-    func report(targetType: String, targetId: UUID, reason: String?) async throws {
-        let userId = try await supabase.auth.session.user.id
-
-        struct ReportInsert: Encodable {
-            let reporter_id: String
-            let target_type: String
-            let target_id: String
-            let reason: String?
-        }
-
-        try await supabase
-            .from("reports")
-            .insert(ReportInsert(
-                reporter_id: userId.uuidString,
-                target_type: targetType,
-                target_id: targetId.uuidString,
-                reason: reason
-            ))
-            .execute()
-    }
-
-    func blockUser(userId blockedId: UUID) async throws {
-        let userId = try await supabase.auth.session.user.id
-
-        struct BlockInsert: Encodable {
-            let blocker_id: String
-            let blocked_id: String
-        }
-
-        try await supabase
-            .from("user_blocks")
-            .insert(BlockInsert(
-                blocker_id: userId.uuidString,
-                blocked_id: blockedId.uuidString
-            ))
-            .execute()
-    }
-
-    func getBlockedUserIds() async throws -> Set<UUID> {
-        let userId = try await supabase.auth.session.user.id
-
-        struct Row: Decodable { let blocked_id: UUID }
-
-        let rows: [Row] = try await supabase
-            .from("user_blocks")
-            .select("blocked_id")
-            .eq("blocker_id", value: userId.uuidString)
-            .execute()
-            .value
-
-        return Set(rows.map(\.blocked_id))
-    }
-
     // MARK: - Notifications (best-effort)
 
     private func notifyPostOwner(postId: UUID, actorId: UUID, type: String) async {

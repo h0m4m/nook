@@ -23,6 +23,7 @@ struct SettingsView: View {
     @State private var showNotificationsSheet = false
     @State private var showAboutSheet = false
     @State private var showMailCompose = false
+    @State private var showBlockedAccounts = false
 
     // MARK: - Export
 
@@ -124,6 +125,9 @@ struct SettingsView: View {
                 .presentationDetents([.large])
                 .presentationDragIndicator(.hidden)
                 .presentationBackground(Color.nook.settingsBackground)
+        }
+        .sheet(isPresented: $showBlockedAccounts) {
+            BlockedAccountsView()
         }
         .sheet(isPresented: $showAboutSheet) {
             AboutSheet(appVersion: appVersion, buildNumber: buildNumber)
@@ -232,6 +236,16 @@ struct SettingsView: View {
                     subtitle: pushNotificationsEnabled ? "On" : "Off"
                 ) {
                     showNotificationsSheet = true
+                }
+
+                settingsDivider
+
+                settingsRow(
+                    icon: "user-minus",
+                    label: "Blocked Accounts",
+                    subtitle: "Manage who you've blocked"
+                ) {
+                    showBlockedAccounts = true
                 }
             }
         }

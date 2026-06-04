@@ -30,6 +30,13 @@ struct RootView: View {
         .task {
             router.startListening()
         }
+        .task(id: router.currentScreen) {
+            // Load the blocked-users set once the user reaches the app proper, so
+            // content lists can filter blocked people out immediately.
+            if router.currentScreen == .home {
+                await BlockStore.shared.refresh()
+            }
+        }
     }
 }
 

@@ -1,6 +1,13 @@
 import GoogleSignIn
 import SwiftUI
 
+/// App-wide feature toggles.
+enum FeatureFlags {
+    /// Content sharing is hidden until we have a real share destination (e.g. a
+    /// web app / universal links). The share UI is kept in code, just not shown.
+    static let shareEnabled = false
+}
+
 @main
 struct NookApp: App {
     @AppStorage("appColorScheme") private var appColorScheme: AppColorScheme = .system
