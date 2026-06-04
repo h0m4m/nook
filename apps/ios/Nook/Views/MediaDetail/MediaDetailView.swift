@@ -1150,8 +1150,8 @@ private extension MediaDetailView {
                 .padding(.top, 12)
                 .padding(.horizontal, 21)
 
-            // Review body
-            Text("\"\(review.body)\"")
+            // Review body (Markdown rendered)
+            Text(markdownAttributed(review.body))
                 .font(NookFont.labelMediumSmall)
                 .foregroundStyle(Color.nook.detailReviewBody)
                 .lineSpacing(6)

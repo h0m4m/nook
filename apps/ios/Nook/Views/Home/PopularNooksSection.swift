@@ -216,10 +216,6 @@ struct NookCard: View {
         .frame(width: width, alignment: .leading)
         .background(Color.nook.card)
         .clipShape(RoundedRectangle(cornerRadius: NookRadii.lg, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: NookRadii.lg, style: .continuous)
-                .stroke(Color.nook.border, lineWidth: 1)
-        )
     }
 
     // Posters of the media inside the nook, lined up like a shelf.

@@ -802,8 +802,8 @@ struct ProfileReviewCard: View {
             .padding(.top, 21)
             .padding(.horizontal, 21)
 
-            // Content
-            Text(content)
+            // Content (Markdown rendered)
+            Text(markdownAttributed(content))
                 .font(NookFont.labelMediumSmall)
                 .foregroundStyle(Color.nook.reviewBody)
                 .lineSpacing(6)
@@ -1000,8 +1000,8 @@ struct ProfilePostCard: View {
             .padding(.top, 21)
             .padding(.horizontal, 21)
 
-            // Content
-            Text(content)
+            // Content (Markdown rendered)
+            Text(markdownAttributed(content))
                 .font(NookFont.labelMediumSmall)
                 .foregroundStyle(Color.nook.cardTitle)
                 .lineSpacing(6)

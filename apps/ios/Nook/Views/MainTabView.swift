@@ -57,6 +57,12 @@ struct MainTabView: View {
                             },
                             onNotificationsTapped: {
                                 navPath.append(NotificationsRoute())
+                            },
+                            onStartTracking: {
+                                selectedTab = .search
+                            },
+                            onSeeAllTracking: {
+                                selectedTab = .library
                             }
                         )
                     case .search:

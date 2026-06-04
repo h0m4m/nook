@@ -11,11 +11,6 @@ struct DiscoverNooksView: View {
     @State private var nooks: [NookSummary] = []
     @State private var isLoading = true
 
-    private let columns = [
-        GridItem(.flexible(), spacing: 16),
-        GridItem(.flexible(), spacing: 16),
-    ]
-
     private var visibleNooks: [NookSummary] {
         nooks.filter { !BlockStore.shared.isBlocked($0.userId) }
     }
@@ -23,7 +18,7 @@ struct DiscoverNooksView: View {
     var body: some View {
         ScrollView {
             if isLoading {
-                loadingGrid
+                loadingList
             } else if visibleNooks.isEmpty {
                 SearchEmptyState(
                     icon: "squares-four-fill",
@@ -32,10 +27,10 @@ struct DiscoverNooksView: View {
                 )
                 .padding(.top, 40)
             } else {
-                LazyVGrid(columns: columns, spacing: 20) {
+                LazyVStack(spacing: 16) {
                     ForEach(visibleNooks) { summary in
                         NavigationLink(value: NookItem(from: summary)) {
-                            DiscoverNookCard(summary: summary)
+                            NookCard(item: NookItem(from: summary), width: nil)
                         }
                         .buttonStyle(.plain)
                     }
@@ -62,111 +57,34 @@ struct DiscoverNooksView: View {
         isLoading = false
     }
 
-    private var loadingGrid: some View {
-        LazyVGrid(columns: columns, spacing: 20) {
-            ForEach(0..<6, id: \.self) { _ in
-                VStack(alignment: .leading, spacing: 8) {
-                    RoundedRectangle(cornerRadius: NookRadii.sm, style: .continuous)
-                        .fill(Color.nook.searchShimmerBase)
-                        .aspectRatio(402.0 / 394.0, contentMode: .fit)
+    private var loadingList: some View {
+        LazyVStack(spacing: 16) {
+            ForEach(0..<5, id: \.self) { _ in
+                VStack(alignment: .leading, spacing: 14) {
+                    HStack(spacing: 8) {
+                        ForEach(0..<4, id: \.self) { _ in
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .fill(Color.nook.searchShimmerBase)
+                                .frame(width: 60, height: 90)
+                        }
+                        Spacer(minLength: 0)
+                    }
 
                     RoundedRectangle(cornerRadius: 4)
                         .fill(Color.nook.searchShimmerBase)
-                        .frame(height: 14)
+                        .frame(height: 18)
                     RoundedRectangle(cornerRadius: 4)
                         .fill(Color.nook.searchShimmerBase)
-                        .frame(width: 90, height: 12)
+                        .frame(width: 120, height: 12)
                 }
+                .padding(16)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.nook.card)
+                .clipShape(RoundedRectangle(cornerRadius: NookRadii.lg, style: .continuous))
             }
         }
         .padding(.horizontal, 24)
         .padding(.top, 8)
-    }
-}
-
-// MARK: - Card
-
-private struct DiscoverNookCard: View {
-    let summary: NookSummary
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            posterShelf
-
-            Text(summary.name)
-                .font(NookFont.labelBoldSmall)
-                .foregroundStyle(Color.nook.cardTitle)
-                .lineLimit(2)
-                .multilineTextAlignment(.leading)
-
-            HStack(spacing: 6) {
-                Text(summary.ownerName.map { "by \($0)" } ?? "")
-                    .font(NookFont.caption)
-                    .foregroundStyle(Color.nook.cardSubtitle)
-                    .lineLimit(1)
-
-                Spacer(minLength: 0)
-
-                if summary.likesCount > 0 {
-                    Image("heart-fill")
-                        .renderingMode(.template)
-                        .resizable()
-                        .frame(width: 11, height: 11)
-                        .foregroundStyle(Color.nook.cardSubtitle)
-                    Text("\(summary.likesCount)")
-                        .font(NookFont.caption)
-                        .foregroundStyle(Color.nook.cardSubtitle)
-                }
-
-                Text("\(summary.itemCount)")
-                    .font(NookFont.caption)
-                    .foregroundStyle(Color.nook.cardSubtitle)
-                Image("squares-four-fill")
-                    .renderingMode(.template)
-                    .resizable()
-                    .frame(width: 11, height: 11)
-                    .foregroundStyle(Color.nook.cardSubtitle)
-            }
-        }
-    }
-
-    // Posters of the media inside the nook, lined up like a shelf.
-    private var posterShelf: some View {
-        HStack(spacing: 6) {
-            let posters = Array(summary.previewImageURLs.prefix(3))
-            if posters.isEmpty {
-                ForEach(0..<3, id: \.self) { _ in
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(Color.nook.searchShimmerBase)
-                        .aspectRatio(2.0 / 3.0, contentMode: .fit)
-                        .frame(maxWidth: .infinity)
-                }
-            } else {
-                ForEach(Array(posters.enumerated()), id: \.offset) { _, url in
-                    Color.clear
-                        .aspectRatio(2.0 / 3.0, contentMode: .fit)
-                        .overlay {
-                            AsyncImage(url: url) { phase in
-                                switch phase {
-                                case .success(let image): image.resizable().scaledToFill()
-                                default: Color.nook.searchShimmerBase
-                                }
-                            }
-                        }
-                        .frame(maxWidth: .infinity)
-                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                .strokeBorder(Color(hex: 0xE6E2E0), lineWidth: 1)
-                        )
-                }
-                if posters.count < 3 {
-                    ForEach(0..<(3 - posters.count), id: \.self) { _ in
-                        Color.clear.frame(maxWidth: .infinity)
-                    }
-                }
-            }
-        }
     }
 }
 

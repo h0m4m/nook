@@ -77,7 +77,7 @@ enum MediaCategory {
 
 struct ContinueTrackingSection: View {
     let items: [TrackingItem]
-
+    var onSeeAll: () -> Void = {}
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
@@ -96,9 +96,7 @@ struct ContinueTrackingSection: View {
 
             Spacer()
 
-            Button {
-                // TODO: See all action
-            } label: {
+            Button(action: onSeeAll) {
                 Text("See all")
                     .font(NookFont.labelMediumSmall)
                     .foregroundStyle(Color.nook.sectionAction)

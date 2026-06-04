@@ -6,17 +6,15 @@ struct HomeView: View {
     @State private var popularNooks: [NookItem] = []
     @State private var trendingReviews: [ReviewItem] = []
     @State private var continueTracking: [TrackingItem] = []
-    @State private var activityFeed: [ActivityFeedItem] = []
     @State private var unreadNotifCount: Int = 0
     private let badgeTimer = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
     var onAvatarTapped: () -> Void = {}
     var onNotificationsTapped: () -> Void = {}
+    var onStartTracking: () -> Void = {}
+    var onSeeAllTracking: () -> Void = {}
 
     // Blocked users are filtered out of every feed at render time, so blocking
     // someone makes their content vanish here immediately (see BlockStore).
-    private var visibleActivity: [ActivityFeedItem] {
-        activityFeed.filter { !BlockStore.shared.isBlocked($0.userId) }
-    }
     private var visibleTrending: [ReviewItem] {
         trendingReviews.filter { !BlockStore.shared.isBlocked($0.reviewerUserId) }
     }
@@ -36,7 +34,6 @@ struct HomeView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .task {
                 await loadContinueTracking()
-                await loadActivityFeed()
                 await loadTrendingReviews()
                 await loadPopularNooks()
                 await loadUnreadCount()
@@ -47,7 +44,6 @@ struct HomeView: View {
             .refreshable {
                 await router.refreshProfile()
                 await loadContinueTracking()
-                await loadActivityFeed()
                 await loadTrendingReviews()
                 await loadPopularNooks()
                 await loadUnreadCount()
@@ -58,28 +54,18 @@ struct HomeView: View {
         ScrollView {
             VStack(spacing: 0) {
                 if !continueTracking.isEmpty {
-                    ContinueTrackingSection(items: continueTracking)
+                    ContinueTrackingSection(items: continueTracking, onSeeAll: onSeeAllTracking)
                         .padding(.top, 8)
                 } else {
-                    HomeEmptyCard(
-                        icon: "bookmark-simple-fill",
-                        title: "Start tracking",
-                        subtitle: "Search for media and track your progress"
-                    )
+                    Button(action: onStartTracking) {
+                        HomeEmptyCard(
+                            icon: "bookmark-simple-fill",
+                            title: "Start tracking",
+                            subtitle: "Search for media and track your progress"
+                        )
+                    }
+                    .buttonStyle(.plain)
                     .padding(.top, 8)
-                    .padding(.horizontal, 24)
-                }
-
-                if !visibleActivity.isEmpty {
-                    ActivityFeedSection(items: visibleActivity)
-                        .padding(.top, 32)
-                } else {
-                    HomeEmptyCard(
-                        icon: "users-three-bold",
-                        title: "Your feed is empty",
-                        subtitle: "Follow people to see their activity here"
-                    )
-                    .padding(.top, 32)
                     .padding(.horizontal, 24)
                 }
 
@@ -96,13 +82,6 @@ struct HomeView: View {
             .padding(.bottom, 100)
         }
         .modifier(SoftScrollEdge())
-    }
-
-    private func loadActivityFeed() async {
-        let feedService = ActivityFeedService()
-        if let entries = try? await feedService.getFeed() {
-            activityFeed = entries.map { ActivityFeedItem(from: $0) }
-        }
     }
 
     private func loadUnreadCount() async {

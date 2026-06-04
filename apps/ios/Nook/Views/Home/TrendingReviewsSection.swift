@@ -134,6 +134,12 @@ private struct ReviewCard: View {
                 .padding(.top, 21)
                 .padding(.horizontal, 21)
 
+            // Media being reviewed — on its own full-width row so long
+            // titles don't get cramped next to the avatar / rating badge.
+            reviewedLine
+                .padding(.top, 10)
+                .padding(.horizontal, 21)
+
             // Title
             Text(item.title)
                 .font(NookFont.labelBoldSmall)
@@ -142,8 +148,8 @@ private struct ReviewCard: View {
                 .padding(.top, 12)
                 .padding(.horizontal, 21)
 
-            // Body
-            Text("\"\(item.body)\"")
+            // Body (Markdown rendered)
+            Text(markdownAttributed(item.body))
                 .font(NookFont.labelMediumSmall)
                 .foregroundStyle(Color.nook.reviewBody)
                 .lineSpacing(6)
@@ -158,7 +164,7 @@ private struct ReviewCard: View {
                 .padding(.horizontal, 21)
                 .padding(.bottom, 21)
         }
-        .frame(width: 280, height: 230)
+        .frame(width: 280, height: 252)
         .background(Color.nook.card)
         .clipShape(RoundedRectangle(cornerRadius: NookRadii.lg, style: .continuous))
     }
@@ -166,7 +172,7 @@ private struct ReviewCard: View {
     // MARK: - Header (avatar, name, rating badge)
 
     private var cardHeader: some View {
-        HStack(alignment: .top, spacing: 0) {
+        HStack(alignment: .center, spacing: 0) {
             NavigationLink(value: item.reviewerUserId.map { UserProfile.reference(id: $0, displayName: item.reviewerName) } ?? .profileFor(name: item.reviewerName)) {
                 HStack(spacing: 8) {
                     Circle()
@@ -178,27 +184,15 @@ private struct ReviewCard: View {
                                 .foregroundStyle(Color.nook.mutedForeground)
                         )
 
-                    VStack(alignment: .leading, spacing: 0) {
-                        Text(item.reviewerName)
-                            .font(NookFont.captionBold)
-                            .foregroundStyle(Color.nook.cardTitle)
-                            .lineLimit(1)
-
-                        HStack(spacing: 2) {
-                            Text("reviewed")
-                                .font(.custom("PlusJakartaSans-Regular", size: 10))
-                                .foregroundStyle(Color.nook.cardSubtitle)
-
-                            Text(item.mediaTitle)
-                                .font(.custom("PlusJakartaSans-SemiBold", size: 10))
-                                .foregroundStyle(Color.nook.cardTitle)
-                        }
-                    }
+                    Text(item.reviewerName)
+                        .font(NookFont.captionBold)
+                        .foregroundStyle(Color.nook.cardTitle)
+                        .lineLimit(1)
                 }
             }
             .buttonStyle(.plain)
 
-            Spacer()
+            Spacer(minLength: 8)
 
             // Rating badge
             HStack(spacing: 2) {
@@ -218,6 +212,23 @@ private struct ReviewCard: View {
                 RoundedRectangle(cornerRadius: 6.39, style: .continuous)
                     .fill(Color.nook.detailRatingBadge)
             )
+        }
+    }
+
+    // MARK: - Reviewed media line (own row)
+
+    private var reviewedLine: some View {
+        HStack(spacing: 3) {
+            Text("reviewed")
+                .font(.custom("PlusJakartaSans-Regular", size: 11))
+                .foregroundStyle(Color.nook.cardSubtitle)
+
+            Text(item.mediaTitle)
+                .font(.custom("PlusJakartaSans-SemiBold", size: 11))
+                .foregroundStyle(Color.nook.cardTitle)
+                .lineLimit(1)
+
+            Spacer(minLength: 0)
         }
     }
 

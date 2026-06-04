@@ -118,15 +118,25 @@ struct CreateNookSheet: View {
                 Button {
                     publishNook()
                 } label: {
-                    Text("Publish")
-                        .font(NookFont.labelBoldSmall)
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 20)
-                        .frame(height: 36)
-                        .background(
-                            Capsule()
-                                .fill(canPublish ? Color(hex: 0x43313D) : Color(hex: 0x43313D).opacity(0.4))
-                        )
+                    Group {
+                        if isPublishing {
+                            ProgressView()
+                                .progressViewStyle(.circular)
+                                .controlSize(.small)
+                                .tint(.white)
+                        } else {
+                            Text("Publish")
+                                .font(NookFont.labelBoldSmall)
+                                .foregroundStyle(.white)
+                        }
+                    }
+                    .padding(.horizontal, 20)
+                    .frame(minWidth: 90, minHeight: 36)
+                    .frame(height: 36)
+                    .background(
+                        Capsule()
+                            .fill(canPublish ? Color(hex: 0x43313D) : Color(hex: 0x43313D).opacity(0.4))
+                    )
                 }
                 .buttonStyle(.plain)
                 .disabled(!canPublish || isPublishing)
