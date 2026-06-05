@@ -196,7 +196,8 @@ struct ClubItem: Identifiable, Hashable {
 // MARK: - Clubs View
 
 struct ClubsView: View {
-    @State private var viewModel = CommunitiesViewModel()
+    // Owned by MainTabView so the club lists survive tab switches.
+    @Bindable var viewModel: CommunitiesViewModel
     @State private var showMyClubs = false
     @State private var selectedCategory: ClubCategory? = nil
     @State private var isSearchActive = false
@@ -237,7 +238,7 @@ struct ClubsView: View {
                 )
             )
             .task {
-                await viewModel.loadClubs()
+                await viewModel.loadIfNeeded()
             }
             .refreshable {
                 await viewModel.loadClubs()
@@ -634,14 +635,7 @@ private struct ClubCard: View {
             // Banner
             Group {
                 if let url = club.bannerURL {
-                    AsyncImage(url: url) { phase in
-                        switch phase {
-                        case .success(let image):
-                            image.resizable().scaledToFill()
-                        default:
-                            club.bannerColor
-                        }
-                    }
+                    CachedRemoteImage(url: url) { club.bannerColor }
                 } else {
                     club.bannerColor
                 }
@@ -760,5 +754,5 @@ extension ClubsView {
 // MARK: - Preview
 
 #Preview {
-    ClubsView()
+    ClubsView(viewModel: CommunitiesViewModel())
 }

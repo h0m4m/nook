@@ -7,6 +7,7 @@ struct ReviewItem: Identifiable, Hashable {
     let dbId: UUID?
     let reviewerUserId: UUID?
     let reviewerName: String
+    let reviewerAvatarURL: URL?
     let mediaTitle: String
     let mediaImageURL: URL?
     let mediaSource: String?
@@ -31,11 +32,13 @@ struct ReviewItem: Identifiable, Hashable {
         comments: String,
         dbId: UUID? = nil,
         reviewerUserId: UUID? = nil,
+        reviewerAvatarURL: URL? = nil,
         mediaSource: String? = nil,
         mediaSourceId: String? = nil,
         mediaType: String? = nil
     ) {
         self.reviewerName = reviewerName
+        self.reviewerAvatarURL = reviewerAvatarURL
         self.mediaTitle = mediaTitle
         self.mediaImageURL = mediaImageURL
         self.createdAt = createdAt
@@ -55,6 +58,7 @@ struct ReviewItem: Identifiable, Hashable {
         self.dbId = review.id
         self.reviewerUserId = review.userId
         self.reviewerName = review.authorName
+        self.reviewerAvatarURL = review.authorAvatarURL
         self.mediaTitle = review.mediaTitle ?? ""
         self.mediaImageURL = review.mediaImageURL
         self.mediaSource = review.mediaSource
@@ -173,16 +177,9 @@ private struct ReviewCard: View {
 
     private var cardHeader: some View {
         HStack(alignment: .center, spacing: 0) {
-            NavigationLink(value: item.reviewerUserId.map { UserProfile.reference(id: $0, displayName: item.reviewerName) } ?? .profileFor(name: item.reviewerName)) {
+            NavigationLink(value: item.reviewerUserId.map { UserProfile.reference(id: $0, displayName: item.reviewerName, avatarURL: item.reviewerAvatarURL) } ?? .profileFor(name: item.reviewerName)) {
                 HStack(spacing: 8) {
-                    Circle()
-                        .fill(Color.nook.secondary)
-                        .frame(width: 32, height: 32)
-                        .overlay(
-                            Image(systemName: "person.fill")
-                                .font(.system(size: 14))
-                                .foregroundStyle(Color.nook.mutedForeground)
-                        )
+                    ReviewerAvatar(url: item.reviewerAvatarURL, size: 32, iconSize: 14)
 
                     Text(item.reviewerName)
                         .font(NookFont.captionBold)
@@ -262,6 +259,32 @@ private struct ReviewCard: View {
 
             Spacer()
         }
+    }
+}
+
+// MARK: - Reviewer Avatar
+
+/// A circular user avatar with a `person.fill` fallback. Shared by the trending
+/// review card, the review detail header, and comment rows so reviewer pfps render
+/// consistently wherever a review appears. Backed by the shared image cache, so
+/// avatars paint instantly when cached instead of loading in late.
+struct ReviewerAvatar: View {
+    let url: URL?
+    var size: CGFloat = 32
+    var iconSize: CGFloat = 14
+
+    var body: some View {
+        CachedRemoteImage(url: url) {
+            Circle()
+                .fill(Color.nook.secondary)
+                .overlay {
+                    Image(systemName: "person.fill")
+                        .font(.system(size: iconSize))
+                        .foregroundStyle(Color.nook.mutedForeground)
+                }
+        }
+        .frame(width: size, height: size)
+        .clipShape(Circle())
     }
 }
 

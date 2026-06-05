@@ -447,6 +447,46 @@ final class ClubService: Sendable {
         return ClubPostModel(from: row)
     }
 
+    /// All posts authored by a user, newest first, across every club. RLS limits
+    /// the result to clubs that are public or that the viewer belongs to. Used by
+    /// the Posts tab on a user's profile.
+    func getPostsByUser(userId: UUID, limit: Int = 20) async throws -> [ClubPostModel] {
+        let rows: [ClubPostRow] = try await supabase
+            .from("club_posts")
+            .select(Self.postSelect)
+            .eq("user_id", value: userId.uuidString)
+            .order("created_at", ascending: false)
+            .limit(limit)
+            .execute()
+            .value
+
+        return rows.map { ClubPostModel(from: $0) }
+    }
+
+    /// Lightweight name + theme lookup for a set of clubs, used to label posts on a
+    /// profile with the club they were posted in.
+    func getClubBriefs(ids: [UUID]) async throws -> [UUID: ClubBrief] {
+        guard !ids.isEmpty else { return [:] }
+
+        struct BriefRow: Decodable {
+            let id: UUID
+            let name: String
+            let theme_color: String?
+            let category: String
+        }
+
+        let rows: [BriefRow] = try await supabase
+            .from("clubs")
+            .select("id, name, theme_color, category")
+            .in("id", values: ids.map { $0.uuidString })
+            .execute()
+            .value
+
+        return Dictionary(uniqueKeysWithValues: rows.map { row in
+            (row.id, ClubBrief(id: row.id, name: row.name, themeColor: row.theme_color, category: row.category))
+        })
+    }
+
     /// Posts in a club that involve the current user: an @mention of my username,
     /// a comment by someone else on my post, or a reply by someone else to my comment.
     func getMentions(clubId: UUID) async throws -> [ClubPostModel] {
@@ -827,4 +867,15 @@ final class ClubService: Sendable {
             .execute()
     }
 
+}
+
+// MARK: - Supporting Types
+
+/// Minimal club info (name + theme) for labelling a post with its club without
+/// fetching the full club row.
+struct ClubBrief: Sendable, Hashable {
+    let id: UUID
+    let name: String
+    let themeColor: String?
+    let category: String
 }

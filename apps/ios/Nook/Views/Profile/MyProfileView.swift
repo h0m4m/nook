@@ -4,13 +4,17 @@ import SwiftUI
 struct MyProfileView: View {
     @Environment(\.dismiss) private var dismiss
     var router: AppRouter?
-    @State private var profile = UserProfile.empty
-    @State private var isLoading = true
+    // Profile data lives in a shared store so reopening the profile is instant
+    // (stale-while-revalidate) instead of refetching every time.
+    @State private var store = ProfileStore.shared
     @State private var selectedTab: ProfileTab = .tracked
     @State private var showEditProfile = false
-    @State private var recentTracked: [TrackedMediaItem] = []
-    @State private var userReviews: [Review] = []
-    @State private var userNooks: [NookSummary] = []
+
+    private var profile: UserProfile { store.profile }
+    private var isLoading: Bool { !store.hasLoaded }
+    private var recentTracked: [TrackedMediaItem] { store.recentTracked }
+    private var userReviews: [Review] { store.userReviews }
+    private var userNooks: [NookSummary] { store.userNooks }
 
     var body: some View {
         ZStack(alignment: .top) {
@@ -44,16 +48,16 @@ struct MyProfileView: View {
         .sheet(isPresented: $showEditProfile) {
             EditProfileSheet(onSaved: {
                 await router?.refreshProfile()
-                await loadProfile()
+                await store.reload()
             })
             .presentationDetents([.large])
             .presentationDragIndicator(.hidden)
             .presentationBackground(Color.nook.profileBackground)
         }
-        .task { await loadProfile() }
-        .refreshable { await loadProfile() }
+        .task { store.loadIfNeeded() }
+        .refreshable { await store.reload() }
         .onReceive(NotificationCenter.default.publisher(for: .nooksDidChange)) { _ in
-            Task { await loadProfile() }
+            store.refresh()
         }
     }
 
@@ -460,7 +464,64 @@ struct MyProfileView: View {
 
     // MARK: - Data
 
-    private func loadProfile() async {
+    private func formatCount(_ count: Int) -> String {
+        if count >= 1000 {
+            let k = Double(count) / 1000.0
+            return k.truncatingRemainder(dividingBy: 1) == 0
+                ? "\(Int(k))k"
+                : String(format: "%.1fk", k)
+        }
+        return "\(count)"
+    }
+
+}
+
+// MARK: - Profile Store
+
+/// Owns the current user's profile, recent activity, reviews and nooks for the
+/// session. Stale-while-revalidate: `loadIfNeeded()` shows whatever is loaded
+/// immediately and only refetches when missing or stale, so reopening the
+/// profile is instant instead of flashing a skeleton.
+@MainActor
+@Observable
+final class ProfileStore {
+    static let shared = ProfileStore()
+
+    private(set) var profile = UserProfile.empty
+    private(set) var recentTracked: [TrackedMediaItem] = []
+    private(set) var userReviews: [Review] = []
+    private(set) var userNooks: [NookSummary] = []
+    private(set) var hasLoaded = false
+
+    private var lastRefresh: Date?
+    private let staleAfter: TimeInterval = 120
+    private var inFlight: Task<Void, Never>?
+
+    private var isStale: Bool {
+        guard let lastRefresh else { return true }
+        return Date().timeIntervalSince(lastRefresh) > staleAfter
+    }
+
+    func loadIfNeeded() {
+        guard !hasLoaded || isStale else { return }
+        refresh()
+    }
+
+    func refresh() {
+        guard inFlight == nil else { return }
+        inFlight = Task { [weak self] in
+            await self?.performRefresh()
+            self?.inFlight = nil
+        }
+    }
+
+    func reload() async {
+        inFlight?.cancel()
+        inFlight = nil
+        await performRefresh()
+    }
+
+    private func performRefresh() async {
         guard let user = try? await supabase.auth.session.user else { return }
         let profileService = ProfileService()
 
@@ -491,18 +552,24 @@ struct MyProfileView: View {
                 isCurrentUser: true
             )
 
-            // Load recent tracked items, reviews, and nooks in parallel
+            // Load recent tracked items, reviews, and nooks in parallel.
             async let trackedItems = TrackingService().getLibrary(userId: user.id)
             async let reviews = ReviewService().getReviewsByUser(userId: user.id)
             async let nooks = NookService().getUserNooks(userId: user.id)
 
-            recentTracked = (try? await trackedItems) ?? []
-            userReviews = (try? await reviews) ?? []
-            userNooks = (try? await nooks) ?? []
+            if let items = try? await trackedItems { recentTracked = items }
+            if let reviews = try? await reviews { userReviews = reviews }
+            if let nooks = try? await nooks { userNooks = nooks }
 
-            isLoading = false
+            ImagePrefetcher.prefetch(
+                recentTracked.map(\.imageURL)
+                    + userNooks.flatMap(\.previewImageURLs).map { Optional($0) }
+            )
+
+            hasLoaded = true
+            lastRefresh = Date()
         } catch {
-            // Fall back to auth metadata
+            // Fall back to auth metadata so the header still renders.
             if let name = user.userMetadata["full_name"]?.value as? String {
                 profile = UserProfile(
                     id: user.id.uuidString,
@@ -522,20 +589,10 @@ struct MyProfileView: View {
                     isCurrentUser: true
                 )
             }
-            isLoading = false
+            hasLoaded = true
+            lastRefresh = Date()
         }
     }
-
-    private func formatCount(_ count: Int) -> String {
-        if count >= 1000 {
-            let k = Double(count) / 1000.0
-            return k.truncatingRemainder(dividingBy: 1) == 0
-                ? "\(Int(k))k"
-                : String(format: "%.1fk", k)
-        }
-        return "\(count)"
-    }
-
 }
 
 // MARK: - Club-Detail-Style Chip Tab Bar

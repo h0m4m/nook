@@ -13,6 +13,7 @@ struct ReviewComment: Identifiable, Hashable {
     let dbId: UUID?
     let userId: UUID?
     let authorName: String
+    let authorAvatarURL: URL?
     let createdAt: Date?
     let body: String
     var likes: Int
@@ -24,6 +25,7 @@ struct ReviewComment: Identifiable, Hashable {
         dbId: UUID? = nil,
         userId: UUID? = nil,
         authorName: String,
+        authorAvatarURL: URL? = nil,
         createdAt: Date? = nil,
         body: String,
         likes: Int = 0,
@@ -34,6 +36,7 @@ struct ReviewComment: Identifiable, Hashable {
         self.dbId = dbId
         self.userId = userId
         self.authorName = authorName
+        self.authorAvatarURL = authorAvatarURL
         self.createdAt = createdAt
         self.body = body
         self.likes = likes
@@ -246,7 +249,7 @@ private extension ReviewDetailView {
                     displayName: review.reviewerName,
                     username: "",
                     bio: "",
-                    avatarURL: nil,
+                    avatarURL: review.reviewerAvatarURL,
                     followersCount: 0,
                     followingCount: 0,
                     trackedMedia: 0,
@@ -293,14 +296,7 @@ private extension ReviewDetailView {
 
     private var reviewerInfo: some View {
         HStack(spacing: 12) {
-            Circle()
-                .fill(Color.nook.secondary)
-                .frame(width: 44, height: 44)
-                .overlay(
-                    Image(systemName: "person.fill")
-                        .font(.system(size: 18))
-                        .foregroundStyle(Color.nook.mutedForeground)
-                )
+            ReviewerAvatar(url: review.reviewerAvatarURL, size: 44, iconSize: 18)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(review.reviewerName)
@@ -614,14 +610,11 @@ private extension ReviewDetailView {
 
     @ViewBuilder
     private func commentAvatar(_ comment: ReviewComment, depth: Int) -> some View {
-        let avatar = Circle()
-            .fill(Color.nook.secondary)
-            .frame(width: depth == 0 ? 36 : 28, height: depth == 0 ? 36 : 28)
-            .overlay(
-                Image(systemName: "person.fill")
-                    .font(.system(size: depth == 0 ? 14 : 11))
-                    .foregroundStyle(Color.nook.mutedForeground)
-            )
+        let avatar = ReviewerAvatar(
+            url: comment.authorAvatarURL,
+            size: depth == 0 ? 36 : 28,
+            iconSize: depth == 0 ? 14 : 11
+        )
 
         if let profile = userProfile(for: comment) {
             NavigationLink(value: profile) { avatar }
@@ -654,7 +647,7 @@ private extension ReviewDetailView {
             displayName: comment.authorName,
             username: "",
             bio: "",
-            avatarURL: nil,
+            avatarURL: comment.authorAvatarURL,
             followersCount: 0,
             followingCount: 0,
             trackedMedia: 0,
@@ -925,6 +918,7 @@ private extension ReviewDetailView {
                 dbId: c.id,
                 userId: c.userId,
                 authorName: c.authorName,
+                authorAvatarURL: c.authorAvatarURL,
                 createdAt: c.createdAt,
                 body: c.body,
                 likes: c.likesCount,
@@ -1147,14 +1141,11 @@ struct CommentThreadView: View {
                     .frame(width: 2)
             }
 
-            Circle()
-                .fill(Color.nook.secondary)
-                .frame(width: depth == 0 ? 36 : 28, height: depth == 0 ? 36 : 28)
-                .overlay(
-                    Image(systemName: "person.fill")
-                        .font(.system(size: depth == 0 ? 14 : 11))
-                        .foregroundStyle(Color.nook.mutedForeground)
-                )
+            ReviewerAvatar(
+                url: comment.authorAvatarURL,
+                size: depth == 0 ? 36 : 28,
+                iconSize: depth == 0 ? 14 : 11
+            )
 
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 6) {

@@ -49,6 +49,11 @@ async function getToken(forceRefresh = false): Promise<string> {
   return cachedToken;
 }
 
+/// Pre-fetch the auth token so the first real request on a warm worker is fast.
+export async function warm(): Promise<void> {
+  await getToken();
+}
+
 /**
  * POST an Apicalypse query to an IGDB endpoint. Retries once on 401 by
  * forcing a fresh token (the cached one was revoked or expired early).

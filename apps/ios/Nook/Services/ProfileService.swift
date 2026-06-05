@@ -97,6 +97,25 @@ final class ProfileService: Sendable {
         return Double(totalMinutes) / 60.0
     }
 
+    /// Recent tracked-media activity for any user ("Recently Active").
+    /// Backed by the `get_user_recent_activity` SECURITY DEFINER function because
+    /// `tracked_media` RLS is owner-only — a direct table read returns nothing for
+    /// another user.
+    func getRecentActivity(userId: UUID, limit: Int = 5) async throws -> [RecentActivityRow] {
+        struct Params: Encodable {
+            let target_user_id: String
+            let item_limit: Int
+        }
+
+        return try await supabase
+            .rpc("get_user_recent_activity", params: Params(
+                target_user_id: userId.uuidString,
+                item_limit: limit
+            ))
+            .execute()
+            .value
+    }
+
     func follow(userId: UUID) async throws {
         let currentUserId = try await supabase.auth.session.user.id
 
@@ -105,14 +124,21 @@ final class ProfileService: Sendable {
             let following_id: String
         }
 
+        // Idempotent: re-following an already-followed user is a no-op rather than a
+        // primary-key violation (user_follows PK is follower_id + following_id), which
+        // is what previously left user_follows empty when the insert threw. The
+        // "follow" notification is created server-side by a trigger on user_follows.
         try await supabase
             .from("user_follows")
-            .insert(FollowInsert(
-                follower_id: currentUserId.uuidString,
-                following_id: userId.uuidString
-            ))
+            .upsert(
+                FollowInsert(
+                    follower_id: currentUserId.uuidString,
+                    following_id: userId.uuidString
+                ),
+                onConflict: "follower_id,following_id",
+                ignoreDuplicates: true
+            )
             .execute()
-        // The "follow" notification is created server-side by a trigger on user_follows.
     }
 
     func unfollow(userId: UUID) async throws {
@@ -211,6 +237,22 @@ struct UserStats: Sendable {
     let nookCount: Int
     let clubCount: Int
     let reviewLikesReceived: Int
+}
+
+/// One row from `get_user_recent_activity` — a recently tracked title plus the
+/// current tracking status/score, used to render the profile "Recently Active" list.
+struct RecentActivityRow: Decodable, Sendable {
+    let title: String?
+    let imageUrl: String?
+    let status: String
+    let score: Double?
+
+    enum CodingKeys: String, CodingKey {
+        case title
+        case imageUrl = "image_url"
+        case status
+        case score
+    }
 }
 
 // MARK: - JSON helpers for RPC

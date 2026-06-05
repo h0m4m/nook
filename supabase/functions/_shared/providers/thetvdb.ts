@@ -38,6 +38,11 @@ async function getToken(): Promise<string> {
   return cachedToken!;
 }
 
+/// Pre-fetch the auth token so the first real request on a warm worker is fast.
+export async function warm(): Promise<void> {
+  await getToken();
+}
+
 async function tvdbFetch(path: string): Promise<Record<string, unknown>> {
   const token = await getToken();
   const resp = await fetch(`${BASE_URL}${path}`, {

@@ -12,7 +12,16 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { query, media_type, page = 1 } = await req.json();
+    const { query, media_type, page = 1, warm = false } = await req.json();
+
+    // Warm ping (from a scheduled cron job): keep the worker hot and pre-fetch
+    // provider auth tokens so real searches skip the cold-start + token round-trip.
+    if (warm) {
+      await Promise.allSettled([thetvdb.warm(), igdb.warm()]);
+      return new Response(JSON.stringify({ warmed: true }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     if (!query || !media_type) {
       return new Response(JSON.stringify({ error: 'query and media_type are required' }), {
@@ -21,9 +30,12 @@ Deno.serve(async (req) => {
       });
     }
 
-    // DB-first search: check media_items cache for matches
+    // DB-first search: check media_items cache for matches. Serving from the
+    // (now trigram-indexed) catalog avoids the slow external provider round-trip;
+    // the threshold is the min number of good cached matches before we skip it.
+    const CACHE_HIT_THRESHOLD = 6;
     const cached = await searchCachedMedia(query, media_type, page);
-    if (cached && cached.results.length >= 10) {
+    if (cached && cached.results.length >= CACHE_HIT_THRESHOLD) {
       return new Response(JSON.stringify(cached), {
         headers: {
           ...corsHeaders,

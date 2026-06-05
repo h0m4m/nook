@@ -210,6 +210,12 @@ struct ProfileMenuView: View {
                     .navigationDestination(for: MediaDetailRoute.self) { route in
                         MediaDetailLoadingView(route: route)
                     }
+                    .navigationDestination(for: NookItem.self) { nook in
+                        NookDetailView(nook: nook)
+                    }
+                    .navigationDestination(for: ClubPost.self) { post in
+                        PostDetailView(post: post)
+                    }
                     .navigationDestination(for: UserProfile.self) { user in
                         OtherProfileView(profile: user)
                     }

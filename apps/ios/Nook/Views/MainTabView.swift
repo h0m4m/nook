@@ -44,6 +44,12 @@ struct MainTabView: View {
     @State private var showCreateNookSheet = false
     @State private var showProfileMenu = false
     @State private var pushRouter = PushRouter.shared
+    // Feed stores live here, above the per-tab views, so switching tabs keeps
+    // their data in memory and renders instantly instead of refetching.
+    @State private var homeStore = HomeStore()
+    @State private var libraryVM = LibraryViewModel()
+    @State private var clubsVM = CommunitiesViewModel()
+    @State private var searchVM = SearchViewModel()
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -53,6 +59,7 @@ struct MainTabView: View {
                     case .home:
                         HomeView(
                             router: router,
+                            store: homeStore,
                             onAvatarTapped: {
                                 showProfileMenu = true
                             },
@@ -67,11 +74,11 @@ struct MainTabView: View {
                             }
                         )
                     case .search:
-                        SearchView()
+                        SearchView(viewModel: searchVM)
                     case .library:
-                        LibraryView()
+                        LibraryView(viewModel: libraryVM)
                     case .groups:
-                        ClubsView()
+                        ClubsView(viewModel: clubsVM)
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -150,7 +157,14 @@ struct MainTabView: View {
         }
         // A tapped push notification routes here (set by AppDelegate via PushRouter).
         .onChange(of: pushRouter.pendingRoute) { _, _ in applyPendingPushRoute() }
-        .task { applyPendingPushRoute() }  // handle a tap that cold-launched the app
+        .task {
+            applyPendingPushRoute()  // handle a tap that cold-launched the app
+            // Warm every tab up front so the first visit is already populated
+            // instead of showing a loading state.
+            homeStore.loadIfNeeded()
+            await libraryVM.loadIfNeeded()
+            await clubsVM.loadIfNeeded()
+        }
     }
 
     /// Navigate to whatever a tapped notification pointed at, then clear it.

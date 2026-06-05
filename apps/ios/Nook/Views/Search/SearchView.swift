@@ -133,7 +133,8 @@ struct SearchResultItem: Identifiable, Hashable {
 // MARK: - Search View
 
 struct SearchView: View {
-    @State private var viewModel = SearchViewModel()
+    // Owned by MainTabView so the query, results and 5-min cache survive tab switches.
+    @Bindable var viewModel: SearchViewModel
     @State private var userInterests: [SearchMediaCategory] = InterestsCache.load()
     @State private var trackingItemID: UUID?
     @State private var sheetStatus: TrackingStatus?
@@ -867,5 +868,5 @@ enum InterestsCache {
 // MARK: - Preview
 
 #Preview("Idle") {
-    SearchView()
+    SearchView(viewModel: SearchViewModel())
 }

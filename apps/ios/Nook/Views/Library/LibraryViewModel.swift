@@ -39,6 +39,14 @@ final class LibraryViewModel {
     private let trackingService = TrackingService()
     private let nookService = NookService()
 
+    private var lastLoaded: Date?
+    private let staleAfter: TimeInterval = 120
+
+    private var isStale: Bool {
+        guard let lastLoaded else { return true }
+        return Date().timeIntervalSince(lastLoaded) > staleAfter
+    }
+
     var filteredItems: [TrackedMediaItem] {
         var results = items
 
@@ -86,6 +94,17 @@ final class LibraryViewModel {
         return nooks.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
     }
 
+    /// Called when the Library tab appears. Shows existing items instantly and
+    /// only refetches when there's nothing loaded yet or the data is stale —
+    /// so returning to the tab no longer flashes a skeleton.
+    func loadIfNeeded() async {
+        if items.isEmpty {
+            await loadLibrary()          // first load: skeleton is fine
+        } else if isStale {
+            await refreshSilently()      // have data: refresh without a skeleton
+        }
+    }
+
     func loadLibrary() async {
         guard let userId = try? await supabase.auth.session.user.id else { return }
 
@@ -94,10 +113,22 @@ final class LibraryViewModel {
 
         do {
             items = try await trackingService.getLibrary(userId: userId)
+            lastLoaded = Date()
+            ImagePrefetcher.prefetch(items.map(\.imageURL))
             isLoading = false
         } catch {
             self.error = AppError(from: error)
             isLoading = false
+        }
+    }
+
+    /// Background refresh that keeps the current list on screen (no loading flag).
+    private func refreshSilently() async {
+        guard let userId = try? await supabase.auth.session.user.id else { return }
+        if let fresh = try? await trackingService.getLibrary(userId: userId) {
+            items = fresh
+            lastLoaded = Date()
+            ImagePrefetcher.prefetch(items.map(\.imageURL))
         }
     }
 

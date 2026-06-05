@@ -102,7 +102,7 @@ final class SearchViewModel {
         }
 
         searchTask = Task {
-            try? await Task.sleep(for: .milliseconds(400))
+            try? await Task.sleep(for: .milliseconds(250))
             guard !Task.isCancelled else { return }
 
             await performSearch(query: query, page: 1)

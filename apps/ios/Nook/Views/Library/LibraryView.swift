@@ -255,7 +255,8 @@ enum LibrarySortOption: CaseIterable, Identifiable {
 // MARK: - Library View
 
 struct LibraryView: View {
-    @State private var viewModel = LibraryViewModel()
+    // Owned by MainTabView so the library survives tab switches.
+    @Bindable var viewModel: LibraryViewModel
     @State private var isSearchActive = false
     @State private var trackingItemID: UUID?
     @State private var sheetStatus: TrackingStatus?
@@ -279,7 +280,7 @@ struct LibraryView: View {
                 )
             )
             .task {
-                await viewModel.loadLibrary()
+                await viewModel.loadIfNeeded()
             }
             .refreshable {
                 if viewModel.mode == .media {
@@ -1100,5 +1101,5 @@ extension LibraryView {
 // MARK: - Preview
 
 #Preview {
-    LibraryView()
+    LibraryView(viewModel: LibraryViewModel())
 }
