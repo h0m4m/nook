@@ -19,6 +19,12 @@ struct RootView: View {
                 case .onboarding:
                     OnboardingInterestsView(router: router)
                         .transition(.opacity)
+                case .profileSetup:
+                    OnboardingProfileView(router: router)
+                        .transition(.opacity)
+                case .welcome:
+                    OnboardingWelcomeView(router: router)
+                        .transition(.opacity)
                 case .intro:
                     IntroView(router: router)
                         .transition(.opacity)

@@ -6,6 +6,8 @@ import SwiftUI
 
 enum AppScreen: Hashable {
     case intro
+    case welcome
+    case profileSetup
     case onboarding
     case home
 }
@@ -50,8 +52,14 @@ final class AppRouter {
         let hasOnboarded = await checkOnboardingCompleted()
         if hasOnboarded {
             await loadCurrentUserProfile()
+            currentScreen = .home
+        } else {
+            // New / mid-onboarding user. Resume where they left off: if they've
+            // already picked a username (profile step done) jump straight to
+            // interests, otherwise start at the welcome → profile flow.
+            let hasUsername = await hasUsernameSet()
+            currentScreen = hasUsername ? .onboarding : .welcome
         }
-        currentScreen = hasOnboarded ? .home : .onboarding
         await registerForPush()
     }
 
@@ -60,6 +68,16 @@ final class AppRouter {
     private func registerForPush() async {
         await PushService.shared.requestAuthorizationAndRegister()
         await PushService.shared.uploadCachedTokenIfAvailable()
+    }
+
+    private func hasUsernameSet() async -> Bool {
+        guard let userId = try? await supabase.auth.session.user.id else { return false }
+        guard let profile = try? await ProfileService().getProfile(userId: userId) else { return false }
+        return (profile.username?.isEmpty == false)
+    }
+
+    func continueFromWelcome() {
+        currentScreen = .profileSetup
     }
 
     private func checkOnboardingCompleted() async -> Bool {
@@ -106,6 +124,76 @@ final class AppRouter {
         currentScreen = .home
     }
 
+    /// Persists the onboarding profile step (display name + username + avatar)
+    /// and advances to the interests step. The row is upserted so it works
+    /// whether or not a `user_profiles` row already exists, and `avatar_url` is
+    /// only written when we actually have one (so we never null out a social
+    /// avatar). Throws on a username uniqueness violation so the caller can
+    /// surface it.
+    func saveProfileSetup(displayName: String, username: String, avatarImageData: Data?) async throws {
+        let user = try await supabase.auth.session.user
+        let userId = user.id
+
+        // A freshly-cropped image wins; otherwise back-fill the social avatar.
+        var avatarURLString: String?
+        if let avatarImageData {
+            let url = try await StorageService().uploadAvatar(userId: userId, imageData: avatarImageData)
+            avatarURLString = url.absoluteString
+        } else if let socialURL = user.userMetadata["avatar_url"]?.value as? String {
+            avatarURLString = Self.highResAvatarURL(socialURL)
+        }
+
+        struct ProfileSetupUpsert: Encodable {
+            let id: String
+            let fullName: String
+            let username: String
+            let avatarURL: String?
+
+            enum CodingKeys: String, CodingKey {
+                case id
+                case fullName = "full_name"
+                case username
+                case avatarURL = "avatar_url"
+            }
+
+            func encode(to encoder: Encoder) throws {
+                var container = encoder.container(keyedBy: CodingKeys.self)
+                try container.encode(id, forKey: .id)
+                try container.encode(fullName, forKey: .fullName)
+                try container.encode(username, forKey: .username)
+                // Omit the key entirely when nil so upsert leaves any existing
+                // avatar untouched instead of overwriting it with null.
+                if let avatarURL { try container.encode(avatarURL, forKey: .avatarURL) }
+            }
+        }
+
+        try await supabase
+            .from("user_profiles")
+            .upsert(ProfileSetupUpsert(
+                id: userId.uuidString,
+                fullName: displayName,
+                username: username,
+                avatarURL: avatarURLString
+            ))
+            .execute()
+
+        // Keep auth metadata's display name in sync (used as a fallback in
+        // places that read it directly).
+        _ = try? await supabase.auth.update(
+            user: UserAttributes(data: ["full_name": .string(displayName)])
+        )
+
+        // Prime the shared user fields so the rest of the app shows them
+        // immediately once onboarding finishes.
+        currentUserDisplayName = displayName
+        currentUserUsername = "@\(username)"
+        if let avatarURLString {
+            currentUserAvatarURL = URL(string: avatarURLString)
+        }
+
+        currentScreen = .onboarding
+    }
+
     func loadCurrentUserProfile() async {
         guard let user = try? await supabase.auth.session.user else { return }
 
@@ -136,12 +224,38 @@ final class AppRouter {
         await loadCurrentUserProfile()
     }
 
-    private static func highResAvatarURL(_ urlString: String) -> String {
+    nonisolated static func highResAvatarURL(_ urlString: String) -> String {
         guard urlString.contains("googleusercontent.com") else { return urlString }
         if let range = urlString.range(of: #"=s\d+-c"#, options: .regularExpression) {
             return urlString.replacingCharacters(in: range, with: "=s400-c")
         }
         return urlString
+    }
+
+    /// Derives a valid default username from an email's local-part, conforming
+    /// to the `^[a-zA-Z0-9_]{3,20}$` rule the DB enforces: lowercased,
+    /// separators collapsed to underscores, anything else stripped, padded to
+    /// at least 3 chars and capped at 20. Uniqueness is handled separately.
+    nonisolated static func suggestedUsername(fromEmail email: String) -> String {
+        let local = email.split(separator: "@").first.map(String.init) ?? "nook"
+        var slug = local.lowercased()
+
+        // Turn runs of unsupported characters into a single underscore...
+        slug = slug.replacingOccurrences(of: "[^a-z0-9_]+", with: "_", options: .regularExpression)
+        // ...collapse repeats, then trim stray edge underscores.
+        slug = slug.replacingOccurrences(of: "_+", with: "_", options: .regularExpression)
+        slug = slug.trimmingCharacters(in: CharacterSet(charactersIn: "_"))
+
+        if slug.count > 20 {
+            slug = String(slug.prefix(20)).trimmingCharacters(in: CharacterSet(charactersIn: "_"))
+        }
+
+        if slug.count < 3 {
+            let padding = (0..<max(3 - slug.count, 2)).map { _ in String(Int.random(in: 0...9)) }.joined()
+            slug = String((slug + padding).prefix(20))
+        }
+
+        return slug
     }
 
     func signInWithOTP(email: String) async throws {

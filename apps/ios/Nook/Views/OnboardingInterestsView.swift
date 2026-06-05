@@ -89,12 +89,17 @@ struct OnboardingInterestsView: View {
                 .ignoresSafeArea()
 
             VStack(alignment: .leading, spacing: 0) {
+                OnboardingProgressBar(currentStep: 2, totalSteps: 2)
+                    .padding(.top, 24)
+                    .padding(.horizontal, 24)
+                    .opacity(appeared ? 1 : 0)
+
                 // Heading
                 Text("Choose your worlds.")
                     .font(NookFont.outfitDisplay)
                     .lineSpacing(9)
                     .foregroundStyle(Color.nook.onboardingHeading)
-                    .padding(.top, 44)
+                    .padding(.top, 24)
                     .padding(.horizontal, 24)
                     .offset(y: appeared ? 0 : 12)
                     .opacity(appeared ? 1 : 0)
@@ -156,30 +161,6 @@ struct OnboardingInterestsView: View {
         .animation(.easeOut(duration: 0.5), value: appeared)
         .onAppear {
             appeared = true
-        }
-    }
-
-    // MARK: - Progress Bar
-
-    private var progressBar: some View {
-        HStack(spacing: 6) {
-            RoundedRectangle(cornerRadius: 100)
-                .fill(Color.nook.onboardingPrimary)
-                .frame(width: 48, height: 6)
-
-            RoundedRectangle(cornerRadius: 100)
-                .fill(Color.nook.onboardingPrimary)
-                .frame(width: 48, height: 6)
-
-            RoundedRectangle(cornerRadius: 100)
-                .fill(Color.nook.onboardingPrimary.opacity(0.2))
-                .frame(width: 48, height: 6)
-
-            RoundedRectangle(cornerRadius: 100)
-                .fill(Color.nook.onboardingPrimary.opacity(0.2))
-                .frame(width: 48, height: 6)
-
-            Spacer()
         }
     }
 

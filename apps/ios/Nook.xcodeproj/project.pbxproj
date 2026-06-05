@@ -75,6 +75,8 @@
 		D859B805755EB33AA5C5CC2E /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DFC5ACF4DD3EB602132421E /* APIClient.swift */; };
 		DDF31DFAC904631728E8BE97 /* IntroView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD3FD31533A8320839C66978 /* IntroView.swift */; };
 		E1A2B3C4D5E6F7A8B9C0D1E2 /* OnboardingInterestsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1A2B3C4D5E6F7A8B9C0D1E3 /* OnboardingInterestsView.swift */; };
+		FE110000000000000000FF02 /* OnboardingWelcomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE110000000000000000FF01 /* OnboardingWelcomeView.swift */; };
+		FE110000000000000000FF04 /* OnboardingProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE110000000000000000FF03 /* OnboardingProfileView.swift */; };
 		E1A2B3C4D5E6F7A8B9C0D1E4 /* Outfit-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = E1A2B3C4D5E6F7A8B9C0D1E5 /* Outfit-Bold.ttf */; };
 		EBCA79A9A49144D5A443A16B /* SearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 454CB4C34D7941B1AEDE361B /* SearchView.swift */; };
 		F2A3B4C5D6E7F8A9B0C1D2E3 /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2A3B4C5D6E7F8A9B0C1D2E4 /* MainTabView.swift */; };
@@ -173,6 +175,8 @@
 		D7A3FD70DAD38D02B5A01342 /* PlusJakartaSans-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "PlusJakartaSans-Regular.ttf"; sourceTree = "<group>"; };
 		DA2E5CA61ADADE50DC8C214B /* MediaItem.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MediaItem.swift; sourceTree = "<group>"; };
 		E1A2B3C4D5E6F7A8B9C0D1E3 /* OnboardingInterestsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingInterestsView.swift; sourceTree = "<group>"; };
+		FE110000000000000000FF01 /* OnboardingWelcomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingWelcomeView.swift; sourceTree = "<group>"; };
+		FE110000000000000000FF03 /* OnboardingProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingProfileView.swift; sourceTree = "<group>"; };
 		E1A2B3C4D5E6F7A8B9C0D1E5 /* Outfit-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Outfit-Bold.ttf"; sourceTree = "<group>"; };
 		F2A3B4C5D6E7F8A9B0C1D2E4 /* MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTabView.swift; sourceTree = "<group>"; };
 		F6AF20BA9D38FCF037278411 /* NookService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NookService.swift; sourceTree = "<group>"; };
@@ -235,6 +239,8 @@
 				BD3FD31533A8320839C66978 /* IntroView.swift */,
 				F2A3B4C5D6E7F8A9B0C1D2E4 /* MainTabView.swift */,
 				E1A2B3C4D5E6F7A8B9C0D1E3 /* OnboardingInterestsView.swift */,
+				FE110000000000000000FF01 /* OnboardingWelcomeView.swift */,
+				FE110000000000000000FF03 /* OnboardingProfileView.swift */,
 				C36B6457C06F36C7515EB6DC /* Components */,
 				H0M3GRP1ABC123456789AB01 /* Home */,
 				5A720D037CCC4C778CA1436C /* Search */,
@@ -562,6 +568,8 @@
 				F2A3B4C5D6E7F8A9B0C1D2E3 /* MainTabView.swift in Sources */,
 				CCB0999F746FC1447FA54DD5 /* NookApp.swift in Sources */,
 				E1A2B3C4D5E6F7A8B9C0D1E2 /* OnboardingInterestsView.swift in Sources */,
+				FE110000000000000000FF02 /* OnboardingWelcomeView.swift in Sources */,
+				FE110000000000000000FF04 /* OnboardingProfileView.swift in Sources */,
 				4986E3F77DEFDEB9D6BA662F /* NookColors.swift in Sources */,
 				C7A0531D0AEB4260772159C3 /* NookFonts.swift in Sources */,
 				BF2BE3CA0888D9E8587C644B /* NookRadii.swift in Sources */,
