@@ -33,13 +33,31 @@ struct IntroView: View {
 
     // MARK: - Hero Illustration (placeholder)
 
+    /// The hero art lives in a 2:3 (width:height) region pinned to the top of the
+    /// screen, full-bleed on the sides. Its bottom ~5% tucks behind the white
+    /// auth card. To ship real art: design it at 2:3, add it as an imageset, then
+    /// replace the placeholder `overlay` content with
+    /// `Image("authHero").resizable().scaledToFill()` and delete the dashed border.
     private var heroIllustration: some View {
         Color.nook.secondary
-            .overlay(
-                Image(systemName: "photo")
-                    .font(.system(size: 48))
-                    .foregroundStyle(Color.nook.mutedForeground.opacity(0.3))
-            )
+            .overlay(alignment: .top) {
+                Color.clear
+                    .frame(maxWidth: .infinity)
+                    .aspectRatio(2.0 / 3.0, contentMode: .fit)
+                    .overlay {
+                        Image(systemName: "photo")
+                            .font(.system(size: 48))
+                            .foregroundStyle(Color.nook.mutedForeground.opacity(0.3))
+                    }
+                    .overlay {
+                        Rectangle()
+                            .strokeBorder(
+                                Color.nook.border,
+                                style: StrokeStyle(lineWidth: 1, dash: [6, 4])
+                            )
+                    }
+                    .clipped()
+            }
     }
 }
 
