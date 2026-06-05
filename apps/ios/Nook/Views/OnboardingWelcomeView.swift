@@ -67,7 +67,7 @@ struct OnboardingWelcomeView: View {
                 // Headline
                 Text("Welcome to your\ncozy media corner.")
                     .font(NookFont.outfitDisplay)
-                    .lineSpacing(6)
+                    .lineSpacing(0)
                     .foregroundStyle(Color.nook.onboardingHeading)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.top, 20)
@@ -87,7 +87,9 @@ struct OnboardingWelcomeView: View {
                     .offset(y: appeared ? 0 : 12)
                     .animation(.easeOut(duration: 0.5).delay(0.12), value: appeared)
 
-                Spacer(minLength: 28)
+                // Bias the feature list toward the top: cap the gap above it so
+                // the remaining slack pools below, nudging the items up.
+                Spacer(minLength: 24).frame(maxHeight: 64)
 
                 // Feature list
                 VStack(alignment: .leading, spacing: 20) {
