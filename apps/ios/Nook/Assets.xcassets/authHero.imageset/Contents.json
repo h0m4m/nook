@@ -1,0 +1,12 @@
+{
+  "images" : [
+    {
+      "filename" : "authHero.png",
+      "idiom" : "universal"
+    }
+  ],
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  }
+}
