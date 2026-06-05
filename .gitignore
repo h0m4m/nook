@@ -47,6 +47,9 @@ coverage/
 # MCP
 .mcp.json
 
+# Claude Code worktrees (isolated working copies, not project files)
+.claude/worktrees/
+
 # Misc
 *.log
 *.tsbuildinfo
