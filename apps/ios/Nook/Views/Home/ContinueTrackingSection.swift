@@ -11,6 +11,27 @@ struct TrackingItem: Identifiable {
     let imageURL: URL?
     let placeholderColor: Color?
 
+    // Routing data (nil for mock items)
+    let source: String?
+    let sourceId: String?
+    let mediaType: String?
+    let year: String?
+    let score: Double?
+
+    /// Navigation route to the real media detail screen, when routing data is available.
+    var detailRoute: MediaDetailRoute? {
+        guard let source, let sourceId, let mediaType else { return nil }
+        return MediaDetailRoute(
+            mediaId: sourceId,
+            source: source,
+            mediaType: mediaType,
+            title: title,
+            imageURL: imageURL,
+            year: year,
+            score: score
+        )
+    }
+
     init(title: String, progress: String, category: MediaCategory, imageName: String, imageURL: URL? = nil, placeholderColor: Color? = nil) {
         self.title = title
         self.progress = progress
@@ -18,6 +39,11 @@ struct TrackingItem: Identifiable {
         self.imageName = imageName
         self.imageURL = imageURL
         self.placeholderColor = placeholderColor
+        self.source = nil
+        self.sourceId = nil
+        self.mediaType = nil
+        self.year = nil
+        self.score = nil
     }
 
     init(from item: TrackedMediaItem) {
@@ -25,6 +51,11 @@ struct TrackingItem: Identifiable {
         self.imageURL = item.imageURL
         self.imageName = ""
         self.placeholderColor = nil
+        self.source = item.source
+        self.sourceId = item.sourceId
+        self.mediaType = item.mediaType
+        self.year = item.year
+        self.score = item.score
 
         let progressText: String
         if item.progress > 0 {
@@ -129,10 +160,14 @@ struct ContinueTrackingSection: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 16) {
                 ForEach(items) { item in
-                    NavigationLink(value: MediaDetailView.mockMedia) {
+                    if let route = item.detailRoute {
+                        NavigationLink(value: route) {
+                            TrackingCard(item: item)
+                        }
+                        .buttonStyle(.plain)
+                    } else {
                         TrackingCard(item: item)
                     }
-                    .buttonStyle(.plain)
                 }
             }
             .padding(.horizontal, 24)

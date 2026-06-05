@@ -184,7 +184,7 @@ struct ProfileMenuView: View {
             rowDivider
 
             menuRow(
-                icon: "users-three-bold",
+                icon: "users-three",
                 label: "Create Club",
                 iconColor: Color.nook.profileMenuRowIcon,
                 iconBackground: Color.nook.profileMenuRowIconBackground
