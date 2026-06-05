@@ -247,39 +247,8 @@ final class ClubService: Sendable {
 
         // Any join resolves a pending invite + its notification.
         try? await clearMyInvite(clubId: clubId)
-        await notifyClubOwner(clubId: clubId, actorId: userId, type: "club_join")
-    }
-
-    /// Notify the club owner of an action (best-effort).
-    private func notifyClubOwner(clubId: UUID, actorId: UUID, type: String) async {
-        struct OwnerRow: Decodable { let owner_id: UUID }
-        guard let club: OwnerRow = try? await supabase
-            .from("clubs")
-            .select("owner_id")
-            .eq("id", value: clubId.uuidString)
-            .single()
-            .execute()
-            .value,
-            club.owner_id != actorId
-        else { return }
-
-        struct NotifInsert: Encodable {
-            let user_id: String
-            let actor_id: String
-            let type: String
-            let reference_id: String
-            let reference_type: String
-        }
-        _ = try? await supabase
-            .from("notifications")
-            .insert(NotifInsert(
-                user_id: club.owner_id.uuidString,
-                actor_id: actorId.uuidString,
-                type: type,
-                reference_id: clubId.uuidString,
-                reference_type: "club"
-            ))
-            .execute()
+        // The "club_join" notification to the owner is created server-side by a
+        // trigger on club_members.
     }
 
     func leaveClub(clubId: UUID) async throws {
@@ -564,8 +533,8 @@ final class ClubService: Sendable {
                 post_id: postId.uuidString
             ))
             .execute()
-
-        await notifyPostOwner(postId: postId, actorId: userId, type: "like_post")
+        // The "like_post" notification is created server-side by a trigger on
+        // club_post_likes.
     }
 
     func unlikePost(postId: UUID) async throws {
@@ -651,8 +620,8 @@ final class ClubService: Sendable {
             .single()
             .execute()
             .value
-
-        await notifyPostOwner(postId: postId, actorId: userId, type: "comment_post")
+        // The "comment_post" notification (and any @mention notifications) are
+        // created server-side by a trigger on club_post_comments.
 
         return result.id
     }
@@ -793,25 +762,9 @@ final class ClubService: Sendable {
                 ignoreDuplicates: true
             )
             .execute()
-
-        struct NotifInsert: Encodable {
-            let user_id: String
-            let actor_id: String
-            let type: String
-            let reference_id: String
-            let reference_type: String
-        }
-
-        _ = try? await supabase
-            .from("notifications")
-            .insert(NotifInsert(
-                user_id: userId.uuidString,
-                actor_id: currentUserId.uuidString,
-                type: "club_invite",
-                reference_id: clubId.uuidString,
-                reference_type: "club"
-            ))
-            .execute()
+        // The "club_invite" notification is created server-side by a trigger on
+        // club_invites (only fires on a genuinely new invite, so re-invites don't
+        // duplicate it).
     }
 
     /// Invitee ids with a pending invite to this club that the current user can
@@ -874,39 +827,4 @@ final class ClubService: Sendable {
             .execute()
     }
 
-    // MARK: - Notifications (best-effort)
-
-    private func notifyPostOwner(postId: UUID, actorId: UUID, type: String) async {
-        struct OwnerRow: Decodable { let user_id: UUID }
-
-        guard let owner: OwnerRow = try? await supabase
-            .from("club_posts")
-            .select("user_id")
-            .eq("id", value: postId.uuidString)
-            .single()
-            .execute()
-            .value
-        else { return }
-
-        guard owner.user_id != actorId else { return }
-
-        struct NotifInsert: Encodable {
-            let user_id: String
-            let actor_id: String
-            let type: String
-            let reference_id: String
-            let reference_type: String
-        }
-
-        _ = try? await supabase
-            .from("notifications")
-            .insert(NotifInsert(
-                user_id: owner.user_id.uuidString,
-                actor_id: actorId.uuidString,
-                type: type,
-                reference_id: postId.uuidString,
-                reference_type: "club_post"
-            ))
-            .execute()
-    }
 }

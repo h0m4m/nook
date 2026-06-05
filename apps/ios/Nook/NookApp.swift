@@ -10,6 +10,7 @@ enum FeatureFlags {
 
 @main
 struct NookApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @AppStorage("appColorScheme") private var appColorScheme: AppColorScheme = .system
 
     init() {

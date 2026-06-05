@@ -30,6 +30,9 @@
 		6D58DF4AD9876C5ED6C3862A /* AppRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BC8194956769B7D778E9F0A /* AppRouter.swift */; };
 		6E2D73EBDDEE4DA6207550BF /* InMemoryCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7B6F6AD6CD4D84DD3F875E9 /* InMemoryCache.swift */; };
 		75BDD51344A68DBC981E1640 /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A63E2633397AA4E21A7BD212 /* NotificationService.swift */; };
+		AADE1E0001000000000000A1 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = AADE1E0002000000000000A2 /* AppDelegate.swift */; };
+		B05E12C30001000000000001 /* PushService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B05E12C30002000000000002 /* PushService.swift */; };
+		B0507E120001000000000001 /* PushRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0507E120002000000000002 /* PushRouter.swift */; };
 		AA01AA01AA01AA01AA01AA01 /* Moderation.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB02BB02BB02BB02BB02BB02 /* Moderation.swift */; };
 		77C5FE341F1BB1D2B6F2BF60 /* NookService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6AF20BA9D38FCF037278411 /* NookService.swift */; };
 		7AD0E66260A95DAE57C2730A /* MediaDetailRoute.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5883C29336BCC3D35FC8074 /* MediaDetailRoute.swift */; };
@@ -142,6 +145,9 @@
 		9C1E1BD95458B81859177F14 /* TrackedMedia.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TrackedMedia.swift; sourceTree = "<group>"; };
 		A4B7743F9C3F4A9DA5DE4D00 /* PlusJakartaSans-Italic.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "PlusJakartaSans-Italic.ttf"; sourceTree = "<group>"; };
 		A63E2633397AA4E21A7BD212 /* NotificationService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NotificationService.swift; sourceTree = "<group>"; };
+		AADE1E0002000000000000A2 /* AppDelegate.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		B05E12C30002000000000002 /* PushService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PushService.swift; sourceTree = "<group>"; };
+		B0507E120002000000000002 /* PushRouter.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PushRouter.swift; sourceTree = "<group>"; };
 		BB02BB02BB02BB02BB02BB02 /* Moderation.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = Moderation.swift; sourceTree = "<group>"; };
 		A7C606984A2F158496A5A281 /* NookDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NookDetailView.swift; sourceTree = "<group>"; };
 		ACT1V1TYFD1234567890AB02 /* ActivityFeedSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivityFeedSection.swift; sourceTree = "<group>"; };
@@ -266,6 +272,8 @@
 				F6AF20BA9D38FCF037278411 /* NookService.swift */,
 				1EF71350ECDD35D121FC2B7F /* ProfileService.swift */,
 				A63E2633397AA4E21A7BD212 /* NotificationService.swift */,
+				B05E12C30002000000000002 /* PushService.swift */,
+				B0507E120002000000000002 /* PushRouter.swift */,
 				BB02BB02BB02BB02BB02BB02 /* Moderation.swift */,
 				6D6D834D5C1CD2D41B12DAA5 /* StorageService.swift */,
 				B7B2DCE8D67C87C423A9C43A /* ActivityFeedService.swift */,
@@ -292,6 +300,7 @@
 				19FAF1FC5B046085F9880E74 /* ContentView.swift */,
 				022144C0BA47F49B651F7CB0 /* Info.plist */,
 				47CBA70A6F7BC8F3D41E9242 /* NookApp.swift */,
+				AADE1E0002000000000000A2 /* AppDelegate.swift */,
 				9702BBB3E69FB7B1267F94CD /* RootView.swift */,
 				7E01623977F7EFDA29CEB48F /* Supabase.swift */,
 				3B0328E73DB78F0B95AD9373 /* Resources */,
@@ -605,6 +614,9 @@
 				77C5FE341F1BB1D2B6F2BF60 /* NookService.swift in Sources */,
 				A0B8C120E8ECCB7041FF8105 /* ProfileService.swift in Sources */,
 				75BDD51344A68DBC981E1640 /* NotificationService.swift in Sources */,
+				AADE1E0001000000000000A1 /* AppDelegate.swift in Sources */,
+				B05E12C30001000000000001 /* PushService.swift in Sources */,
+				B0507E120001000000000001 /* PushRouter.swift in Sources */,
 				AA01AA01AA01AA01AA01AA01 /* Moderation.swift in Sources */,
 				42E0FF185893CEDE141E57A4 /* StorageService.swift in Sources */,
 				83378889CD3F189814C32FF7 /* ActivityFeedService.swift in Sources */,

@@ -52,6 +52,14 @@ final class AppRouter {
             await loadCurrentUserProfile()
         }
         currentScreen = hasOnboarded ? .home : .onboarding
+        await registerForPush()
+    }
+
+    /// Ask for notification permission (prompts only the first time) / refresh the
+    /// APNs token, then sync it to `device_tokens` for the now-authenticated user.
+    private func registerForPush() async {
+        await PushService.shared.requestAuthorizationAndRegister()
+        await PushService.shared.uploadCachedTokenIfAvailable()
     }
 
     private func checkOnboardingCompleted() async -> Bool {
@@ -218,6 +226,8 @@ final class AppRouter {
     }
 
     func signOut() async throws {
+        // Remove this device's token first, while RLS still allows it (auth.uid()).
+        await PushService.shared.clearCurrentDeviceToken()
         try await supabase.auth.signOut()
     }
 }

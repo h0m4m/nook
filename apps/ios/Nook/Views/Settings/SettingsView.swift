@@ -1,6 +1,8 @@
 import MessageUI
 import Supabase
 import SwiftUI
+import UIKit
+import UserNotifications
 
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
@@ -816,6 +818,8 @@ private struct NotificationPreferencesSheet: View {
     @Binding var reviewEnabled: Bool
     var onSave: () -> Void
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.openURL) private var openURL
+    @State private var pushPermissionDenied = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -832,6 +836,11 @@ private struct NotificationPreferencesSheet: View {
                     subtitle: "Enable all notifications",
                     isOn: $pushEnabled
                 )
+
+                if pushEnabled && pushPermissionDenied {
+                    divider
+                    deniedHint
+                }
 
                 divider
 
@@ -870,10 +879,52 @@ private struct NotificationPreferencesSheet: View {
 
             Spacer()
         }
-        .onChange(of: pushEnabled) { onSave() }
+        .onChange(of: pushEnabled) { _, newValue in
+            onSave()
+            if newValue {
+                // Turning the master switch on triggers the OS prompt + APNs register.
+                Task {
+                    let granted = await PushService.shared.requestAuthorizationAndRegister()
+                    pushPermissionDenied = !granted
+                }
+            }
+        }
         .onChange(of: activityEnabled) { onSave() }
         .onChange(of: communityEnabled) { onSave() }
         .onChange(of: reviewEnabled) { onSave() }
+        .task {
+            pushPermissionDenied = await PushService.shared.authorizationStatus() == .denied
+        }
+    }
+
+    /// Shown when the master toggle is on but notifications are disabled at the OS
+    /// level — tapping deep-links to the app's iOS Settings page.
+    private var deniedHint: some View {
+        Button {
+            if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
+        } label: {
+            HStack(spacing: 14) {
+                RoundedRectangle(cornerRadius: NookRadii.xs)
+                    .fill(Color.nook.settingsRowIconBackground)
+                    .frame(width: 36, height: 36)
+                    .overlay {
+                        Image(systemName: "exclamationmark.triangle")
+                            .font(.system(size: 16))
+                            .foregroundStyle(Color.nook.settingsRowIcon)
+                    }
+
+                Text("Notifications are off in iOS Settings. Tap to turn them on.")
+                    .font(NookFont.caption)
+                    .foregroundStyle(Color.nook.settingsRowSubtitle)
+                    .multilineTextAlignment(.leading)
+
+                Spacer()
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 
     private func toggleRow(

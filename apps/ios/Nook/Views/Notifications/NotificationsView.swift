@@ -96,6 +96,7 @@ struct NotificationsView: View {
 
         // Mark all as read
         try? await service.markAllAsRead()
+        PushService.shared.setBadge(0)
         isLoading = false
     }
 

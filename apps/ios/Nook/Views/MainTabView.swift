@@ -43,6 +43,7 @@ struct MainTabView: View {
     @State private var showTrackMediaSheet = false
     @State private var showCreateNookSheet = false
     @State private var showProfileMenu = false
+    @State private var pushRouter = PushRouter.shared
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -147,6 +148,24 @@ struct MainTabView: View {
                 .presentationDragIndicator(.hidden)
                 .presentationBackground(Color.nook.profileMenuBackground)
         }
+        // A tapped push notification routes here (set by AppDelegate via PushRouter).
+        .onChange(of: pushRouter.pendingRoute) { _, _ in applyPendingPushRoute() }
+        .task { applyPendingPushRoute() }  // handle a tap that cold-launched the app
+    }
+
+    /// Navigate to whatever a tapped notification pointed at, then clear it.
+    private func applyPendingPushRoute() {
+        guard let route = pushRouter.pendingRoute else { return }
+        selectedTab = .home
+        switch route {
+        case .club(let id):
+            navPath.append(ClubItem(navigationId: id))
+        case .profile(let id, let name, let avatarURL):
+            navPath.append(UserProfile.reference(id: id, displayName: name, avatarURL: avatarURL))
+        case .notifications:
+            navPath.append(NotificationsRoute())
+        }
+        pushRouter.pendingRoute = nil
     }
 
     private func closeFabMenu() {

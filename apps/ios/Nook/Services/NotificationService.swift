@@ -63,4 +63,35 @@ final class NotificationService: Sendable {
 
         return rows.count
     }
+
+    /// Live stream that emits whenever a new notification row is inserted for the
+    /// current user (via Supabase Realtime — the `notifications` table is in the
+    /// `supabase_realtime` publication). Emits `Void` per insert; callers typically
+    /// re-read `getUnreadCount()` on each tick. The channel is torn down
+    /// automatically when the consuming task is cancelled.
+    func observeNewNotifications() async throws -> AsyncStream<Void> {
+        let userId = try await supabase.auth.session.user.id
+
+        let channel = supabase.channel("notifications:\(userId.uuidString)")
+        let insertions = channel.postgresChange(
+            InsertAction.self,
+            schema: "public",
+            table: "notifications",
+            filter: .eq("user_id", value: userId.uuidString)
+        )
+        try await channel.subscribe()
+
+        return AsyncStream { continuation in
+            let task = Task {
+                for await _ in insertions {
+                    continuation.yield(())
+                }
+                continuation.finish()
+            }
+            continuation.onTermination = { _ in
+                task.cancel()
+                Task { await supabase.removeChannel(channel) }
+            }
+        }
+    }
 }

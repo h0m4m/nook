@@ -112,22 +112,7 @@ final class ProfileService: Sendable {
                 following_id: userId.uuidString
             ))
             .execute()
-
-        // Insert notification for the followed user
-        struct NotifInsert: Encodable {
-            let user_id: String
-            let actor_id: String
-            let type: String
-        }
-
-        _ = try? await supabase
-            .from("notifications")
-            .insert(NotifInsert(
-                user_id: userId.uuidString,
-                actor_id: currentUserId.uuidString,
-                type: "follow"
-            ))
-            .execute()
+        // The "follow" notification is created server-side by a trigger on user_follows.
     }
 
     func unfollow(userId: UUID) async throws {

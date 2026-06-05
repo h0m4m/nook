@@ -37,6 +37,9 @@ struct HomeView: View {
                 await loadTrendingReviews()
                 await loadPopularNooks()
                 await loadUnreadCount()
+                // Long-lived: updates the badge live until this view's task is
+                // cancelled. The 60s timer below stays as a fallback if Realtime drops.
+                await observeNotifications()
             }
             .onReceive(badgeTimer) { _ in
                 Task { await loadUnreadCount() }
@@ -87,6 +90,17 @@ struct HomeView: View {
     private func loadUnreadCount() async {
         let notifService = NotificationService()
         unreadNotifCount = (try? await notifService.getUnreadCount()) ?? 0
+        PushService.shared.setBadge(unreadNotifCount)
+    }
+
+    /// Subscribe to live notification inserts and refresh the badge on each one.
+    /// Runs for the lifetime of the view's `.task` and tears the channel down on exit.
+    private func observeNotifications() async {
+        let notifService = NotificationService()
+        guard let stream = try? await notifService.observeNewNotifications() else { return }
+        for await _ in stream {
+            await loadUnreadCount()
+        }
     }
 
     private func loadContinueTracking() async {
