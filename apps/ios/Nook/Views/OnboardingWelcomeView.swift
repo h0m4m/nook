@@ -45,32 +45,13 @@ struct OnboardingWelcomeView: View {
                 .ignoresSafeArea()
 
             VStack(alignment: .leading, spacing: 0) {
-                // Wordmark
-                HStack(spacing: 8) {
-                    Image("sparkle")
-                        .renderingMode(.template)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: 16, height: 16)
-                        .foregroundStyle(Color.nook.accent)
-
-                    Text("NOOK")
-                        .font(NookFont.outfitLabelBold)
-                        .tracking(3)
-                        .foregroundStyle(Color.nook.onboardingPrimary)
-                }
-                .padding(.top, 44)
-                .padding(.horizontal, 24)
-                .opacity(appeared ? 1 : 0)
-                .offset(y: appeared ? 0 : 10)
-
                 // Headline
                 Text("Welcome to your\ncozy media corner.")
                     .font(NookFont.outfitDisplay)
                     .lineSpacing(0)
                     .foregroundStyle(Color.nook.onboardingHeading)
                     .fixedSize(horizontal: false, vertical: true)
-                    .padding(.top, 20)
+                    .padding(.top, 44)
                     .padding(.horizontal, 24)
                     .opacity(appeared ? 1 : 0)
                     .offset(y: appeared ? 0 : 12)
