@@ -43,6 +43,7 @@ final class MediaDetailViewModel {
         case "anime": .anime
         case "manga": .manga
         case "book": .book
+        case "game": .game
         default: nil
         }
     }

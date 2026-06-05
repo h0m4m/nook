@@ -28,7 +28,9 @@ struct TrackingItem: Identifiable {
 
         let progressText: String
         if item.progress > 0 {
-            progressText = "Progress: \(item.progress)"
+            progressText = item.mediaType == "game"
+                ? hoursTrackedLabel(item.progress)
+                : "Progress: \(item.progress)"
         } else {
             progressText = TrackingStatus.from(dbValue: item.status)?.label ?? item.status
         }
@@ -38,6 +40,9 @@ struct TrackingItem: Identifiable {
         case "anime": self.category = .anime
         case "tv": self.category = .tvShow
         case "book": self.category = .book
+        case "game": self.category = .game
+        case "movie": self.category = .movie
+        case "manga": self.category = .manga
         default: self.category = .anime
         }
     }
@@ -47,12 +52,18 @@ enum MediaCategory {
     case anime
     case tvShow
     case book
+    case game
+    case movie
+    case manga
 
     var label: String {
         switch self {
         case .anime: "ANIME"
         case .tvShow: "TV SHOW"
         case .book: "BOOK"
+        case .game: "GAME"
+        case .movie: "MOVIE"
+        case .manga: "MANGA"
         }
     }
 
@@ -61,6 +72,9 @@ enum MediaCategory {
         case .anime: Color.nook.badgeAnimeText
         case .tvShow: Color.nook.badgeTvShowText
         case .book: Color.nook.badgeBookText
+        case .game: Color.nook.badgeGameText
+        case .movie: Color.nook.badgeMovieText
+        case .manga: Color.nook.badgeMangaText
         }
     }
 
@@ -69,6 +83,9 @@ enum MediaCategory {
         case .anime: Color.nook.badgeAnimeBg
         case .tvShow: Color.nook.badgeTvShowBg
         case .book: Color.nook.badgeBookBg
+        case .game: Color.nook.badgeGameBg
+        case .movie: Color.nook.badgeMovieBg
+        case .manga: Color.nook.badgeMangaBg
         }
     }
 }

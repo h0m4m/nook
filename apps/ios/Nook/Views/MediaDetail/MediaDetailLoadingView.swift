@@ -51,7 +51,8 @@ struct MediaDetailLoadingView: View {
             dbId: viewModel.dbId,
             source: viewModel.route.source,
             mediaId: viewModel.route.mediaId,
-            mediaType: viewModel.route.mediaType
+            mediaType: viewModel.route.mediaType,
+            platforms: viewModel.platforms ?? []
         )
     }
 }

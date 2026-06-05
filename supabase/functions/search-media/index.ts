@@ -3,6 +3,7 @@ import { corsHeaders } from '../_shared/cors.ts';
 import * as thetvdb from '../_shared/providers/thetvdb.ts';
 import * as kitsu from '../_shared/providers/kitsu.ts';
 import * as openlibrary from '../_shared/providers/openlibrary.ts';
+import * as igdb from '../_shared/providers/igdb.ts';
 import type { SearchResult, SearchResponse } from '../_shared/types.ts';
 
 Deno.serve(async (req) => {
@@ -46,6 +47,9 @@ Deno.serve(async (req) => {
         break;
       case 'book':
         result = await openlibrary.search(query, page);
+        break;
+      case 'game':
+        result = await igdb.search(query, page);
         break;
       default:
         return new Response(JSON.stringify({ error: `Unsupported media_type: ${media_type}` }), {

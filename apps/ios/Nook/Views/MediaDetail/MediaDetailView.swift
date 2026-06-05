@@ -39,6 +39,8 @@ struct MediaDetail: Identifiable, Hashable {
     let source: String?
     let mediaId: String?
     let mediaType: String?
+    /// Game platforms (IGDB) — empty for other media types.
+    let platforms: [String]
 
     init(
         title: String,
@@ -65,7 +67,8 @@ struct MediaDetail: Identifiable, Hashable {
         dbId: UUID? = nil,
         source: String? = nil,
         mediaId: String? = nil,
-        mediaType: String? = nil
+        mediaType: String? = nil,
+        platforms: [String] = []
     ) {
         self.title = title
         self.year = year
@@ -92,6 +95,7 @@ struct MediaDetail: Identifiable, Hashable {
         self.source = source
         self.mediaId = mediaId
         self.mediaType = mediaType
+        self.platforms = platforms
     }
 
 
@@ -312,12 +316,18 @@ struct MediaDetailView: View {
         }
     }
 
-    /// Short label used in the progress card counter (e.g. "Ep 1", "Pg 142")
+    /// Games have a release date, not an "Aired" range.
+    private var releaseLabel: String {
+        media.category == .game ? "Released" : "Aired"
+    }
+
+    /// Short label used in the progress card counter (e.g. "Ep 1", "Pg 142", "42 hrs")
     private var progressCountLabel: String {
         switch media.category {
         case .book: "Pg \(currentEpisode)"
         case .manga: "Ch \(currentEpisode)"
         case .movie: currentEpisode > 0 ? "Watched" : "Not watched"
+        case .game: hoursTrackedLabel(currentEpisode)
         default: "Ep \(currentEpisode)"
         }
     }
@@ -914,7 +924,8 @@ private extension MediaDetailView {
                 detailRow(label: studioLabel, value: media.studio)
                 detailRow(label: "Director", value: media.director)
                 detailRow(label: "Status", value: media.status)
-                detailRow(label: "Aired", value: media.airedDates)
+                detailRow(label: releaseLabel, value: media.airedDates)
+                detailRow(label: "Platforms", value: media.platforms.joined(separator: ", "))
                 if media.category != .movie {
                     detailRow(label: progressLabel, value: media.episodeCount)
                 }
@@ -1340,12 +1351,14 @@ struct TrackingSheetView: View {
         case .book: "Pg \(localEpisode)"
         case .manga: "Ch \(localEpisode)"
         case .movie: localEpisode > 0 ? "Watched" : "Not watched"
+        case .game: hoursTrackedLabel(localEpisode)
         default: "Ep \(localEpisode)"
         }
     }
 
     private var progressHeaderLabel: String {
-        if category == .movie { return progressCountLabel }
+        // Movies (watched/not) and games (hours played) have no "out of" total.
+        if category == .movie || category == .game { return progressCountLabel }
         if totalEpisodes == 0 { return "\(progressCountLabel) / ?" }
         return "\(progressCountLabel) / \(totalEpisodes)"
     }

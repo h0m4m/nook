@@ -137,6 +137,12 @@ enum LibraryMediaCategory: String, CaseIterable, Identifiable {
     }
 }
 
+/// Formats tracked game playtime, e.g. "1 hr", "42 hrs". Games track hours
+/// played rather than episodes/chapters, so there's no "out of" total.
+func hoursTrackedLabel(_ hours: Int) -> String {
+    "\(hours) \(hours == 1 ? "hr" : "hrs")"
+}
+
 // MARK: - Library Item Model
 
 struct LibraryItem: Identifiable {
@@ -949,7 +955,7 @@ private struct RealLibraryItemRow: View {
 
     private var progressDetail: String {
         if item.progress > 0 {
-            return "Progress: \(item.progress)"
+            return category == .game ? hoursTrackedLabel(item.progress) : "Progress: \(item.progress)"
         }
         return status.label
     }
@@ -1081,7 +1087,7 @@ extension LibraryView {
             title: "Iron & Ember",
             category: .game,
             status: .completed,
-            progressDetail: "42 hours played",
+            progressDetail: "42 hrs",
             progress: 1.0,
             rating: 9.0,
             imageName: "mock-iron-ember",
