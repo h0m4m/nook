@@ -15,6 +15,7 @@ struct CreateNookSheet: View {
     @State private var privacy: NookPrivacy = .publicVisible
     @State private var showPrivacyPicker = false
     @State private var isPublishing = false
+    @State private var moderationError: String?
     @FocusState private var focusedField: Field?
 
     private enum Field {
@@ -61,6 +62,14 @@ struct CreateNookSheet: View {
             .scrollDismissesKeyboard(.interactively)
         }
         .background(Color(hex: 0xFDFBF9))
+        .alert("Couldn't create nook", isPresented: Binding(
+            get: { moderationError != nil },
+            set: { if !$0 { moderationError = nil } }
+        )) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(moderationError ?? "")
+        }
         .sheet(isPresented: $showAddMedia) {
             AddMediaToNookSheet(mediaItems: $mediaItems)
                 .presentationDetents([.large])
@@ -490,6 +499,7 @@ struct CreateNookSheet: View {
             } catch {
                 await MainActor.run {
                     isPublishing = false
+                    moderationError = AppError(from: error).errorDescription
                 }
             }
         }

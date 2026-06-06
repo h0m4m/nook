@@ -2,6 +2,8 @@ import Foundation
 import Supabase
 
 final class NookService: Sendable {
+    private let api = APIClient()
+
     /// Embedded owner profile + the contained media posters for list/grid surfaces.
     private static let summarySelect =
         "*, user_profile:user_profiles!nooks_user_id_user_profiles_fkey(full_name, username, avatar_url), preview:nook_items(sort_order, media_item:media_items(image_url))"
@@ -11,93 +13,51 @@ final class NookService: Sendable {
         description: String?,
         privacy: String
     ) async throws -> UUID {
-        let userId = try await supabase.auth.session.user.id
-
-        struct NookInsert: Encodable {
-            let user_id: String
+        struct Payload: Encodable, Sendable {
             let name: String
             let description: String?
             let privacy: String
         }
 
-        struct NookResult: Decodable {
-            let id: UUID
-        }
-
-        let result: NookResult = try await supabase
-            .from("nooks")
-            .insert(NookInsert(
-                user_id: userId.uuidString,
-                name: name,
-                description: description,
-                privacy: privacy
-            ))
-            .select("id")
-            .single()
-            .execute()
-            .value
-
-        // Insert activity feed entry
-        struct ActivityInsert: Encodable {
-            let user_id: String
-            let action_type: String
-            let reference_id: String
-            let reference_type: String
-        }
-
-        _ = try? await supabase
-            .from("activity_feed")
-            .insert(ActivityInsert(
-                user_id: userId.uuidString,
-                action_type: "created_nook",
-                reference_id: result.id.uuidString,
-                reference_type: "nook"
-            ))
-            .execute()
-
+        let result: ContentIdResponse = try await api.content("create_nook", Payload(
+            name: name,
+            description: description,
+            privacy: privacy
+        ))
         return result.id
     }
 
-    func addItems(
+    /// Replace all items in a nook with the given list (moderating any per-item
+    /// notes server-side). Used both when first populating a nook and when editing.
+    func setItems(
         nookId: UUID,
         items: [(mediaItemId: UUID, note: String?, sortOrder: Int)]
     ) async throws {
-        struct ItemInsert: Encodable {
-            let nook_id: String
+        struct Item: Encodable, Sendable {
             let media_item_id: String
             let note: String?
             let sort_order: Int
         }
-
-        let rows = items.map {
-            ItemInsert(
-                nook_id: nookId.uuidString,
-                media_item_id: $0.mediaItemId.uuidString,
-                note: $0.note,
-                sort_order: $0.sortOrder
-            )
+        struct Payload: Encodable, Sendable {
+            let nook_id: String
+            let items: [Item]
         }
 
-        try await supabase
-            .from("nook_items")
-            .insert(rows)
-            .execute()
+        let _: EmptyResponse = try await api.content("set_nook_items", Payload(
+            nook_id: nookId.uuidString,
+            items: items.map {
+                Item(media_item_id: $0.mediaItemId.uuidString, note: $0.note, sort_order: $0.sortOrder)
+            }
+        ))
     }
 
-    /// Replace all items in a nook with the given list (used when editing).
-    func replaceItems(
-        nookId: UUID,
-        items: [(mediaItemId: UUID, note: String?, sortOrder: Int)]
-    ) async throws {
-        try await supabase
-            .from("nook_items")
-            .delete()
-            .eq("nook_id", value: nookId.uuidString)
-            .execute()
+    /// Back-compat aliases — both now replace the full item set via the gateway.
+    func addItems(nookId: UUID, items: [(mediaItemId: UUID, note: String?, sortOrder: Int)]) async throws {
+        try await setItems(nookId: nookId, items: items)
+    }
 
-        if !items.isEmpty {
-            try await addItems(nookId: nookId, items: items)
-        }
+    func replaceItems(nookId: UUID, items: [(mediaItemId: UUID, note: String?, sortOrder: Int)]) async throws {
+        try await setItems(nookId: nookId, items: items)
     }
 
     func getNook(nookId: UUID) async throws -> NookDetail {
@@ -239,24 +199,17 @@ final class NookService: Sendable {
     }
 
     func addComment(nookId: UUID, body: String, parentCommentId: UUID? = nil) async throws {
-        let userId = try await supabase.auth.session.user.id
-
-        struct CommentInsert: Encodable {
+        struct Payload: Encodable, Sendable {
             let nook_id: String
-            let user_id: String
-            let parent_comment_id: String?
             let body: String
+            let parent_comment_id: String?
         }
 
-        try await supabase
-            .from("nook_comments")
-            .insert(CommentInsert(
-                nook_id: nookId.uuidString,
-                user_id: userId.uuidString,
-                parent_comment_id: parentCommentId?.uuidString,
-                body: body
-            ))
-            .execute()
+        let _: ContentIdResponse = try await api.content("create_nook_comment", Payload(
+            nook_id: nookId.uuidString,
+            body: body,
+            parent_comment_id: parentCommentId?.uuidString
+        ))
     }
 
     // MARK: - Comment Likes

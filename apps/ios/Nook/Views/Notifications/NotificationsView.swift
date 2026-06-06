@@ -241,19 +241,14 @@ private struct RealNotificationRow: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            AsyncImage(url: notification.actorAvatarURL) { phase in
-                switch phase {
-                case .success(let image):
-                    image.resizable().scaledToFill()
-                default:
-                    Circle()
-                        .fill(Color.nook.secondary)
-                        .overlay {
-                            Image(systemName: "person.fill")
-                                .font(.system(size: 14))
-                                .foregroundStyle(Color.nook.mutedForeground)
-                        }
-                }
+            CachedRemoteImage(url: notification.actorAvatarURL) {
+                Circle()
+                    .fill(Color.nook.secondary)
+                    .overlay {
+                        Image(systemName: "person.fill")
+                            .font(.system(size: 14))
+                            .foregroundStyle(Color.nook.mutedForeground)
+                    }
             }
             .frame(width: 40, height: 40)
             .clipShape(Circle())

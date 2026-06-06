@@ -61,6 +61,7 @@ struct ReviewDetailView: View {
     @State private var sortOrder: CommentSort = .top
     @State private var currentUserId: UUID?
     @State private var showReportConfirmation = false
+    @State private var moderationError: String?
     @State private var showReportSheet = false
     private let moderation = ModerationService()
 
@@ -108,6 +109,14 @@ struct ReviewDetailView: View {
             Button("OK", role: .cancel) {}
         } message: {
             Text("Thanks for helping keep Nook safe. We'll review this.")
+        }
+        .alert("Comment not posted", isPresented: Binding(
+            get: { moderationError != nil },
+            set: { if !$0 { moderationError = nil } }
+        )) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(moderationError ?? "")
         }
         .navigationBarBackButtonHidden()
         .toolbar(.hidden, for: .navigationBar)
@@ -317,14 +326,7 @@ private extension ReviewDetailView {
             // Media poster
             Group {
                 if let url = review.mediaImageURL {
-                    AsyncImage(url: url) { phase in
-                        switch phase {
-                        case .success(let image):
-                            image.resizable().scaledToFill()
-                        default:
-                            Color.nook.secondary
-                        }
-                    }
+                    CachedRemoteImage(url: url) { Color.nook.secondary }
                 } else {
                     Color.nook.secondary
                         .overlay(
@@ -898,8 +900,13 @@ private extension ReviewDetailView {
         guard let dbId = review.dbId else { return }
         Task {
             let service = ReviewService()
-            try? await service.addComment(reviewId: dbId, body: text, parentCommentId: parentId)
-            await reloadComments()
+            do {
+                try await service.addComment(reviewId: dbId, body: text, parentCommentId: parentId)
+                await reloadComments()
+            } catch {
+                commentText = text
+                moderationError = AppError(from: error).errorDescription
+            }
         }
     }
 

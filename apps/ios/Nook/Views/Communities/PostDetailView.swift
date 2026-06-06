@@ -83,6 +83,7 @@ struct PostDetailView: View {
     @State private var didLoad = false
     @State private var showReportSheet = false
     @State private var showReportConfirmation = false
+    @State private var moderationError: String?
 
     private let service = ClubService()
     private let moderation = ModerationService()
@@ -149,6 +150,14 @@ struct PostDetailView: View {
             Button("OK", role: .cancel) {}
         } message: {
             Text("Thanks for keeping the community safe. We'll review this post.")
+        }
+        .alert("Comment not posted", isPresented: Binding(
+            get: { moderationError != nil },
+            set: { if !$0 { moderationError = nil } }
+        )) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(moderationError ?? "")
         }
         .task { await loadData() }
     }
@@ -277,12 +286,7 @@ private extension PostDetailView {
     var postImages: some View {
         Group {
             if post.imageURLs.count == 1, let url = post.imageURLs.first {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .success(let image): image.resizable().scaledToFill()
-                    default: Color.nook.secondary
-                    }
-                }
+                CachedRemoteImage(url: url) { Color.nook.secondary }
                 .frame(maxWidth: .infinity)
                 .frame(height: 240)
                 .clipShape(RoundedRectangle(cornerRadius: NookRadii.sm, style: .continuous))
@@ -291,12 +295,7 @@ private extension PostDetailView {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
                         ForEach(post.imageURLs, id: \.self) { url in
-                            AsyncImage(url: url) { phase in
-                                switch phase {
-                                case .success(let image): image.resizable().scaledToFill()
-                                default: Color.nook.secondary
-                                }
-                            }
+                            CachedRemoteImage(url: url) { Color.nook.secondary }
                             .frame(width: 280, height: 240)
                             .clipShape(RoundedRectangle(cornerRadius: NookRadii.sm, style: .continuous))
                         }
@@ -748,8 +747,15 @@ private extension PostDetailView {
 
         guard let dbId = post.dbId else { return }
         Task {
-            try? await service.addComment(postId: dbId, body: text, parentCommentId: parentId)
-            await reloadComments()
+            do {
+                try await service.addComment(postId: dbId, body: text, parentCommentId: parentId)
+                await reloadComments()
+            } catch {
+                // Moderation rejection (or any failure) — restore the draft so the
+                // user can edit, and tell them why it didn't post.
+                commentText = text
+                moderationError = AppError(from: error).errorDescription
+            }
         }
     }
 

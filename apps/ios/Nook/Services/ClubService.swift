@@ -10,6 +10,8 @@ struct ClubPollDraft: Sendable {
 
 final class ClubService: Sendable {
 
+    private let api = APIClient()
+
     // Embeds reused across post queries.
     private static let postSelect = """
     *, \
@@ -55,8 +57,7 @@ final class ClubService: Sendable {
             iconUrl = url.absoluteString
         }
 
-        struct ClubInsert: Encodable {
-            let owner_id: String
+        struct Payload: Encodable, Sendable {
             let name: String
             let description: String?
             let category: String
@@ -66,42 +67,16 @@ final class ClubService: Sendable {
             let icon_url: String?
         }
 
-        struct ClubResult: Decodable {
-            let id: UUID
-        }
-
-        let result: ClubResult = try await supabase
-            .from("clubs")
-            .insert(ClubInsert(
-                owner_id: userId.uuidString,
-                name: name,
-                description: description,
-                category: category,
-                privacy: privacy,
-                theme_color: themeColor,
-                banner_url: bannerUrl,
-                icon_url: iconUrl
-            ))
-            .select("id")
-            .single()
-            .execute()
-            .value
-
-        // Add creator as owner member
-        struct MemberInsert: Encodable {
-            let club_id: String
-            let user_id: String
-            let role: String
-        }
-
-        try await supabase
-            .from("club_members")
-            .insert(MemberInsert(
-                club_id: result.id.uuidString,
-                user_id: userId.uuidString,
-                role: "owner"
-            ))
-            .execute()
+        // The gateway creates the club AND the owner membership row server-side.
+        let result: ContentIdResponse = try await api.content("create_club", Payload(
+            name: name,
+            description: description,
+            category: category,
+            privacy: privacy,
+            theme_color: themeColor,
+            banner_url: bannerUrl,
+            icon_url: iconUrl
+        ))
 
         return result.id
     }
@@ -121,33 +96,42 @@ final class ClubService: Sendable {
         let userId = try await supabase.auth.session.user.id
         let storageService = StorageService()
 
-        var updates: [String: AnyEncodable] = [
-            "description": AnyEncodable(description),
-            "category": AnyEncodable(category),
-            "privacy": AnyEncodable(privacy),
-            "theme_color": AnyEncodable(themeColor),
-        ]
-
+        var bannerUrl: String?
         if let bannerData {
             let url = try await storageService.uploadImage(
                 bucket: "club-assets", userId: userId,
                 fileName: "banner-\(UUID().uuidString).jpg", data: bannerData
             )
-            updates["banner_url"] = AnyEncodable(url.absoluteString)
+            bannerUrl = url.absoluteString
         }
+        var iconUrl: String?
         if let iconData {
             let url = try await storageService.uploadImage(
                 bucket: "club-assets", userId: userId,
                 fileName: "icon-\(UUID().uuidString).jpg", data: iconData
             )
-            updates["icon_url"] = AnyEncodable(url.absoluteString)
+            iconUrl = url.absoluteString
         }
 
-        try await supabase
-            .from("clubs")
-            .update(updates)
-            .eq("id", value: clubId.uuidString)
-            .execute()
+        struct Payload: Encodable, Sendable {
+            let club_id: String
+            let description: String?
+            let category: String
+            let privacy: String
+            let theme_color: String?
+            let banner_url: String?
+            let icon_url: String?
+        }
+
+        let _: ContentIdResponse = try await api.content("update_club", Payload(
+            club_id: clubId.uuidString,
+            description: description,
+            category: category,
+            privacy: privacy,
+            theme_color: themeColor,
+            banner_url: bannerUrl,
+            icon_url: iconUrl
+        ))
     }
 
     func getClub(clubId: UUID) async throws -> ClubRow {
@@ -331,91 +315,64 @@ final class ClubService: Sendable {
     ) async throws -> UUID {
         let userId = try await supabase.auth.session.user.id
 
-        struct PostInsert: Encodable {
-            let club_id: String
-            let user_id: String
-            let body: String
+        // Images are uploaded to storage here (we have the bytes); their public
+        // URLs are handed to the gateway, which moderates them and persists the
+        // post + attachments + poll server-side in one shot.
+        struct ImagePayload: Encodable, Sendable {
+            let url: String
+            let position: Int
         }
-
-        struct PostResult: Decodable { let id: UUID }
-
-        let result: PostResult = try await supabase
-            .from("club_posts")
-            .insert(PostInsert(
-                club_id: clubId.uuidString,
-                user_id: userId.uuidString,
-                body: body
-            ))
-            .select("id")
-            .single()
-            .execute()
-            .value
-
-        let postId = result.id
-
+        var images: [ImagePayload] = []
         if !imageDatas.isEmpty {
             let storageService = StorageService()
-            struct ImageInsert: Encodable {
-                let post_id: String
-                let url: String
-                let position: Int
-            }
-            var inserts: [ImageInsert] = []
             for (index, data) in imageDatas.enumerated() {
                 let url = try await storageService.uploadImage(
                     bucket: "club-assets",
                     userId: userId,
-                    fileName: "post-\(postId.uuidString)-\(index)-\(UUID().uuidString).jpg",
+                    fileName: "post-\(index)-\(UUID().uuidString).jpg",
                     data: data
                 )
-                inserts.append(ImageInsert(post_id: postId.uuidString, url: url.absoluteString, position: index))
+                images.append(ImagePayload(url: url.absoluteString, position: index))
             }
-            try await supabase.from("club_post_images").insert(inserts).execute()
         }
 
-        if !mediaItemIds.isEmpty {
-            struct MediaInsert: Encodable {
-                let post_id: String
-                let media_item_id: String
-                let position: Int
-            }
-            let inserts = mediaItemIds.enumerated().map { index, id in
-                MediaInsert(post_id: postId.uuidString, media_item_id: id.uuidString, position: index)
-            }
-            try await supabase.from("club_post_media").insert(inserts).execute()
+        struct MediaPayload: Encodable, Sendable {
+            let media_item_id: String
+            let position: Int
+        }
+        let media = mediaItemIds.enumerated().map { index, id in
+            MediaPayload(media_item_id: id.uuidString, position: index)
         }
 
+        struct PollPayload: Encodable, Sendable {
+            let closes_at: String?
+            let options: [String]
+        }
+        var pollPayload: PollPayload?
         if let poll, poll.options.count >= 2 {
-            struct PollInsert: Encodable {
-                let post_id: String
-                let closes_at: String?
-            }
-            struct PollResult: Decodable { let id: UUID }
-
-            let closesAtString = poll.closesAt.map { ISO8601DateFormatter().string(from: $0) }
-
-            let pollResult: PollResult = try await supabase
-                .from("club_post_polls")
-                .insert(PollInsert(post_id: postId.uuidString, closes_at: closesAtString))
-                .select("id")
-                .single()
-                .execute()
-                .value
-
-            struct OptionInsert: Encodable {
-                let poll_id: String
-                let text: String
-                let position: Int
-            }
-
-            let options = poll.options.enumerated().map { index, text in
-                OptionInsert(poll_id: pollResult.id.uuidString, text: text, position: index)
-            }
-
-            try await supabase.from("club_poll_options").insert(options).execute()
+            pollPayload = PollPayload(
+                closes_at: poll.closesAt.map { ISO8601DateFormatter().string(from: $0) },
+                options: poll.options
+            )
         }
 
-        return postId
+        struct Payload: Encodable, Sendable {
+            let club_id: String
+            let body: String
+            let images: [ImagePayload]
+            let media: [MediaPayload]
+            let poll: PollPayload?
+        }
+
+        let result: ContentIdResponse = try await api.content("create_club_post", Payload(
+            club_id: clubId.uuidString,
+            body: body,
+            images: images,
+            media: media,
+            poll: pollPayload
+        ))
+
+        return result.id
     }
 
     func getPosts(clubId: UUID, page: Int = 1) async throws -> [ClubPostModel] {
@@ -637,31 +594,19 @@ final class ClubService: Sendable {
 
     @discardableResult
     func addComment(postId: UUID, body: String, parentCommentId: UUID? = nil) async throws -> UUID {
-        let userId = try await supabase.auth.session.user.id
-
-        struct CommentInsert: Encodable {
+        struct Payload: Encodable, Sendable {
             let post_id: String
-            let user_id: String
-            let parent_comment_id: String?
             let body: String
+            let parent_comment_id: String?
         }
 
-        struct CommentResult: Decodable { let id: UUID }
-
-        let result: CommentResult = try await supabase
-            .from("club_post_comments")
-            .insert(CommentInsert(
-                post_id: postId.uuidString,
-                user_id: userId.uuidString,
-                parent_comment_id: parentCommentId?.uuidString,
-                body: body
-            ))
-            .select("id")
-            .single()
-            .execute()
-            .value
         // The "comment_post" notification (and any @mention notifications) are
         // created server-side by a trigger on club_post_comments.
+        let result: ContentIdResponse = try await api.content("create_club_post_comment", Payload(
+            post_id: postId.uuidString,
+            body: body,
+            parent_comment_id: parentCommentId?.uuidString
+        ))
 
         return result.id
     }

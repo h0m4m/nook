@@ -1011,22 +1011,7 @@ private extension MediaDetailView {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .top) {
                 HStack(spacing: 12) {
-                    AsyncImage(url: review.authorAvatarURL) { phase in
-                        switch phase {
-                        case .success(let image):
-                            image.resizable().scaledToFill()
-                        default:
-                            Circle()
-                                .fill(Color.nook.secondary)
-                                .overlay(
-                                    Image(systemName: "person.fill")
-                                        .font(.system(size: 14))
-                                        .foregroundStyle(Color.nook.mutedForeground)
-                                )
-                        }
-                    }
-                    .frame(width: 32, height: 32)
-                    .clipShape(Circle())
+                    ReviewerAvatar(url: review.authorAvatarURL, size: 32, iconSize: 14)
 
                     VStack(alignment: .leading, spacing: 0) {
                         Text(review.authorName)
@@ -1699,6 +1684,7 @@ struct ReviewSheetView: View {
     @Environment(\.dismiss) private var dismiss
     @FocusState private var focusedField: ReviewField?
     @State private var showUpdateConfirmation = false
+    @State private var moderationError: String?
     @State private var richText: AttributedString = ""
     @State private var formatter: RichTextFormatterProtocol = {
         if #available(iOS 26, *) {
@@ -1767,6 +1753,14 @@ struct ReviewSheetView: View {
             } message: {
                 Text("This will replace your previous review.")
             }
+            .alert("Review not posted", isPresented: Binding(
+                get: { moderationError != nil },
+                set: { if !$0 { moderationError = nil } }
+            )) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(moderationError ?? "")
+            }
         }
     }
 
@@ -1778,13 +1772,20 @@ struct ReviewSheetView: View {
             let markdownBody = formatter.toMarkdown()
             if let dbId = resolvedId, (!markdownBody.isEmpty || rating > 0) {
                 let service = ReviewService()
-                try? await service.createReview(
-                    mediaItemId: dbId,
-                    title: title.isEmpty ? nil : title,
-                    body: markdownBody.isEmpty ? "No text" : markdownBody,
-                    rating: Double(rating),
-                    isSpoiler: containsSpoilers
-                )
+                do {
+                    try await service.createReview(
+                        mediaItemId: dbId,
+                        title: title.isEmpty ? nil : title,
+                        body: markdownBody.isEmpty ? "No text" : markdownBody,
+                        rating: Double(rating),
+                        isSpoiler: containsSpoilers
+                    )
+                } catch {
+                    // Moderation rejection (or any failure): keep the sheet open
+                    // with the draft intact and tell the user why.
+                    moderationError = AppError(from: error).errorDescription
+                    return
+                }
             }
             reviewText = markdownBody
             isReviewed = !markdownBody.isEmpty || rating > 0

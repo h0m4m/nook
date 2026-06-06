@@ -349,19 +349,14 @@ struct OtherProfileView: View {
     }
 
     private var avatarView: some View {
-        AsyncImage(url: profile.avatarURL) { phase in
-            switch phase {
-            case .success(let image):
-                image.resizable().scaledToFill()
-            default:
-                Circle()
-                    .fill(Color(hex: 0x8B6FA0))
-                    .overlay {
-                        Text(String(profile.displayName.prefix(1)).uppercased())
-                            .font(NookFont.headingMediumBold)
-                            .foregroundStyle(.white)
-                    }
-            }
+        CachedRemoteImage(url: profile.avatarURL) {
+            Circle()
+                .fill(Color(hex: 0x8B6FA0))
+                .overlay {
+                    Text(String(profile.displayName.prefix(1)).uppercased())
+                        .font(NookFont.headingMediumBold)
+                        .foregroundStyle(.white)
+                }
         }
         .frame(width: 112, height: 112)
         .clipShape(Circle())

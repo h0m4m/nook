@@ -2,6 +2,8 @@ import Foundation
 import Supabase
 
 final class ProfileService: Sendable {
+    private let api = APIClient()
+
     func getProfile(userId: UUID) async throws -> UserProfileData {
         struct ProfileRow: Decodable {
             let id: UUID
@@ -32,6 +34,10 @@ final class ProfileService: Sendable {
         )
     }
 
+    /// Updates profile fields through the moderation gateway. The free-text
+    /// columns (full_name / username / bio) are writable only by the gateway;
+    /// the avatar image is moderated too. Only non-nil fields are sent (and thus
+    /// changed). A taken username surfaces as an `AppError.clientError`.
     func updateProfile(
         userId: UUID,
         fullName: String? = nil,
@@ -39,19 +45,21 @@ final class ProfileService: Sendable {
         bio: String? = nil,
         avatarURL: String? = nil
     ) async throws {
-        var updates: [String: AnyEncodable] = [:]
-        if let fullName { updates["full_name"] = AnyEncodable(fullName) }
-        if let username { updates["username"] = AnyEncodable(username) }
-        if let bio { updates["bio"] = AnyEncodable(bio) }
-        if let avatarURL { updates["avatar_url"] = AnyEncodable(avatarURL) }
+        guard fullName != nil || username != nil || bio != nil || avatarURL != nil else { return }
 
-        guard !updates.isEmpty else { return }
+        struct Payload: Encodable, Sendable {
+            let full_name: String?
+            let username: String?
+            let bio: String?
+            let avatar_url: String?
+        }
 
-        try await supabase
-            .from("user_profiles")
-            .update(updates)
-            .eq("id", value: userId.uuidString)
-            .execute()
+        let _: ContentIdResponse = try await api.content("update_profile_text", Payload(
+            full_name: fullName,
+            username: username,
+            bio: bio,
+            avatar_url: avatarURL
+        ))
     }
 
     func checkUsernameAvailable(username: String) async throws -> Bool {

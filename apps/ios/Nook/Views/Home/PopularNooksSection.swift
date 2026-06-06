@@ -261,14 +261,7 @@ struct NookCard: View {
     private var curatorAvatar: some View {
         Group {
             if let url = item.curatorAvatarURL {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image.resizable().scaledToFill()
-                    default:
-                        avatarFallback
-                    }
-                }
+                CachedRemoteImage(url: url) { avatarFallback }
             } else {
                 avatarFallback
             }

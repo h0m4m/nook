@@ -2,6 +2,8 @@ import Foundation
 import Supabase
 
 final class ReviewService: Sendable {
+    private let api = APIClient()
+
     func getReviewsForMedia(mediaItemId: UUID, page: Int = 1) async throws -> [Review] {
         let limit = 10
         let offset = (page - 1) * limit
@@ -46,6 +48,9 @@ final class ReviewService: Sendable {
         return rows.map { Review(from: $0) }
     }
 
+    /// Creates/updates the current user's review via the moderation gateway.
+    /// Clearing stale comments/likes, resetting the like count and the activity-feed
+    /// entry all happen server-side now (see the `create_review` handler).
     func createReview(
         mediaItemId: UUID,
         title: String?,
@@ -53,10 +58,7 @@ final class ReviewService: Sendable {
         rating: Double,
         isSpoiler: Bool
     ) async throws {
-        let userId = try await supabase.auth.session.user.id
-
-        struct ReviewInsert: Encodable {
-            let user_id: String
+        struct Payload: Encodable, Sendable {
             let media_item_id: String
             let title: String?
             let body: String
@@ -64,67 +66,13 @@ final class ReviewService: Sendable {
             let is_spoiler: Bool
         }
 
-        struct ReviewResult: Decodable {
-            let id: UUID
-        }
-
-        let result: ReviewResult = try await supabase
-            .from("reviews")
-            .upsert(
-                ReviewInsert(
-                    user_id: userId.uuidString,
-                    media_item_id: mediaItemId.uuidString,
-                    title: title,
-                    body: body,
-                    rating: rating,
-                    is_spoiler: isSpoiler
-                ),
-                onConflict: "user_id,media_item_id"
-            )
-            .select("id")
-            .single()
-            .execute()
-            .value
-
-        // Clear old comments and likes since the review content changed
-        try? await supabase
-            .from("review_comments")
-            .delete()
-            .eq("review_id", value: result.id.uuidString)
-            .execute()
-
-        try? await supabase
-            .from("review_likes")
-            .delete()
-            .eq("review_id", value: result.id.uuidString)
-            .execute()
-
-        // Reset likes count
-        try? await supabase
-            .from("reviews")
-            .update(["likes_count": 0] as [String: Int])
-            .eq("id", value: result.id.uuidString)
-            .execute()
-
-        // Insert activity feed entry
-        struct ActivityInsert: Encodable {
-            let user_id: String
-            let action_type: String
-            let media_item_id: String
-            let reference_id: String
-            let reference_type: String
-        }
-
-        _ = try? await supabase
-            .from("activity_feed")
-            .insert(ActivityInsert(
-                user_id: userId.uuidString,
-                action_type: "reviewed",
-                media_item_id: mediaItemId.uuidString,
-                reference_id: result.id.uuidString,
-                reference_type: "review"
-            ))
-            .execute()
+        let _: ContentIdResponse = try await api.content("create_review", Payload(
+            media_item_id: mediaItemId.uuidString,
+            title: title,
+            body: body,
+            rating: rating,
+            is_spoiler: isSpoiler
+        ))
     }
 
     func deleteReview(reviewId: UUID) async throws {
@@ -194,24 +142,17 @@ final class ReviewService: Sendable {
     }
 
     func addComment(reviewId: UUID, body: String, parentCommentId: UUID? = nil) async throws {
-        let userId = try await supabase.auth.session.user.id
-
-        struct CommentInsert: Encodable {
+        struct Payload: Encodable, Sendable {
             let review_id: String
-            let user_id: String
-            let parent_comment_id: String?
             let body: String
+            let parent_comment_id: String?
         }
 
-        try await supabase
-            .from("review_comments")
-            .insert(CommentInsert(
-                review_id: reviewId.uuidString,
-                user_id: userId.uuidString,
-                parent_comment_id: parentCommentId?.uuidString,
-                body: body
-            ))
-            .execute()
+        let _: ContentIdResponse = try await api.content("create_review_comment", Payload(
+            review_id: reviewId.uuidString,
+            body: body,
+            parent_comment_id: parentCommentId?.uuidString
+        ))
     }
 
     // MARK: - Comment Likes

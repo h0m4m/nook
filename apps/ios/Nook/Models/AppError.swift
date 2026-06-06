@@ -6,6 +6,8 @@ enum AppError: LocalizedError {
     case unauthorized
     case notFound
     case clientError(String)
+    /// Content was rejected by moderation (HTTP 422 from the content gateway).
+    case contentRejected(String)
     case serverError(Int)
     case supabaseError(String)
     case unknown(Error)
@@ -27,6 +29,8 @@ enum AppError: LocalizedError {
         case .notFound:
             return "Content not found."
         case .clientError(let message):
+            return message
+        case .contentRejected(let message):
             return message
         case .serverError(let code):
             return "Server error (\(code)). Try again later."

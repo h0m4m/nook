@@ -14,6 +14,7 @@ struct ComposePostView: View {
     @State private var showPhotoPicker = false
     @State private var pickerSelection: [PhotosPickerItem] = []
     @State private var isPosting = false
+    @State private var moderationError: String?
     @State private var showPoll = false
     @State private var pollOptions: [String] = ["", ""]
     @State private var attachedMedia: [MediaSearchResult] = []
@@ -39,6 +40,14 @@ struct ComposePostView: View {
             }
             .background(Color.nook.clubDetailBackground)
             .navigationBarHidden(true)
+            .alert("Post not published", isPresented: Binding(
+                get: { moderationError != nil },
+                set: { if !$0 { moderationError = nil } }
+            )) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(moderationError ?? "")
+            }
             .onAppear {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                     isBodyFocused = true
@@ -601,6 +610,7 @@ private extension ComposePostView {
             } catch {
                 await MainActor.run {
                     isPosting = false
+                    moderationError = AppError(from: error).errorDescription
                 }
             }
         }

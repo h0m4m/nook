@@ -57,6 +57,7 @@ struct NookDetailView: View {
     @State private var showDeleteConfirm = false
     @State private var showReportSheet = false
     @State private var showReportConfirmation = false
+    @State private var moderationError: String?
     @FocusState private var isCommentFocused: Bool
 
     private let moderation = ModerationService()
@@ -115,6 +116,14 @@ struct NookDetailView: View {
             Button("OK", role: .cancel) {}
         } message: {
             Text("Thanks for helping keep Nook safe. We'll review this nook.")
+        }
+        .alert("Comment not posted", isPresented: Binding(
+            get: { moderationError != nil },
+            set: { if !$0 { moderationError = nil } }
+        )) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(moderationError ?? "")
         }
         .task {
             await loadDetail()
@@ -221,14 +230,7 @@ struct NookDetailView: View {
     private var authorAvatar: some View {
         Group {
             if let url = nook.curatorAvatarURL {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image.resizable().scaledToFill()
-                    default:
-                        avatarFallback
-                    }
-                }
+                CachedRemoteImage(url: url) { avatarFallback }
             } else {
                 avatarFallback
             }
@@ -768,12 +770,7 @@ struct NookDetailView: View {
         let size: CGFloat = depth == 0 ? 36 : 28
         let avatar = Group {
             if let url = comment.authorAvatarURL {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .success(let image): image.resizable().scaledToFill()
-                    default: commentAvatarFallback(depth: depth)
-                    }
-                }
+                CachedRemoteImage(url: url) { commentAvatarFallback(depth: depth) }
             } else {
                 commentAvatarFallback(depth: depth)
             }
@@ -1005,8 +1002,13 @@ struct NookDetailView: View {
         guard let dbId = nook.dbId else { return }
         Task {
             let service = NookService()
-            try? await service.addComment(nookId: dbId, body: text, parentCommentId: parentId)
-            await reloadComments()
+            do {
+                try await service.addComment(nookId: dbId, body: text, parentCommentId: parentId)
+                await reloadComments()
+            } catch {
+                commentText = text
+                moderationError = AppError(from: error).errorDescription
+            }
         }
     }
 

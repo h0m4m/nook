@@ -317,12 +317,7 @@ private extension ClubDetailView {
         ZStack(alignment: .bottomLeading) {
             Group {
                 if let url = club.bannerURL {
-                    AsyncImage(url: url) { phase in
-                        switch phase {
-                        case .success(let image): image.resizable().scaledToFill()
-                        default: club.bannerColor
-                        }
-                    }
+                    CachedRemoteImage(url: url) { club.bannerColor }
                 } else {
                     club.bannerColor
                 }
@@ -350,12 +345,7 @@ private extension ClubDetailView {
 
             Group {
                 if let iconURL {
-                    AsyncImage(url: iconURL) { phase in
-                        switch phase {
-                        case .success(let image): image.resizable().scaledToFill()
-                        default: avatarFallback
-                        }
-                    }
+                    CachedRemoteImage(url: iconURL) { avatarFallback }
                 } else {
                     avatarFallback
                 }
@@ -1474,12 +1464,7 @@ private extension ClubDetailView {
     func postImage(_ post: ClubPost) -> some View {
         if !post.imageURLs.isEmpty {
             if post.imageURLs.count == 1, let url = post.imageURLs.first {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .success(let image): image.resizable().scaledToFill()
-                    default: Color.nook.secondary
-                    }
-                }
+                CachedRemoteImage(url: url) { Color.nook.secondary }
                 .frame(maxWidth: .infinity)
                 .frame(height: 189)
                 .clipShape(RoundedRectangle(cornerRadius: NookRadii.md, style: .continuous))
@@ -1487,12 +1472,7 @@ private extension ClubDetailView {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
                         ForEach(post.imageURLs, id: \.self) { url in
-                            AsyncImage(url: url) { phase in
-                                switch phase {
-                                case .success(let image): image.resizable().scaledToFill()
-                                default: Color.nook.secondary
-                                }
-                            }
+                            CachedRemoteImage(url: url) { Color.nook.secondary }
                             .frame(width: 260, height: 189)
                             .clipShape(RoundedRectangle(cornerRadius: NookRadii.md, style: .continuous))
                         }
@@ -1882,14 +1862,7 @@ struct ClubAvatarView: View {
     private var avatar: some View {
         Group {
             if let url {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image.resizable().scaledToFill()
-                    default:
-                        placeholder
-                    }
-                }
+                CachedRemoteImage(url: url) { placeholder }
             } else {
                 placeholder
             }

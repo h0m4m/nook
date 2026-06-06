@@ -143,39 +143,21 @@ final class AppRouter {
             avatarURLString = Self.highResAvatarURL(socialURL)
         }
 
-        struct ProfileSetupUpsert: Encodable {
-            let id: String
-            let fullName: String
+        // Routed through the moderation gateway: full_name / username (and the
+        // avatar image) are screened before they're persisted. A nil avatar URL
+        // is omitted so an existing avatar isn't overwritten. A taken username
+        // comes back as an AppError the caller surfaces.
+        struct ProfileSetupPayload: Encodable, Sendable {
+            let full_name: String
             let username: String
-            let avatarURL: String?
-
-            enum CodingKeys: String, CodingKey {
-                case id
-                case fullName = "full_name"
-                case username
-                case avatarURL = "avatar_url"
-            }
-
-            func encode(to encoder: Encoder) throws {
-                var container = encoder.container(keyedBy: CodingKeys.self)
-                try container.encode(id, forKey: .id)
-                try container.encode(fullName, forKey: .fullName)
-                try container.encode(username, forKey: .username)
-                // Omit the key entirely when nil so upsert leaves any existing
-                // avatar untouched instead of overwriting it with null.
-                if let avatarURL { try container.encode(avatarURL, forKey: .avatarURL) }
-            }
+            let avatar_url: String?
         }
 
-        try await supabase
-            .from("user_profiles")
-            .upsert(ProfileSetupUpsert(
-                id: userId.uuidString,
-                fullName: displayName,
-                username: username,
-                avatarURL: avatarURLString
-            ))
-            .execute()
+        let _: ContentIdResponse = try await APIClient().content("update_profile_text", ProfileSetupPayload(
+            full_name: displayName,
+            username: username,
+            avatar_url: avatarURLString
+        ))
 
         // Keep auth metadata's display name in sync (used as a fallback in
         // places that read it directly).
