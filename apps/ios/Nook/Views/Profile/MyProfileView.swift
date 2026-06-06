@@ -491,6 +491,20 @@ final class ProfileStore {
     private var lastRefresh: Date?
     private let staleAfter: TimeInterval = 120
     private var inFlight: Task<Void, Never>?
+    private var changeObserver: NSObjectProtocol?
+
+    private init() {
+        // Keep the profile's tracked count + recent items fresh when media is
+        // tracked/edited from any other surface. This is a shared singleton, so
+        // it stays subscribed even while the profile screen isn't on screen.
+        changeObserver = NotificationCenter.default.addObserver(
+            forName: .trackedMediaDidChange,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in self?.refresh() }
+        }
+    }
 
     private var isStale: Bool {
         guard let lastRefresh else { return true }

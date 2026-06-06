@@ -206,6 +206,216 @@ struct CachedRemoteImage<Placeholder: View>: View {
     }
 }
 
+// MARK: - Club Post Images (natural aspect, no hard crop)
+
+/// Identifies which images (and where to start) a fullscreen viewer should show.
+struct PostImageViewerState: Identifiable, Equatable {
+    let id = UUID()
+    let urls: [URL]
+    let index: Int
+}
+
+/// A remote image that lays out at its *natural* aspect ratio instead of being
+/// cropped into a fixed-height box. The ratio is clamped to a sane range so an
+/// extreme panorama or very tall image can't blow out the surrounding layout.
+///
+/// - `fixedHeight == nil`: fills the available width; height follows the ratio
+///   (used for a single full-width post image).
+/// - `fixedHeight != nil`: lays out at that height with width following the ratio
+///   (used for the horizontally-scrolling multi-image strip).
+struct AspectRatioRemoteImage: View {
+    let url: URL
+    var cornerRadius: CGFloat = NookRadii.sm
+    var fixedHeight: CGFloat? = nil
+    /// Tallest (portrait) and widest (landscape) ratios we allow on a card.
+    var minRatio: CGFloat = 0.75
+    var maxRatio: CGFloat = 1.91
+
+    @State private var ratio: CGFloat?
+
+    private var displayRatio: CGFloat {
+        min(max(ratio ?? (4.0 / 3.0), minRatio), maxRatio)
+    }
+
+    var body: some View {
+        Group {
+            if let fixedHeight {
+                imageContent
+                    .frame(width: fixedHeight * displayRatio, height: fixedHeight)
+            } else {
+                imageContent
+                    .aspectRatio(displayRatio, contentMode: .fit)
+                    .frame(maxWidth: .infinity)
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+        .task(id: url) { await loadRatio() }
+    }
+
+    private var imageContent: some View {
+        Color.nook.secondary
+            .overlay {
+                CachedRemoteImage(url: url, contentMode: .fill) { Color.nook.secondary }
+            }
+    }
+
+    private func loadRatio() async {
+        var image = ImageMemoryCache.shared.image(for: url)
+        if image == nil {
+            image = await ImageCacheStore.shared.image(for: url)
+        }
+        guard let image, image.size.height > 0 else { return }
+        let r = image.size.width / image.size.height
+        if abs((ratio ?? -1) - r) > 0.001 {
+            withAnimation(.easeOut(duration: 0.2)) { ratio = r }
+        }
+    }
+}
+
+/// Renders a club post's image(s): a single image at natural aspect, or a
+/// horizontally-scrolling strip for multiple. Tapping invokes `onTap(index)` so
+/// the host can present a fullscreen viewer. Never crops to a hard ratio and
+/// never overflows its container width.
+struct ClubPostImageGallery: View {
+    let urls: [URL]
+    var cornerRadius: CGFloat = NookRadii.sm
+    var rowHeight: CGFloat = 200
+    var onTap: (Int) -> Void = { _ in }
+
+    var body: some View {
+        if urls.count == 1 {
+            AspectRatioRemoteImage(url: urls[0], cornerRadius: cornerRadius)
+                .contentShape(Rectangle())
+                .onTapGesture { onTap(0) }
+        } else if !urls.isEmpty {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(Array(urls.enumerated()), id: \.offset) { index, url in
+                        AspectRatioRemoteImage(
+                            url: url,
+                            cornerRadius: cornerRadius,
+                            fixedHeight: rowHeight
+                        )
+                        .contentShape(Rectangle())
+                        .onTapGesture { onTap(index) }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Fullscreen Image Viewer
+
+/// A pinch-to-zoom image for the fullscreen viewer. Fits the full image (no
+/// crop), supports double-tap and pinch zoom, and panning while zoomed.
+struct ZoomableImageView: View {
+    let url: URL
+
+    @State private var scale: CGFloat = 1
+    @State private var lastScale: CGFloat = 1
+    @State private var offset: CGSize = .zero
+    @State private var lastOffset: CGSize = .zero
+
+    var body: some View {
+        CachedRemoteImage(url: url, contentMode: .fit) {
+            ProgressView().tint(.white)
+        }
+        .scaleEffect(scale)
+        .offset(offset)
+        .gesture(magnification)
+        .simultaneousGesture(pan)
+        .onTapGesture(count: 2) { toggleZoom() }
+        .onDisappear { reset() }
+    }
+
+    private var magnification: some Gesture {
+        MagnificationGesture()
+            .onChanged { value in
+                scale = min(max(lastScale * value, 1), 5)
+            }
+            .onEnded { _ in
+                lastScale = scale
+                if scale <= 1 {
+                    withAnimation(.easeOut(duration: 0.2)) { reset() }
+                }
+            }
+    }
+
+    private var pan: some Gesture {
+        DragGesture()
+            .onChanged { value in
+                guard scale > 1 else { return }
+                offset = CGSize(
+                    width: lastOffset.width + value.translation.width,
+                    height: lastOffset.height + value.translation.height
+                )
+            }
+            .onEnded { _ in
+                guard scale > 1 else { return }
+                lastOffset = offset
+            }
+    }
+
+    private func toggleZoom() {
+        withAnimation(.easeInOut(duration: 0.25)) {
+            if scale > 1 {
+                reset()
+            } else {
+                scale = 2.5
+                lastScale = 2.5
+            }
+        }
+    }
+
+    private func reset() {
+        scale = 1
+        lastScale = 1
+        offset = .zero
+        lastOffset = .zero
+    }
+}
+
+/// Fullscreen, swipeable gallery for a post's images. Present via
+/// `.fullScreenCover(item:)` with a `PostImageViewerState`.
+struct FullscreenImageViewer: View {
+    let urls: [URL]
+    @State private var index: Int
+    @Environment(\.dismiss) private var dismiss
+
+    init(urls: [URL], startIndex: Int) {
+        self.urls = urls
+        _index = State(initialValue: max(0, min(startIndex, urls.count - 1)))
+    }
+
+    var body: some View {
+        ZStack(alignment: .topTrailing) {
+            Color.black.ignoresSafeArea()
+
+            TabView(selection: $index) {
+                ForEach(Array(urls.enumerated()), id: \.offset) { i, url in
+                    ZoomableImageView(url: url)
+                        .tag(i)
+                }
+            }
+            .tabViewStyle(.page(indexDisplayMode: urls.count > 1 ? .always : .never))
+            .indexViewStyle(.page(backgroundDisplayMode: .interactive))
+            .ignoresSafeArea()
+
+            Button { dismiss() } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundStyle(.white)
+                    .frame(width: 36, height: 36)
+                    .background(.ultraThinMaterial, in: Circle())
+            }
+            .padding(.top, 16)
+            .padding(.trailing, 16)
+        }
+        .statusBarHidden(true)
+    }
+}
+
 // MARK: - Shimmer
 
 struct ShimmerView: View {

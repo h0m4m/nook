@@ -40,11 +40,26 @@ final class LibraryViewModel {
     private let nookService = NookService()
 
     private var lastLoaded: Date?
-    private let staleAfter: TimeInterval = 120
+    nonisolated(unsafe) private var changeObserver: NSObjectProtocol?
 
-    private var isStale: Bool {
-        guard let lastLoaded else { return true }
-        return Date().timeIntervalSince(lastLoaded) > staleAfter
+    init() {
+        // The view model outlives individual tab views (it's owned by MainTabView),
+        // so we observe tracked-media changes here rather than in the view. That way
+        // a track/edit from another tab (e.g. Search) still refreshes the library
+        // even though LibraryView isn't in the hierarchy at the time.
+        changeObserver = NotificationCenter.default.addObserver(
+            forName: .trackedMediaDidChange,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in await self?.reloadAfterExternalChange() }
+        }
+    }
+
+    deinit {
+        if let changeObserver {
+            NotificationCenter.default.removeObserver(changeObserver)
+        }
     }
 
     var filteredItems: [TrackedMediaItem] {
@@ -100,8 +115,8 @@ final class LibraryViewModel {
     func loadIfNeeded() async {
         if items.isEmpty {
             await loadLibrary()          // first load: skeleton is fine
-        } else if isStale {
-            await refreshSilently()      // have data: refresh without a skeleton
+        } else {
+            await refreshSilently()      // have data: revalidate without a skeleton
         }
     }
 
@@ -117,8 +132,23 @@ final class LibraryViewModel {
             ImagePrefetcher.prefetch(items.map(\.imageURL))
             isLoading = false
         } catch {
-            self.error = AppError(from: error)
+            // Only surface an error on a cold load. If we already have items,
+            // a transient refresh failure should keep the current list on screen
+            // rather than replacing it with a scary banner.
+            if items.isEmpty {
+                self.error = AppError(from: error)
+            }
             isLoading = false
+        }
+    }
+
+    /// Called when tracked media changes elsewhere (detail, search). Refetches
+    /// without a skeleton when we already have a list, otherwise does a full load.
+    func reloadAfterExternalChange() async {
+        if items.isEmpty {
+            await loadLibrary()
+        } else {
+            await refreshSilently()
         }
     }
 

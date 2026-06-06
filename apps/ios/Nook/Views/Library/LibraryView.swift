@@ -956,7 +956,11 @@ private struct RealLibraryItemRow: View {
 
     private var progressDetail: String {
         if item.progress > 0 {
-            return category == .game ? hoursTrackedLabel(item.progress) : "Progress: \(item.progress)"
+            switch category {
+            case .game: return hoursTrackedLabel(item.progress)
+            case .movie: return "Watched"
+            default: return "Progress: \(item.progress)"
+            }
         }
         return status.label
     }

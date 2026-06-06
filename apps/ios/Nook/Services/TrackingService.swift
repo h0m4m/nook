@@ -1,11 +1,25 @@
 import Foundation
 import Supabase
 
+extension Notification.Name {
+    /// Posted whenever tracked media is added, updated, or removed so list
+    /// surfaces (Library, Home, Profile) can refresh.
+    static let trackedMediaDidChange = Notification.Name("trackedMediaDidChange")
+}
+
 final class TrackingService: Sendable {
-    private let libraryCache = InMemoryCache<UUID, [TrackedMediaItem]>(ttl: 300)
+    /// Shared across all `TrackingService` instances so a write from one screen
+    /// (detail, search) invalidates the cache the Library reads from.
+    private static let libraryCache = InMemoryCache<UUID, [TrackedMediaItem]>(ttl: 300)
+
+    private func notifyChanged() async {
+        await MainActor.run {
+            NotificationCenter.default.post(name: .trackedMediaDidChange, object: nil)
+        }
+    }
 
     func getLibrary(userId: UUID) async throws -> [TrackedMediaItem] {
-        if let cached = await libraryCache.get(userId) {
+        if let cached = await Self.libraryCache.get(userId) {
             return cached
         }
 
@@ -18,7 +32,7 @@ final class TrackingService: Sendable {
             .value
 
         let items = rows.map { TrackedMediaItem(from: $0) }
-        await libraryCache.set(userId, value: items)
+        await Self.libraryCache.set(userId, value: items)
         return items
     }
 
@@ -51,7 +65,8 @@ final class TrackingService: Sendable {
             )
             .execute()
 
-        await libraryCache.invalidate(userId)
+        await Self.libraryCache.invalidate(userId)
+        await notifyChanged()
     }
 
     func updateTracking(
@@ -71,7 +86,8 @@ final class TrackingService: Sendable {
             .eq("id", value: trackingId.uuidString)
             .execute()
 
-        await libraryCache.invalidateAll()
+        await Self.libraryCache.invalidateAll()
+        await notifyChanged()
     }
 
     func removeTracking(trackingId: UUID) async throws {
@@ -81,7 +97,8 @@ final class TrackingService: Sendable {
             .eq("id", value: trackingId.uuidString)
             .execute()
 
-        await libraryCache.invalidateAll()
+        await Self.libraryCache.invalidateAll()
+        await notifyChanged()
     }
 
     func getTrackingForMedia(userId: UUID, mediaItemId: UUID) async throws -> TrackedMediaRow? {

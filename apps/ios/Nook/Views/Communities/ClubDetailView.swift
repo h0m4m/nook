@@ -197,6 +197,7 @@ struct ClubDetailView: View {
     @State private var descFullHeight: CGFloat = 0
     @State private var descClampedHeight: CGFloat = 0
     @State private var detailVM: ClubDetailViewModel?
+    @State private var imageViewer: PostImageViewerState?
     @FocusState private var isSearchFocused: Bool
 
     init(club: ClubItem) {
@@ -231,6 +232,9 @@ struct ClubDetailView: View {
         .navigationBarBackButtonHidden()
         .toolbar(.hidden, for: .navigationBar)
         .modifier(InteractivePopGesture())
+        .fullScreenCover(item: $imageViewer) { state in
+            FullscreenImageViewer(urls: state.urls, startIndex: state.index)
+        }
         .task {
             await detailVM?.loadClub()
             if let vm = detailVM {
@@ -1463,21 +1467,12 @@ private extension ClubDetailView {
     @ViewBuilder
     func postImage(_ post: ClubPost) -> some View {
         if !post.imageURLs.isEmpty {
-            if post.imageURLs.count == 1, let url = post.imageURLs.first {
-                CachedRemoteImage(url: url) { Color.nook.secondary }
-                .frame(maxWidth: .infinity)
-                .frame(height: 189)
-                .clipShape(RoundedRectangle(cornerRadius: NookRadii.md, style: .continuous))
-            } else {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(post.imageURLs, id: \.self) { url in
-                            CachedRemoteImage(url: url) { Color.nook.secondary }
-                            .frame(width: 260, height: 189)
-                            .clipShape(RoundedRectangle(cornerRadius: NookRadii.md, style: .continuous))
-                        }
-                    }
-                }
+            ClubPostImageGallery(
+                urls: post.imageURLs,
+                cornerRadius: NookRadii.sm,
+                rowHeight: 200
+            ) { index in
+                imageViewer = PostImageViewerState(urls: post.imageURLs, index: index)
             }
         } else {
             Group {

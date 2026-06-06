@@ -84,6 +84,7 @@ struct PostDetailView: View {
     @State private var showReportSheet = false
     @State private var showReportConfirmation = false
     @State private var moderationError: String?
+    @State private var imageViewer: PostImageViewerState?
 
     private let service = ClubService()
     private let moderation = ModerationService()
@@ -139,6 +140,9 @@ struct PostDetailView: View {
         .modifier(InteractivePopGesture())
         .navigationDestination(for: ClubPostComment.self) { comment in
             ClubCommentThreadView(root: comment, accent: accent, currentUserId: currentUserId)
+        }
+        .fullScreenCover(item: $imageViewer) { state in
+            FullscreenImageViewer(urls: state.urls, startIndex: state.index)
         }
         .onTapGesture { isCommentFocused = false }
         .sheet(isPresented: $showReportSheet) {
@@ -284,26 +288,14 @@ private extension PostDetailView {
     }
 
     var postImages: some View {
-        Group {
-            if post.imageURLs.count == 1, let url = post.imageURLs.first {
-                CachedRemoteImage(url: url) { Color.nook.secondary }
-                .frame(maxWidth: .infinity)
-                .frame(height: 240)
-                .clipShape(RoundedRectangle(cornerRadius: NookRadii.sm, style: .continuous))
-                .padding(.horizontal, 20)
-            } else {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(post.imageURLs, id: \.self) { url in
-                            CachedRemoteImage(url: url) { Color.nook.secondary }
-                            .frame(width: 280, height: 240)
-                            .clipShape(RoundedRectangle(cornerRadius: NookRadii.sm, style: .continuous))
-                        }
-                    }
-                    .padding(.horizontal, 20)
-                }
-            }
+        ClubPostImageGallery(
+            urls: post.imageURLs,
+            cornerRadius: NookRadii.sm,
+            rowHeight: 240
+        ) { index in
+            imageViewer = PostImageViewerState(urls: post.imageURLs, index: index)
         }
+        .padding(.horizontal, 20)
     }
 
     var legacyPostImage: some View {

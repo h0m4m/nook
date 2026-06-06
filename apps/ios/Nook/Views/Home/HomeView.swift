@@ -127,6 +127,27 @@ final class HomeStore {
     private let reviewService = ReviewService()
     private let nookService = NookService()
 
+    nonisolated(unsafe) private var changeObserver: NSObjectProtocol?
+
+    init() {
+        // Keep "Continue tracking" in sync when media is tracked/edited from any
+        // other surface (Search, Library, detail). The store outlives the Home
+        // view, so we observe here rather than in the view.
+        changeObserver = NotificationCenter.default.addObserver(
+            forName: .trackedMediaDidChange,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in self?.refresh() }
+        }
+    }
+
+    deinit {
+        if let changeObserver {
+            NotificationCenter.default.removeObserver(changeObserver)
+        }
+    }
+
     private var isStale: Bool {
         guard let lastRefresh else { return true }
         return Date().timeIntervalSince(lastRefresh) > staleAfter
