@@ -188,6 +188,15 @@ async function createClub(uid: string, p: any): Promise<Response> {
   ) {
     return json(400, { error: 'name, category and privacy are required' });
   }
+
+  // Account-level eligibility (age / verification / caps / cooldown / traction).
+  // Checked here too so a blocked attempt doesn't waste a moderation call; the
+  // BEFORE INSERT trigger on `clubs` remains the source of truth.
+  const { data: eligibility } = await admin.rpc('evaluate_club_creation', { p_user: uid });
+  if (eligibility && eligibility.ok !== true) {
+    return json(400, { error: eligibility.message ?? "You can't create a club right now." });
+  }
+
   const blocked = await gate([
     { text: p.name },
     { text: p.description },
@@ -289,15 +298,13 @@ async function createClubPost(uid: string, p: any): Promise<Response> {
   }
 
   if (media.length > 0) {
-    const { error: medErr } = await admin
-      .from('club_post_media')
-      .insert(
-        media.map((m) => ({
-          post_id: postId,
-          media_item_id: m.media_item_id,
-          position: m.position,
-        })),
-      );
+    const { error: medErr } = await admin.from('club_post_media').insert(
+      media.map((m) => ({
+        post_id: postId,
+        media_item_id: m.media_item_id,
+        position: m.position,
+      })),
+    );
     if (medErr) return json(400, { error: medErr.message });
   }
 

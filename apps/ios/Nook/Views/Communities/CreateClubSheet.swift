@@ -74,6 +74,9 @@ struct CreateClubSheet: View {
     @State private var similarClubs: [ClubItem] = []
     @State private var nameCheckTask: Task<Void, Never>?
     @State private var createError: String?
+    /// Server eligibility for creating a club (nil = not yet checked). Only used
+    /// in create mode; the DB trigger is the source of truth.
+    @State private var eligibility: ClubCreationEligibility?
     @FocusState private var focusedField: Field?
 
     static let nameMinLength = 3
@@ -129,6 +132,11 @@ struct CreateClubSheet: View {
         name.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    /// Set in create mode when the server says the user can't create a club yet.
+    private var eligibilityBlockMessage: String? {
+        isEditing ? nil : eligibility?.blockedMessage
+    }
+
     private var canCreate: Bool {
         // In edit mode the (immutable) name is already valid; gate on cooldown.
         let nameValid = isEditing
@@ -137,6 +145,7 @@ struct CreateClubSheet: View {
             && clubDescription.count <= Self.descriptionMaxLength
             && !selectedCategories.isEmpty
             && !editCooldownActive
+            && eligibilityBlockMessage == nil
     }
 
     /// Inline hint shown under the name field when it's invalid.
@@ -168,6 +177,12 @@ struct CreateClubSheet: View {
 
                     if editCooldownMessage != nil {
                         cooldownNotice
+                            .padding(.horizontal, 24)
+                            .padding(.top, 12)
+                    }
+
+                    if let message = eligibilityBlockMessage {
+                        noticeBanner(message)
                             .padding(.horizontal, 24)
                             .padding(.top, 12)
                     }
@@ -232,6 +247,11 @@ struct CreateClubSheet: View {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                 focusedField = .name
             }
+        }
+        .task {
+            // Pre-check create eligibility so we can explain a block up front.
+            guard !isEditing else { return }
+            eligibility = try? await ClubService().clubCreationEligibility()
         }
         .alert(isEditing ? "Couldn't save changes" : "Couldn't create club", isPresented: Binding(get: { createError != nil }, set: { if !$0 { createError = nil } })) {
             Button("OK", role: .cancel) { createError = nil }
@@ -555,28 +575,34 @@ struct CreateClubSheet: View {
     @ViewBuilder
     private var cooldownNotice: some View {
         if let message = editCooldownMessage {
-            HStack(spacing: 8) {
-                Image("warning-bold")
-                    .renderingMode(.template)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 16, height: 16)
-                    .foregroundStyle(Color.nook.createClubWarningIcon)
-                Text(message)
-                    .font(NookFont.caption)
-                    .foregroundStyle(Color.nook.createClubWarningText)
-            }
-            .padding(12)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(Color.nook.createClubWarningBackground)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .strokeBorder(Color.nook.createClubWarningBorder, lineWidth: 1)
-                    )
-            )
+            noticeBanner(message)
         }
+    }
+
+    /// A warning-styled inline banner (used for the edit cooldown and create-club
+    /// eligibility blocks).
+    private func noticeBanner(_ message: String) -> some View {
+        HStack(spacing: 8) {
+            Image("warning-bold")
+                .renderingMode(.template)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 16, height: 16)
+                .foregroundStyle(Color.nook.createClubWarningIcon)
+            Text(message)
+                .font(NookFont.caption)
+                .foregroundStyle(Color.nook.createClubWarningText)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(Color.nook.createClubWarningBackground)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .strokeBorder(Color.nook.createClubWarningBorder, lineWidth: 1)
+                )
+        )
     }
 
     // MARK: - Duplicate Warning

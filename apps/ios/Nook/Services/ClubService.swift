@@ -81,6 +81,18 @@ final class ClubService: Sendable {
         return result.id
     }
 
+    /// Whether the current user is allowed to create a club right now, and if not,
+    /// a human-readable reason. Mirrors the server-side `evaluate_club_creation`
+    /// gates (verification / account age / cooldown / lifetime cap / traction) so
+    /// the UI can explain the block before the user fills out the form. The DB
+    /// trigger remains the source of truth.
+    func clubCreationEligibility() async throws -> ClubCreationEligibility {
+        try await supabase
+            .rpc("can_create_club")
+            .execute()
+            .value
+    }
+
     /// Update editable club details (owner/manager only — enforced by RLS; the
     /// name is immutable and a 7-day cooldown is enforced by a DB trigger).
     /// New banner/icon images are uploaded only when their `Data` is provided.
@@ -823,4 +835,16 @@ struct ClubBrief: Sendable, Hashable {
     let name: String
     let themeColor: String?
     let category: String
+}
+
+/// Result of the `can_create_club` RPC: whether the caller may create a club and,
+/// if not, a machine code + friendly message describing why.
+struct ClubCreationEligibility: Decodable, Sendable {
+    let ok: Bool
+    let code: String?
+    let message: String?
+
+    var blockedMessage: String? {
+        ok ? nil : (message ?? "You can't create a club right now.")
+    }
 }

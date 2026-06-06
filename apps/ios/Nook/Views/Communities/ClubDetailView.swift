@@ -192,6 +192,8 @@ struct ClubDetailView: View {
     @State private var showReportConfirmation = false
     @State private var showReportSheet = false
     @State private var showDeleteClubConfirmation = false
+    @State private var showDeleteTypeConfirm = false
+    @State private var deleteConfirmText = ""
     @State private var showEditSheet = false
     @State private var isDeletingClub = false
     @State private var descFullHeight: CGFloat = 0
@@ -276,26 +278,52 @@ struct ClubDetailView: View {
             Text("Thanks for keeping the community safe. We'll review this club.")
         }
         .confirmationDialog(
-            "Delete \(club.name)?",
+            "Delete \(clubName)?",
             isPresented: $showDeleteClubConfirmation,
             titleVisibility: .visible
         ) {
-            Button("Delete Club", role: .destructive) {
-                isDeletingClub = true
-                Task {
-                    let success = await detailVM?.deleteClub() ?? false
-                    if success {
-                        let generator = UINotificationFeedbackGenerator()
-                        generator.notificationOccurred(.success)
-                        dismiss()
-                    } else {
-                        isDeletingClub = false
-                    }
-                }
-            }
+            Button("Delete Club", role: .destructive) { runDeleteClub() }
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("This permanently deletes the club and all its posts, comments and members. This can't be undone.")
+        }
+        .sheet(isPresented: $showDeleteTypeConfirm, onDismiss: { deleteConfirmText = "" }) {
+            DeleteClubConfirmSheet(
+                clubName: clubName,
+                otherMemberCount: max(0, clubMemberCount - 1),
+                confirmText: $deleteConfirmText,
+                onDelete: {
+                    showDeleteTypeConfirm = false
+                    runDeleteClub()
+                }
+            )
+            .presentationDetents([.height(340)])
+            .presentationDragIndicator(.visible)
+            .presentationBackground(Color.nook.clubDetailBackground)
+        }
+    }
+
+    /// Canonical club name (prefers the freshly-loaded row over the list item).
+    private var clubName: String { detailVM?.club?.name ?? club.name }
+
+    /// Live member count including the owner (used to gate the delete guardrail).
+    private var clubMemberCount: Int { detailVM?.club?.memberCount ?? 0 }
+
+    /// True when the club has members other than the owner — deleting it destroys
+    /// a community, so we require a type-to-confirm step.
+    private var clubHasOtherMembers: Bool { clubMemberCount > 1 }
+
+    private func runDeleteClub() {
+        isDeletingClub = true
+        Task {
+            let success = await detailVM?.deleteClub() ?? false
+            if success {
+                let generator = UINotificationFeedbackGenerator()
+                generator.notificationOccurred(.success)
+                dismiss()
+            } else {
+                isDeletingClub = false
+            }
         }
     }
 
@@ -545,7 +573,12 @@ private extension ClubDetailView {
             // Owner-only: delete the entire club.
             if detailVM?.isOwner == true {
                 Button(role: .destructive) {
-                    showDeleteClubConfirmation = true
+                    if clubHasOtherMembers {
+                        deleteConfirmText = ""
+                        showDeleteTypeConfirm = true
+                    } else {
+                        showDeleteClubConfirmation = true
+                    }
                 } label: {
                     Label("Delete Club", image: "trash")
                 }
@@ -2262,6 +2295,102 @@ extension ClubDetailView {
             )
         ),
     ]
+}
+
+// MARK: - Delete Club Confirmation (type-to-confirm)
+
+/// Shown when deleting a club that has other members. Requires the owner to type
+/// the club's name to confirm — guarding against accidentally destroying a
+/// community others have joined.
+private struct DeleteClubConfirmSheet: View {
+    let clubName: String
+    let otherMemberCount: Int
+    @Binding var confirmText: String
+    let onDelete: () -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @FocusState private var fieldFocused: Bool
+
+    private var matches: Bool {
+        confirmText.trimmingCharacters(in: .whitespacesAndNewlines)
+            .caseInsensitiveCompare(clubName.trimmingCharacters(in: .whitespacesAndNewlines)) == .orderedSame
+    }
+
+    private var memberText: String {
+        otherMemberCount == 1 ? "1 other member" : "\(otherMemberCount) other members"
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("Delete \(clubName)?")
+                .font(NookFont.labelLarge)
+                .foregroundStyle(Color.nook.clubDetailTitle)
+                .padding(.top, 28)
+
+            Text("This club has \(memberText). Deleting it permanently removes the club and all its posts, comments and members. This can't be undone.")
+                .font(NookFont.bodyMedium)
+                .foregroundStyle(Color.nook.clubDetailMeta)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 10)
+
+            Text("Type the club name to confirm")
+                .font(NookFont.captionSemiBold)
+                .foregroundStyle(Color.nook.clubDetailMeta)
+                .padding(.top, 22)
+                .padding(.bottom, 8)
+
+            TextField("", text: $confirmText, prompt: Text(clubName)
+                .foregroundColor(Color.nook.clubDetailMeta.opacity(0.5)))
+                .font(NookFont.bodyMedium)
+                .foregroundStyle(Color.nook.clubDetailTitle)
+                .focused($fieldFocused)
+                .autocorrectionDisabled()
+                .textInputAutocapitalization(.never)
+                .padding(.horizontal, 16)
+                .frame(height: 48)
+                .background(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .fill(Color.nook.createClubFieldBackground)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                .strokeBorder(Color.nook.createClubBorder, lineWidth: 1)
+                        )
+                )
+
+            Button {
+                onDelete()
+            } label: {
+                Text("Delete Club")
+                    .font(NookFont.labelBoldSmall)
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 50)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .fill(Color.nook.settingsDestructiveText.opacity(matches ? 1 : 0.4))
+                    )
+            }
+            .buttonStyle(.plain)
+            .disabled(!matches)
+            .padding(.top, 20)
+
+            Button { dismiss() } label: {
+                Text("Cancel")
+                    .font(NookFont.labelBoldSmall)
+                    .foregroundStyle(Color.nook.clubDetailMeta)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 44)
+            }
+            .buttonStyle(.plain)
+            .padding(.top, 4)
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 24)
+        .onAppear {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { fieldFocused = true }
+        }
+    }
 }
 
 // MARK: - Preview
