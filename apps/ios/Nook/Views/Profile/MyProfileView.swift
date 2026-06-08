@@ -3,6 +3,7 @@ import SwiftUI
 
 struct MyProfileView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(SubscriptionManager.self) private var subscriptions
     var router: AppRouter?
     // Profile data lives in a shared store so reopening the profile is instant
     // (stale-while-revalidate) instead of refetching every time.
@@ -197,9 +198,14 @@ struct MyProfileView: View {
             }
             .padding(.top, 48)
 
-            Text(profile.displayName)
-                .font(NookFont.outfitHeadingMedium)
-                .foregroundStyle(Color.nook.profileName)
+            HStack(spacing: 8) {
+                Text(profile.displayName)
+                    .font(NookFont.outfitHeadingMedium)
+                    .foregroundStyle(Color.nook.profileName)
+                if subscriptions.isPlus {
+                    PlusBadge()
+                }
+            }
 
             Text(profile.username)
                 .font(NookFont.labelMediumSmall)
@@ -1124,4 +1130,5 @@ struct ProfilePostCard: View {
     NavigationStack {
         MyProfileView()
     }
+    .environment(SubscriptionManager.shared)
 }

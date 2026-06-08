@@ -23,6 +23,7 @@ struct OtherProfileView: View {
     @State private var userPosts: [ProfilePostEntry] = []
     @State private var showReportSheet = false
     @State private var showReportConfirmation = false
+    @State private var isPlusMember = false
 
     private let moderation = ModerationService()
 
@@ -102,6 +103,7 @@ struct OtherProfileView: View {
         let data = try? await profileDataT
         let stats = try? await statsT
         profile = mergedProfile(base: profile, data: data, stats: stats)
+        isPlusMember = data?.isPlus ?? false
 
         // Follow state + counts.
         isFollowing = (try? await followingFlagT) ?? false
@@ -323,9 +325,14 @@ struct OtherProfileView: View {
                 .frame(width: 112, height: 112)
                 .padding(.top, 48)
 
-            Text(profile.displayName)
-                .font(NookFont.outfitHeadingMedium)
-                .foregroundStyle(Color.nook.profileName)
+            HStack(spacing: 8) {
+                Text(profile.displayName)
+                    .font(NookFont.outfitHeadingMedium)
+                    .foregroundStyle(Color.nook.profileName)
+                if isPlusMember {
+                    PlusBadge()
+                }
+            }
 
             Text(profile.username)
                 .font(NookFont.labelMediumSmall)

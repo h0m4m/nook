@@ -6,6 +6,8 @@ struct HomeView: View {
     // Feed data lives in a store owned by MainTabView, so it survives tab
     // switches and renders instantly on return instead of refetching.
     var store: HomeStore
+    @Environment(SubscriptionManager.self) private var subscriptions
+    @Environment(AdManager.self) private var ads
     @State private var unreadNotifCount: Int = 0
     private let badgeTimer = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
     var onAvatarTapped: () -> Void = {}
@@ -75,6 +77,11 @@ struct HomeView: View {
                         .padding(.top, 32)
                 }
 
+                // One native ad between sections (free tier only).
+                NativeAdFeedSlot(key: Self.homeAdKey)
+                    .padding(.horizontal, 24)
+                    .padding(.top, 32)
+
                 if !visiblePopularNooks.isEmpty {
                     PopularNooksSection(items: visiblePopularNooks)
                         .padding(.top, 32)
@@ -83,7 +90,12 @@ struct HomeView: View {
             .padding(.bottom, 100)
         }
         .modifier(SoftScrollEdge())
+        .task {
+            if !subscriptions.isPlus { ads.requestAd(for: Self.homeAdKey) }
+        }
     }
+
+    private static let homeAdKey = "home-feed"
 
     private func loadUnreadCount() async {
         let notifService = NotificationService()
@@ -298,4 +310,6 @@ private extension AnyJSON {
 
 #Preview {
     HomeView(router: AppRouter(), store: HomeStore())
+        .environment(SubscriptionManager.shared)
+        .environment(AdManager.shared)
 }

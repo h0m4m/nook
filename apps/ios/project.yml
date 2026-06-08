@@ -13,6 +13,12 @@ packages:
   GoogleSignIn:
     url: https://github.com/google/GoogleSignIn-iOS
     from: "9.0.0"
+  RevenueCat:
+    url: https://github.com/RevenueCat/purchases-ios.git
+    from: "5.0.0"
+  GoogleMobileAds:
+    url: https://github.com/googleads/swift-package-manager-google-mobile-ads.git
+    from: "12.0.0"
 
 targets:
   Nook:
@@ -33,6 +39,15 @@ targets:
         MARKETING_VERSION: "0.1.0"
         CURRENT_PROJECT_VERSION: 1
         PRODUCT_BUNDLE_IDENTIFIER: app.getnook
+        # RevenueCat public SDK key (appl_…). Set per-developer/CI; safe to embed
+        # (it's a public key), but keep the real value out of source control.
+        REVENUECAT_API_KEY: "appl_fLNFmNnTOFwCYBdlzmSCRlapSDB"
+        # AdMob app id (ca-app-pub-…~…). Defaults to Google's TEST app id so the
+        # SDK has a valid id and never crashes; swap for the real one at launch.
+        ADMOB_APP_ID: "ca-app-pub-3940256099942544~1458002511"
+        # Real native ad unit id (ca-app-pub-…/…). Empty → test ads in DEBUG, no
+        # ads in RELEASE. See AdConfig.
+        ADMOB_NATIVE_UNIT_ID: ""
         DEVELOPMENT_TEAM: 8PP9FS9CAY
         CODE_SIGN_STYLE: Automatic
         CODE_SIGN_ENTITLEMENTS: Nook/Nook.entitlements
@@ -44,3 +59,12 @@ targets:
         product: GoogleSignIn
       - package: GoogleSignIn
         product: GoogleSignInSwift
+      - package: RevenueCat
+        product: RevenueCat
+      - package: GoogleMobileAds
+        product: GoogleMobileAds
+    # Local StoreKit testing for Nook Plus (lets you buy in the simulator with no
+    # sandbox account). Must match the manual Nook.xcscheme reference. Set the
+    # scheme's StoreKit Configuration to None for a real sandbox/webhook test.
+    scheme:
+      storeKitConfiguration: NookPlus.storekit

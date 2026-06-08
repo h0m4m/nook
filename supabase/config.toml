@@ -304,6 +304,11 @@ enabled = false
 # Obtain from https://clerk.com/setup/supabase
 # domain = "example.clerk.accounts.dev"
 
+# The RevenueCat webhook is called by RevenueCat (not an end user) and
+# authenticates with its own shared secret, so Supabase JWT verification is off.
+[functions.revenuecat-webhook]
+verify_jwt = false
+
 [edge_runtime]
 enabled = true
 # Supported request policies: `oneshot`, `per_worker`.

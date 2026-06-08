@@ -257,6 +257,8 @@ enum LibrarySortOption: CaseIterable, Identifiable {
 struct LibraryView: View {
     // Owned by MainTabView so the library survives tab switches.
     @Bindable var viewModel: LibraryViewModel
+    @Environment(SubscriptionManager.self) private var subscriptions
+    @Environment(AdManager.self) private var ads
     @State private var isSearchActive = false
     @State private var trackingItemID: UUID?
     @State private var sheetStatus: TrackingStatus?
@@ -400,7 +402,7 @@ struct LibraryView: View {
                 .padding(.bottom, 24)
 
             LazyVStack(spacing: 24) {
-                ForEach(viewModel.filteredItems) { item in
+                ForEach(Array(viewModel.filteredItems.enumerated()), id: \.element.id) { index, item in
                     NavigationLink(value: MediaDetailRoute(
                         mediaId: item.sourceId,
                         source: item.source,
@@ -416,6 +418,17 @@ struct LibraryView: View {
                         .padding(.horizontal, 24)
                     }
                     .buttonStyle(.plain)
+
+                    if AdSlot.hasSlot(after: index) {
+                        NativeAdFeedSlot(key: AdSlot.key(prefix: "library", after: index))
+                            .padding(.horizontal, 24)
+                    }
+                }
+            }
+            .task(id: viewModel.filteredItems.count) {
+                guard !subscriptions.isPlus else { return }
+                for key in AdSlot.keys(prefix: "library", count: viewModel.filteredItems.count) {
+                    ads.requestAd(for: key)
                 }
             }
         }
@@ -1106,4 +1119,6 @@ extension LibraryView {
 
 #Preview {
     LibraryView(viewModel: LibraryViewModel())
+        .environment(SubscriptionManager.shared)
+        .environment(AdManager.shared)
 }

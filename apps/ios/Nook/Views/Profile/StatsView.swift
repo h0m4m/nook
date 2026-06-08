@@ -4,6 +4,8 @@ import SwiftUI
 
 struct StatsView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(SubscriptionManager.self) private var subscriptions
+    @State private var showPaywall = false
     @State private var trackedCount = 0
     @State private var completedCount = 0
     @State private var hoursSpent: String = "—"
@@ -22,12 +24,16 @@ struct StatsView: View {
                 ScrollView {
                     VStack(spacing: 32) {
                         overviewSection
-                        streakCard
-                        categoryBreakdownSection
-                        ratingDistributionSection
-                        topGenresSection
-                        monthlyActivitySection
-                        milestonesSection
+                        if subscriptions.isPlus {
+                            streakCard
+                            categoryBreakdownSection
+                            ratingDistributionSection
+                            topGenresSection
+                            monthlyActivitySection
+                            milestonesSection
+                        } else {
+                            lockedSections
+                        }
                     }
                     .padding(.horizontal, 24)
                     .padding(.top, 72)
@@ -40,7 +46,86 @@ struct StatsView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar(.hidden, for: .navigationBar)
             .task { await loadStats() }
+            .task(id: showPaywall) { await subscriptions.refresh() }
+            .sheet(isPresented: $showPaywall) {
+                NookPlusPaywallView()
+            }
         }
+    }
+
+    // MARK: - Locked teaser (free tier)
+
+    /// Free users see the real Overview, then a blurred preview of the deeper
+    /// sections with an "unlock" card — the primary Nook Plus upsell.
+    private var lockedSections: some View {
+        ZStack(alignment: .top) {
+            VStack(spacing: 32) {
+                streakCard
+                categoryBreakdownSection
+                ratingDistributionSection
+            }
+            .blur(radius: 9)
+            .disabled(true)
+            .allowsHitTesting(false)
+            .frame(maxHeight: 380, alignment: .top)
+            .clipped()
+            .mask(
+                LinearGradient(
+                    colors: [.black, .black, .clear],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            )
+
+            unlockCard
+                .padding(.top, 96)
+        }
+    }
+
+    private var unlockCard: some View {
+        VStack(spacing: 14) {
+            ZStack {
+                Circle()
+                    .fill(Color.nook.accent.opacity(0.15))
+                    .frame(width: 56, height: 56)
+                Image("sparkle")
+                    .renderingMode(.template)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 26, height: 26)
+                    .foregroundStyle(Color.nook.accent)
+            }
+
+            Text("Unlock your full Stats")
+                .font(NookFont.outfitHeadingSmall)
+                .foregroundStyle(Color.nook.foreground)
+
+            Text("Streaks, rating distribution, top genres, monthly activity and milestones — with Nook Plus.")
+                .font(NookFont.bodyMedium)
+                .foregroundStyle(Color.nook.mutedForeground)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Button {
+                showPaywall = true
+            } label: {
+                Text("Get Nook Plus")
+                    .font(NookFont.labelBold)
+                    .foregroundStyle(Color.nook.primaryForeground)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 50)
+                    .background(Color.nook.primary, in: RoundedRectangle(cornerRadius: NookRadii.sm))
+            }
+            .buttonStyle(.plain)
+            .padding(.top, 4)
+        }
+        .padding(22)
+        .background(Color.nook.card, in: RoundedRectangle(cornerRadius: NookRadii.md))
+        .overlay {
+            RoundedRectangle(cornerRadius: NookRadii.md)
+                .stroke(Color.nook.border, lineWidth: 1)
+        }
+        .shadow(color: Color.black.opacity(0.06), radius: 18, y: 8)
     }
 
     private func loadStats() async {
@@ -750,4 +835,5 @@ extension StatsView {
 
 #Preview {
     StatsView()
+        .environment(SubscriptionManager.shared)
 }

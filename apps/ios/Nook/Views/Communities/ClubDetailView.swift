@@ -179,6 +179,8 @@ struct ClubMember: Identifiable {
 struct ClubDetailView: View {
     let club: ClubItem
     @Environment(\.dismiss) private var dismiss
+    @Environment(SubscriptionManager.self) private var subscriptions
+    @Environment(AdManager.self) private var ads
     @State private var selectedTab: ClubDetailTab = .posts
     @State private var isJoined: Bool
     @State private var dominantColor: Color?
@@ -1088,19 +1090,32 @@ private extension ClubDetailView {
                 .contextMenu { pinnedContextMenu(model) }
             }
 
-            // Regular feed
-            ForEach(filteredPosts) { post in
+            // Regular feed — native ads spliced in every Nth post for free users
+            ForEach(Array(filteredPosts.enumerated()), id: \.element.id) { index, post in
                 NavigationLink(value: post) {
                     postCard(post)
                 }
                 .buttonStyle(.plain)
+
+                if AdSlot.hasSlot(after: index) {
+                    NativeAdFeedSlot(key: AdSlot.key(prefix: adPrefix, after: index))
+                }
             }
         }
         .padding(.horizontal, 16)
         // Keep posts off the tab bar even when there's no compose/prompt above.
         .padding(.top, (isSearchActive || (!isMemberNow && detailVM?.hasPendingInvite == true)) ? 16 : 0)
         .padding(.bottom, 100)
+        .task(id: filteredPosts.count) {
+            guard !subscriptions.isPlus else { return }
+            for key in AdSlot.keys(prefix: adPrefix, count: filteredPosts.count) {
+                ads.requestAd(for: key)
+            }
+        }
     }
+
+    /// Stable per-club prefix for native ad slot keys.
+    private var adPrefix: String { "club-\(club.id.uuidString)" }
 
     /// Shown to non-members (without a pending invite) in place of the composer.
     var joinToPostPrompt: some View {
@@ -2408,4 +2423,6 @@ private struct DeleteClubConfirmSheet: View {
             )
         )
     }
+    .environment(SubscriptionManager.shared)
+    .environment(AdManager.shared)
 }

@@ -54,6 +54,12 @@
 		A0B8C120E8ECCB7041FF8105 /* ProfileService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1EF71350ECDD35D121FC2B7F /* ProfileService.swift */; };
 		A1B2C3D5E5F6A7B8C9D0E1F3 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = A1B2C3D6E5F6A7B8C9D0E1F4 /* GoogleSignIn */; };
 		A1B2C3D7E5F6A7B8C9D0E1F5 /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = A1B2C3D8E5F6A7B8C9D0E1F6 /* GoogleSignInSwift */; };
+		REVENUECATBUILD000000001 /* RevenueCat in Frameworks */ = {isa = PBXBuildFile; productRef = REVENUECATPROD0000000001 /* RevenueCat */; };
+		GOOGLEADSBUILD0000000001 /* GoogleMobileAds in Frameworks */ = {isa = PBXBuildFile; productRef = GOOGLEADSPROD00000000001 /* GoogleMobileAds */; };
+		SUBMGR0000000000000000A2 /* SubscriptionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = SUBMGR0000000000000000A1 /* SubscriptionManager.swift */; };
+		PAYWALL000000000000000A2 /* NookPlusPaywallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = PAYWALL000000000000000A1 /* NookPlusPaywallView.swift */; };
+		ADMGR00000000000000000A2 /* AdManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADMGR00000000000000000A1 /* AdManager.swift */; };
+		NATADCARD0000000000000A2 /* NativeAdFeedCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = NATADCARD0000000000000A1 /* NativeAdFeedCard.swift */; };
 		A27881B804224019B33F7B18 /* LibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D1662AB256F4B7192FEB135 /* LibraryView.swift */; };
 		AA608F1EC2813B24E0BA9BC7 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9702BBB3E69FB7B1267F94CD /* RootView.swift */; };
 		ACT1V1TYFD1234567890AB01 /* ActivityFeedSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACT1V1TYFD1234567890AB02 /* ActivityFeedSection.swift */; };
@@ -113,6 +119,11 @@
 		1AFB20105D40E406F26DBE29 /* ActivityFeedItem.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ActivityFeedItem.swift; sourceTree = "<group>"; };
 		1BE8C3C05BEF5A710223A7AF /* NookTypography.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NookTypography.swift; sourceTree = "<group>"; };
 		1EF71350ECDD35D121FC2B7F /* ProfileService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ProfileService.swift; sourceTree = "<group>"; };
+		SUBMGR0000000000000000A1 /* SubscriptionManager.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SubscriptionManager.swift; sourceTree = "<group>"; };
+		PAYWALL000000000000000A1 /* NookPlusPaywallView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NookPlusPaywallView.swift; sourceTree = "<group>"; };
+		NOOKPLUSSTOREKIT00000001 /* NookPlus.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = NookPlus.storekit; sourceTree = SOURCE_ROOT; };
+		ADMGR00000000000000000A1 /* AdManager.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AdManager.swift; sourceTree = "<group>"; };
+		NATADCARD0000000000000A1 /* NativeAdFeedCard.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NativeAdFeedCard.swift; sourceTree = "<group>"; };
 		1NTERACT1VEPOP123456AB02 /* InteractivePopGesture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InteractivePopGesture.swift; sourceTree = "<group>"; };
 		1NV1T3MMBR123456789AB02 /* InviteMemberView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InviteMemberView.swift; sourceTree = "<group>"; };
 		2480F7DC49F5AF409A6F9B5D /* NookFonts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NookFonts.swift; sourceTree = "<group>"; };
@@ -206,6 +217,8 @@
 				FA09B67D88C18710F1E272DC /* Supabase in Frameworks */,
 				A1B2C3D5E5F6A7B8C9D0E1F3 /* GoogleSignIn in Frameworks */,
 				A1B2C3D7E5F6A7B8C9D0E1F5 /* GoogleSignInSwift in Frameworks */,
+				REVENUECATBUILD000000001 /* RevenueCat in Frameworks */,
+				GOOGLEADSBUILD0000000001 /* GoogleMobileAds in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -242,6 +255,7 @@
 				FE110000000000000000FF01 /* OnboardingWelcomeView.swift */,
 				FE110000000000000000FF03 /* OnboardingProfileView.swift */,
 				C36B6457C06F36C7515EB6DC /* Components */,
+				ADSGRP00000000000000AB01 /* Ads */,
 				H0M3GRP1ABC123456789AB01 /* Home */,
 				5A720D037CCC4C778CA1436C /* Search */,
 				AFCFE0DEDD3D819E74BA91BC /* Nooks */,
@@ -254,6 +268,14 @@
 				S3TT1NGSGRP0000000000001 /* Settings */,
 			);
 			path = Views;
+			sourceTree = "<group>";
+		};
+		ADSGRP00000000000000AB01 /* Ads */ = {
+			isa = PBXGroup;
+			children = (
+				NATADCARD0000000000000A1 /* NativeAdFeedCard.swift */,
+			);
+			path = Ads;
 			sourceTree = "<group>";
 		};
 		3B0328E73DB78F0B95AD9373 /* Resources */ = {
@@ -277,6 +299,8 @@
 				8457ECFF77A850DAB3A43B26 /* ClubService.swift */,
 				F6AF20BA9D38FCF037278411 /* NookService.swift */,
 				1EF71350ECDD35D121FC2B7F /* ProfileService.swift */,
+				SUBMGR0000000000000000A1 /* SubscriptionManager.swift */,
+				ADMGR00000000000000000A1 /* AdManager.swift */,
 				A63E2633397AA4E21A7BD212 /* NotificationService.swift */,
 				B05E12C30002000000000002 /* PushService.swift */,
 				B0507E120002000000000002 /* PushRouter.swift */,
@@ -376,6 +400,7 @@
 		CC3EFE3504B73EAEEDED18F5 = {
 			isa = PBXGroup;
 			children = (
+				NOOKPLUSSTOREKIT00000001 /* NookPlus.storekit */,
 				726FFD2802A28B7087BEA2D4 /* Nook */,
 				EF799ADDBCF3DE03D240F860 /* Products */,
 			);
@@ -448,6 +473,7 @@
 				0THERPR0F1LEV1EW00000002 /* OtherProfileView.swift */,
 				PR0F1L3M3NU123456789AB02 /* ProfileMenuView.swift */,
 				STATSV13W00000000000002 /* StatsView.swift */,
+				PAYWALL000000000000000A1 /* NookPlusPaywallView.swift */,
 				US3RPR0F1LEM0DEL00000002 /* UserProfile.swift */,
 			);
 			path = Profile;
@@ -491,6 +517,8 @@
 				8A3F7E0B4B346D5AAAB15FBA /* Supabase */,
 				A1B2C3D6E5F6A7B8C9D0E1F4 /* GoogleSignIn */,
 				A1B2C3D8E5F6A7B8C9D0E1F6 /* GoogleSignInSwift */,
+				REVENUECATPROD0000000001 /* RevenueCat */,
+				GOOGLEADSPROD00000000001 /* GoogleMobileAds */,
 			);
 			productName = Nook;
 			productReference = 6AF31C476DBDFF1170647A72 /* Nook.app */;
@@ -522,6 +550,8 @@
 			packageReferences = (
 				983DCB3C8096AB5AC01BDD8A /* XCRemoteSwiftPackageReference "supabase-swift" */,
 				A1B2C3D9E5F6A7B8C9D0E1F7 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */,
+				REVENUECATPKG00000000001 /* XCRemoteSwiftPackageReference "purchases-ios" */,
+				GOOGLEADSPKG000000000001 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = EF799ADDBCF3DE03D240F860 /* Products */;
@@ -599,6 +629,7 @@
 				0THERPR0F1LEV1EW00000001 /* OtherProfileView.swift in Sources */,
 				US3RPR0F1LEM0DEL00000001 /* UserProfile.swift in Sources */,
 				STATSV13W00000000000001 /* StatsView.swift in Sources */,
+				PAYWALL000000000000000A2 /* NookPlusPaywallView.swift in Sources */,
 				S3TT1NGSV13W000000000001 /* SettingsView.swift in Sources */,
 				3D1TPR0F1LESH33T00000001 /* EditProfileSheet.swift in Sources */,
 				3D1T1NT3R3STSSH3T00000001 /* EditInterestsSheet.swift in Sources */,
@@ -621,6 +652,9 @@
 				824194E8B9852F0FE526C6E4 /* ClubService.swift in Sources */,
 				77C5FE341F1BB1D2B6F2BF60 /* NookService.swift in Sources */,
 				A0B8C120E8ECCB7041FF8105 /* ProfileService.swift in Sources */,
+				SUBMGR0000000000000000A2 /* SubscriptionManager.swift in Sources */,
+				ADMGR00000000000000000A2 /* AdManager.swift in Sources */,
+				NATADCARD0000000000000A2 /* NativeAdFeedCard.swift in Sources */,
 				75BDD51344A68DBC981E1640 /* NotificationService.swift in Sources */,
 				AADE1E0001000000000000A1 /* AppDelegate.swift in Sources */,
 				B05E12C30001000000000001 /* PushService.swift in Sources */,
@@ -783,6 +817,9 @@
 				);
 				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.getnook;
+				REVENUECAT_API_KEY = "appl_fLNFmNnTOFwCYBdlzmSCRlapSDB";
+				ADMOB_APP_ID = "ca-app-pub-3940256099942544~1458002511";
+				ADMOB_NATIVE_UNIT_ID = "";
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -809,6 +846,9 @@
 				);
 				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.getnook;
+				REVENUECAT_API_KEY = "appl_fLNFmNnTOFwCYBdlzmSCRlapSDB";
+				ADMOB_APP_ID = "ca-app-pub-3940256099942544~1458002511";
+				ADMOB_NATIVE_UNIT_ID = "";
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -855,6 +895,22 @@
 				minimumVersion = 9.0.0;
 			};
 		};
+		REVENUECATPKG00000000001 /* XCRemoteSwiftPackageReference "purchases-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/RevenueCat/purchases-ios.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 5.0.0;
+			};
+		};
+		GOOGLEADSPKG000000000001 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/googleads/swift-package-manager-google-mobile-ads.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 12.0.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -872,6 +928,16 @@
 			isa = XCSwiftPackageProductDependency;
 			package = A1B2C3D9E5F6A7B8C9D0E1F7 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
 			productName = GoogleSignInSwift;
+		};
+		REVENUECATPROD0000000001 /* RevenueCat */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = REVENUECATPKG00000000001 /* XCRemoteSwiftPackageReference "purchases-ios" */;
+			productName = RevenueCat;
+		};
+		GOOGLEADSPROD00000000001 /* GoogleMobileAds */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = GOOGLEADSPKG000000000001 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */;
+			productName = GoogleMobileAds;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

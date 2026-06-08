@@ -13,11 +13,12 @@ final class ProfileService: Sendable {
             let avatar_url: String?
             let interests: [String]?
             let username_changed_at: Date?
+            let is_plus: Bool?
         }
 
         let row: ProfileRow = try await supabase
             .from("user_profiles")
-            .select("id, full_name, username, bio, avatar_url, interests, username_changed_at")
+            .select("id, full_name, username, bio, avatar_url, interests, username_changed_at, is_plus")
             .eq("id", value: userId.uuidString)
             .single()
             .execute()
@@ -30,7 +31,8 @@ final class ProfileService: Sendable {
             bio: row.bio,
             avatarURL: row.avatar_url.flatMap { URL(string: $0) },
             interests: row.interests ?? [],
-            usernameChangedAt: row.username_changed_at
+            usernameChangedAt: row.username_changed_at,
+            isPlus: row.is_plus ?? false
         )
     }
 
@@ -219,6 +221,9 @@ struct UserProfileData: Sendable {
     let avatarURL: URL?
     let interests: [String]
     let usernameChangedAt: Date?
+    /// Whether this user currently has an active Nook Plus subscription.
+    /// Server-synced from RevenueCat via the `revenuecat-webhook` Edge Function.
+    let isPlus: Bool
 
     init(
         id: UUID,
@@ -227,7 +232,8 @@ struct UserProfileData: Sendable {
         bio: String?,
         avatarURL: URL?,
         interests: [String],
-        usernameChangedAt: Date? = nil
+        usernameChangedAt: Date? = nil,
+        isPlus: Bool = false
     ) {
         self.id = id
         self.fullName = fullName
@@ -236,6 +242,7 @@ struct UserProfileData: Sendable {
         self.avatarURL = avatarURL
         self.interests = interests
         self.usernameChangedAt = usernameChangedAt
+        self.isPlus = isPlus
     }
 }
 

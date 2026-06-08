@@ -9,6 +9,10 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
         UNUserNotificationCenter.current().delegate = self
+        // Configure RevenueCat early, before any logIn / offerings calls.
+        MainActor.assumeIsolated {
+            SubscriptionManager.shared.configure()
+        }
         return true
     }
 
