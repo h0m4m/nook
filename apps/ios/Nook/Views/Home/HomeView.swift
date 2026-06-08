@@ -86,16 +86,24 @@ struct HomeView: View {
                     PopularNooksSection(items: visiblePopularNooks)
                         .padding(.top, 32)
                 }
+
+                // Second native ad at the bottom of the home scroll.
+                NativeAdFeedSlot(key: Self.homeAdKey2)
+                    .padding(.horizontal, 24)
+                    .padding(.top, 32)
             }
             .padding(.bottom, 100)
         }
         .modifier(SoftScrollEdge())
         .task {
-            if !subscriptions.isPlus { ads.requestAd(for: Self.homeAdKey) }
+            guard !subscriptions.isPlus else { return }
+            ads.requestAd(for: Self.homeAdKey)
+            ads.requestAd(for: Self.homeAdKey2)
         }
     }
 
     private static let homeAdKey = "home-feed"
+    private static let homeAdKey2 = "home-feed-2"
 
     private func loadUnreadCount() async {
         let notifService = NotificationService()

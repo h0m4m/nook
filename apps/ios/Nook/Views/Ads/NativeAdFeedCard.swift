@@ -8,7 +8,7 @@ import UIKit
 /// `interval` items. Keys are stable strings so `AdManager` can cache an ad per
 /// slot across scrolls and re-renders.
 enum AdSlot {
-    static let interval = 6
+    static let interval = 8
 
     /// All slot keys for a feed of `count` items (used to kick off loads when the
     /// feed appears).

@@ -23,6 +23,8 @@ enum NotificationSection: String, CaseIterable {
 
 struct NotificationsView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(SubscriptionManager.self) private var subscriptions
+    @Environment(AdManager.self) private var ads
     @State private var notifications: [NotificationItem] = []
     @State private var realNotifications: [NotificationModel] = []
     @State private var isLoading = true
@@ -108,7 +110,7 @@ struct NotificationsView: View {
                 if realNotifications.isEmpty {
                     notificationsEmptyState
                 } else {
-                    ForEach(realNotifications) { notif in
+                    ForEach(Array(realNotifications.enumerated()), id: \.element.id) { index, notif in
                         if notif.referenceType == "club", let clubId = notif.referenceId {
                             NavigationLink(value: ClubItem(navigationId: clubId)) {
                                 RealNotificationRow(notification: notif)
@@ -120,12 +122,24 @@ struct NotificationsView: View {
                             }
                             .buttonStyle(.plain)
                         }
+
+                        if AdSlot.hasSlot(after: index) {
+                            NativeAdFeedSlot(key: AdSlot.key(prefix: "notifications", after: index))
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 8)
+                        }
                     }
                 }
             }
             .padding(.bottom, 100)
         }
         .modifier(SoftScrollEdge())
+        .task(id: realNotifications.count) {
+            guard !subscriptions.isPlus else { return }
+            for key in AdSlot.keys(prefix: "notifications", count: realNotifications.count) {
+                ads.requestAd(for: key)
+            }
+        }
     }
 
     private var notificationsEmptyState: some View {
@@ -392,4 +406,6 @@ extension NotificationsView {
     NavigationStack {
         NotificationsView()
     }
+    .environment(SubscriptionManager.shared)
+    .environment(AdManager.shared)
 }

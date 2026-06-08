@@ -183,6 +183,9 @@ struct MediaDetailView: View {
         loadedReviews.filter { !BlockStore.shared.isBlocked($0.userId) }
     }
     @Environment(\.dismiss) private var dismiss
+    @Environment(SubscriptionManager.self) private var subscriptions
+    @Environment(AdManager.self) private var ads
+    @State private var adSlotPrefix = "media-\(UUID().uuidString)"
     @State private var selectedTab: MediaDetailTab = .about
     @State private var isTracking: Bool
     @State private var isRated = false
@@ -974,11 +977,15 @@ private extension MediaDetailView {
                 .frame(maxWidth: .infinity)
                 .padding(.top, 40)
             } else {
-                ForEach(visibleReviews) { review in
+                ForEach(Array(visibleReviews.enumerated()), id: \.element.id) { index, review in
                     NavigationLink(value: ReviewItem(from: review)) {
                         loadedReviewCard(review)
                     }
                     .buttonStyle(.plain)
+
+                    if AdSlot.hasSlot(after: index) {
+                        NativeAdFeedSlot(key: AdSlot.key(prefix: adSlotPrefix, after: index))
+                    }
                 }
             }
 
@@ -987,6 +994,10 @@ private extension MediaDetailView {
         .padding(.bottom, 100)
         .task(id: reviewsLoadToken) {
             await loadReviews()
+            guard !subscriptions.isPlus else { return }
+            for key in AdSlot.keys(prefix: adSlotPrefix, count: visibleReviews.count) {
+                ads.requestAd(for: key)
+            }
         }
     }
 
@@ -2691,4 +2702,6 @@ extension MediaDetailView {
     NavigationStack {
         MediaDetailView(media: MediaDetailView.mockMedia)
     }
+    .environment(SubscriptionManager.shared)
+    .environment(AdManager.shared)
 }
