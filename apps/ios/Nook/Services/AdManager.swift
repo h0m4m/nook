@@ -23,6 +23,20 @@ enum AdConfig {
         #endif
     }
 
+    /// Google's official test anchored-adaptive banner unit.
+    private static let testBannerUnitID = "ca-app-pub-3940256099942544/2435281174"
+
+    /// The anchored-adaptive banner unit, or `nil` when banners are disabled.
+    /// DEBUG always uses the test unit (real ads need an approved account).
+    static var bannerUnitID: String? {
+        #if DEBUG
+        return testBannerUnitID
+        #else
+        let id = Bundle.main.object(forInfoDictionaryKey: "ADMOB_BANNER_UNIT_ID") as? String
+        return (id?.isEmpty == false) ? id : nil
+        #endif
+    }
+
     /// Whether ads are configured at all (gates SDK start + ATT).
     static var isEnabled: Bool { nativeUnitID != nil }
 
@@ -62,7 +76,8 @@ final class AdManager: NSObject, NativeAdLoaderDelegate {
     @ObservationIgnored private var failed: Set<String> = []
     @ObservationIgnored private var pending: Set<String> = []
     @ObservationIgnored private var started = false
-    @ObservationIgnored private var ready = false
+    /// Observed so views (e.g. the bottom banner) can wait for ATT + SDK start.
+    private(set) var isReady = false
 
     private override init() { super.init() }
 
@@ -92,7 +107,7 @@ final class AdManager: NSObject, NativeAdLoaderDelegate {
             log("test devices registered: \(testIDs)")
         }
         _ = await MobileAds.shared.start()
-        ready = true
+        isReady = true
         let queued = pending
         log("SDK started — flushing \(queued.count) queued slot(s): \(queued.sorted())")
         pending.removeAll()
@@ -115,7 +130,7 @@ final class AdManager: NSObject, NativeAdLoaderDelegate {
             log("requestAd(\(key)) skipped — loaded=\(loaded[key] != nil) inFlight=\(inFlight[key] != nil) failed=\(failed.contains(key))")
             return
         }
-        guard ready else {
+        guard isReady else {
             log("requestAd(\(key)) queued — SDK not ready yet")
             pending.insert(key)
             return
