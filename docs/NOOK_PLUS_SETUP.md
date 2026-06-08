@@ -155,8 +155,11 @@ the Library list, every 8 items) plus one card on Home between sections. Plus
 subscribers see none — slots check `SubscriptionManager.isPlus` and render
 nothing. Ads run on the **Google Mobile Ads SDK v12** (native advanced format).
 
-Until real AdMob IDs are set, DEBUG builds show Google's **test ads**
-automatically; RELEASE builds with no configured unit show **no ads**.
+**DEBUG always shows Google's test ads** (always fill, safe to tap); **RELEASE**
+uses your real `ADMOB_NATIVE_UNIT_ID` — see `AdConfig`. This is deliberate: real
+ads only serve to an **approved** AdMob account on a **published** app, so a dev
+build requesting the real unit just gets `Account not approved yet`. Real ads
+turn on automatically once the app ships and AdMob approves the account.
 
 ## 1. AdMob account
 
@@ -166,12 +169,14 @@ automatically; RELEASE builds with no configured unit show **no ads**.
 
 ## 2. iOS app IDs
 
-Set two build settings (Debug + Release), or via a git-ignored `Secrets.xcconfig`:
+Set in build settings (Debug + Release), or via a git-ignored `Secrets.xcconfig`:
 
-- `ADMOB_APP_ID` → your real App ID (currently defaults to Google's **test** app
-  id so the SDK never crashes). Flows to `Info.plist` → `GADApplicationIdentifier`.
-- `ADMOB_NATIVE_UNIT_ID` → your real native unit id. Empty → test ad in DEBUG,
-  no ads in RELEASE (see `AdConfig`).
+- `ADMOB_APP_ID` → real App ID `ca-app-pub-5609964541403026~8159388740`. Flows to
+  `Info.plist` → `GADApplicationIdentifier` (used in both configs).
+- `ADMOB_NATIVE_UNIT_ID` → real native unit `ca-app-pub-5609964541403026/6818917145`.
+  Only used in **RELEASE**; DEBUG always uses the test unit (see `AdConfig`).
+- `ADMOB_TEST_DEVICE_IDS` → optional comma-separated device hashes to force test
+  ads on a physical device when running a **release**-style build.
 
 `Info.plist` already includes `NSUserTrackingUsageDescription` (the ATT prompt
 copy) and Google's `SKAdNetworkItems` list.
@@ -186,18 +191,24 @@ copy) and Google's `SKAdNetworkItems` list.
 
 ## 4. Test & verify
 
-1. Run on a device/simulator as a **free** user → scroll a club with 8+ posts or
-   a Library with 8+ items → a native "Ad" card appears; tap opens the test ad.
+1. Run a **DEBUG** build as a **free** user → Home shows a native "Ad" card
+   (test ad), plus every 8th item in a club feed (8+ posts) or Library (8+ items).
+   Tap is safe — they're test ads.
 2. Subscribe to Plus → ad cards disappear on next render.
-3. Before release, set real `ADMOB_APP_ID` + `ADMOB_NATIVE_UNIT_ID`.
+3. Real ads only appear in a **release**/TestFlight build _after_ AdMob approves
+   the account (see checklist) — a DEBUG build always shows test ads.
 
 ## 5. Before launch — checklist
 
-Code-side ads (placement, Plus-gating, ATT prompt, test ads) are **done**. What's
-left is account/store config + privacy/consent:
+Code-side ads (placement, Plus-gating, ATT prompt, test ads) are **done**, and the
+real AdMob ids are wired. What's left is Google/store approval + privacy/consent:
 
-- [ ] **Real AdMob IDs** — set `ADMOB_APP_ID` + `ADMOB_NATIVE_UNIT_ID` (§1–2).
-      This is the gate between test ads and real revenue.
+- [x] **Real AdMob IDs** wired (`ADMOB_APP_ID` + `ADMOB_NATIVE_UNIT_ID`).
+- [ ] **AdMob account approval** — new accounts return `Account not approved yet`
+      until Google reviews them. Complete the AdMob account (payment/address) and
+      link the **published** app; approval typically requires the app to be live on
+      the App Store. Real ads won't serve until this clears.
+      <https://support.google.com/admob/answer/9905175>
 - [ ] **App Store privacy label** — in App Store Connect → App Privacy, declare
       what AdMob collects (Device ID / Identifiers + Usage Data, used for
       Third‑Party Advertising / Analytics). Must match the ATT prompt.

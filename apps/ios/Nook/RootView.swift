@@ -48,8 +48,14 @@ struct RootView: View {
                 // real content (ATT prompt "after first value"). The short delay
                 // lets the RevenueCat entitlement resolve so Plus users are never
                 // prompted for tracking nor shown ads.
+                #if DEBUG
+                print("🟡 [NookAds] home reached — isPlus=\(SubscriptionManager.shared.isPlus)")
+                #endif
                 if !SubscriptionManager.shared.isPlus {
                     try? await Task.sleep(for: .seconds(2))
+                    #if DEBUG
+                    print("🟡 [NookAds] after 2s — isPlus=\(SubscriptionManager.shared.isPlus) → starting ads")
+                    #endif
                     if !SubscriptionManager.shared.isPlus {
                         AdManager.shared.startIfNeeded()
                     }

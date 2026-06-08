@@ -2,24 +2,24 @@ import AppTrackingTransparency
 import Foundation
 import GoogleMobileAds
 
-/// Ad unit configuration. Real IDs come from build settings (Info.plist); in
-/// DEBUG we fall back to Google's official test units so ads render before the
-/// AdMob account is wired up. In RELEASE, an unconfigured unit means **no ads**
-/// (we never ship test ads).
+/// Ad unit configuration.
+///
+/// **DEBUG always uses Google's TEST unit** — real ads only serve to an *approved*
+/// AdMob account on a *published* app (an unapproved account returns "Account not
+/// approved yet"), and test ads are always-fill + safe to tap. **RELEASE** uses the
+/// real `ADMOB_NATIVE_UNIT_ID` (or no ads if it's unset). So real ads kick in
+/// automatically once the app ships and the account is approved.
 enum AdConfig {
     /// Google's official test native-advanced unit.
     private static let testNativeUnitID = "ca-app-pub-3940256099942544/3986624511"
 
     /// The native ad unit to request, or `nil` when ads should be disabled.
     static var nativeUnitID: String? {
-        if let id = Bundle.main.object(forInfoDictionaryKey: "ADMOB_NATIVE_UNIT_ID") as? String,
-           !id.isEmpty {
-            return id
-        }
         #if DEBUG
         return testNativeUnitID
         #else
-        return nil
+        let id = Bundle.main.object(forInfoDictionaryKey: "ADMOB_NATIVE_UNIT_ID") as? String
+        return (id?.isEmpty == false) ? id : nil
         #endif
     }
 
@@ -71,6 +71,7 @@ final class AdManager: NSObject, NativeAdLoaderDelegate {
     /// Requests ATT (once) then starts the SDK, flushing any queued slot loads.
     /// No-op if ads are disabled or already started.
     func startIfNeeded() {
+        log("startIfNeeded — isEnabled=\(AdConfig.isEnabled) started=\(started) unit=\(AdConfig.nativeUnitID ?? "nil")")
         guard AdConfig.isEnabled, !started else { return }
         started = true
         Task { await requestATTThenStart() }
@@ -78,19 +79,22 @@ final class AdManager: NSObject, NativeAdLoaderDelegate {
 
     private func requestATTThenStart() async {
         if #available(iOS 14, *) {
-            await withCheckedContinuation { cont in
-                ATTrackingManager.requestTrackingAuthorization { _ in cont.resume() }
+            let status = await withCheckedContinuation { cont in
+                ATTrackingManager.requestTrackingAuthorization { cont.resume(returning: $0) }
             }
+            log("ATT status=\(status.rawValue)")
         }
         // Serve test ads to registered dev devices (safe to tap), even with the
         // real ad unit live. Must be set before the first ad request.
         let testIDs = AdConfig.testDeviceIDs
         if !testIDs.isEmpty {
             MobileAds.shared.requestConfiguration.testDeviceIdentifiers = testIDs
+            log("test devices registered: \(testIDs)")
         }
         _ = await MobileAds.shared.start()
         ready = true
         let queued = pending
+        log("SDK started — flushing \(queued.count) queued slot(s): \(queued.sorted())")
         pending.removeAll()
         for key in queued { load(key) }
     }
@@ -103,19 +107,36 @@ final class AdManager: NSObject, NativeAdLoaderDelegate {
     /// Ensures an ad is loading (or loaded) for a slot. Idempotent and cheap to
     /// call from `.task`. Queues until the SDK is ready.
     func requestAd(for key: String) {
-        guard AdConfig.isEnabled else { return }
-        if loaded[key] != nil || inFlight[key] != nil || failed.contains(key) { return }
-        guard ready else { pending.insert(key); return }
+        guard AdConfig.isEnabled else {
+            log("requestAd(\(key)) IGNORED — ads disabled (no unit id)")
+            return
+        }
+        if loaded[key] != nil || inFlight[key] != nil || failed.contains(key) {
+            log("requestAd(\(key)) skipped — loaded=\(loaded[key] != nil) inFlight=\(inFlight[key] != nil) failed=\(failed.contains(key))")
+            return
+        }
+        guard ready else {
+            log("requestAd(\(key)) queued — SDK not ready yet")
+            pending.insert(key)
+            return
+        }
         load(key)
     }
 
     private func load(_ key: String) {
         guard let unit = AdConfig.nativeUnitID else { return }
+        log("loading ad: slot=\(key) unit=\(unit)")
         let loader = AdLoader(adUnitID: unit, rootViewController: nil, adTypes: [.native], options: nil)
         loader.delegate = self
         inFlight[key] = loader
         keyByLoader[ObjectIdentifier(loader)] = key
         loader.load(Request())
+    }
+
+    private func log(_ message: String) {
+        #if DEBUG
+        print("🟡 [NookAds] \(message)")
+        #endif
     }
 
     // MARK: - NativeAdLoaderDelegate
@@ -130,6 +151,7 @@ final class AdManager: NSObject, NativeAdLoaderDelegate {
             guard let key = keyByLoader[id] else { return }
             loaded[key] = box.value
             clear(loaderID: id, key: key)
+            log("✅ ad RECEIVED for slot \(key)")
         }
     }
 
@@ -140,9 +162,7 @@ final class AdManager: NSObject, NativeAdLoaderDelegate {
             guard let key = keyByLoader[id] else { return }
             failed.insert(key)
             clear(loaderID: id, key: key)
-            #if DEBUG
-            print("AdManager: slot \(key) failed — \(message)")
-            #endif
+            log("❌ ad FAILED for slot \(key) — \(message)")
         }
     }
 
