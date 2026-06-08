@@ -144,6 +144,8 @@ struct SearchView: View {
     @State private var sheetIsRated = false
     @FocusState private var isSearchFocused: Bool
     @Environment(\.trackingState) private var trackingState
+    @Environment(SubscriptionManager.self) private var subscriptions
+    @Environment(AdManager.self) private var ads
 
     var body: some View {
         scrollContent
@@ -333,7 +335,7 @@ struct SearchView: View {
             }
 
             LazyVStack(spacing: 24) {
-                ForEach(results) { item in
+                ForEach(Array(results.enumerated()), id: \.element.id) { index, item in
                     NavigationLink(value: MediaDetailRoute(from: item)) {
                         APISearchResultRow(
                             item: item,
@@ -351,6 +353,17 @@ struct SearchView: View {
                             viewModel.loadNextPage()
                         }
                     }
+
+                    if AdSlot.hasSlot(after: index) {
+                        NativeAdFeedSlot(key: AdSlot.key(prefix: "search", after: index))
+                            .padding(.horizontal, 24)
+                    }
+                }
+            }
+            .task(id: results.count) {
+                guard !subscriptions.isPlus else { return }
+                for key in AdSlot.keys(prefix: "search", count: results.count) {
+                    ads.requestAd(for: key)
                 }
             }
 
@@ -869,4 +882,6 @@ enum InterestsCache {
 
 #Preview("Idle") {
     SearchView(viewModel: SearchViewModel())
+        .environment(SubscriptionManager.shared)
+        .environment(AdManager.shared)
 }

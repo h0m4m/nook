@@ -11,6 +11,8 @@ struct ProfileMenuView: View {
     @State private var showSettings = false
     @State private var showEditProfile = false
     @State private var showCreateClub = false
+    @State private var showNookPlusPaywall = false
+    @Environment(SubscriptionManager.self) private var subscriptions
 
     var body: some View {
         NavigationStack {
@@ -172,6 +174,19 @@ struct ProfileMenuView: View {
 
             rowDivider
 
+            if !subscriptions.isPlus {
+                menuRow(
+                    icon: "sparkle",
+                    label: "Get Nook Plus",
+                    iconColor: Color.nook.accent,
+                    iconBackground: Color.nook.accent.opacity(0.12)
+                ) {
+                    showNookPlusPaywall = true
+                }
+
+                rowDivider
+            }
+
             menuRow(
                 icon: "chart-line",
                 label: "Stats",
@@ -200,6 +215,9 @@ struct ProfileMenuView: View {
         }
         .sheet(isPresented: $showStats) {
             StatsView()
+        }
+        .sheet(isPresented: $showNookPlusPaywall) {
+            NookPlusPaywallView()
         }
         .fullScreenCover(isPresented: $showMyProfile) {
             NavigationStack {
@@ -337,4 +355,5 @@ struct ProfileMenuView: View {
 
 #Preview {
     ProfileMenuView(router: AppRouter())
+        .environment(SubscriptionManager.shared)
 }

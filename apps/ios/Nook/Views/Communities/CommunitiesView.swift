@@ -203,6 +203,8 @@ struct ClubsView: View {
     @State private var isSearchActive = false
     @State private var searchText = ""
     @FocusState private var isSearchFocused: Bool
+    @Environment(SubscriptionManager.self) private var subscriptions
+    @Environment(AdManager.self) private var ads
 
     private var clubs: [ClubItem] {
         let myClubIds = Set(viewModel.myClubs.map { $0.id })
@@ -251,17 +253,27 @@ struct ClubsView: View {
                 filterChips
 
                 LazyVStack(spacing: 20) {
-                    ForEach(filteredClubs) { club in
+                    ForEach(Array(filteredClubs.enumerated()), id: \.element.id) { index, club in
                         NavigationLink(value: club) {
                             ClubCard(club: club) {
                                 toggleJoined(club)
                             }
                         }
                         .buttonStyle(.plain)
+
+                        if AdSlot.hasSlot(after: index) {
+                            NativeAdFeedSlot(key: AdSlot.key(prefix: "clubs-list", after: index))
+                        }
                     }
                 }
                 .padding(.horizontal, 24)
                 .padding(.top, 16)
+                .task(id: filteredClubs.count) {
+                    guard !subscriptions.isPlus else { return }
+                    for key in AdSlot.keys(prefix: "clubs-list", count: filteredClubs.count) {
+                        ads.requestAd(for: key)
+                    }
+                }
             }
             .padding(.bottom, 100)
         }
@@ -755,4 +767,6 @@ extension ClubsView {
 
 #Preview {
     ClubsView(viewModel: CommunitiesViewModel())
+        .environment(SubscriptionManager.shared)
+        .environment(AdManager.shared)
 }

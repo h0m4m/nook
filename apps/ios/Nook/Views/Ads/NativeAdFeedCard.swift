@@ -8,7 +8,7 @@ import UIKit
 /// `interval` items. Keys are stable strings so `AdManager` can cache an ad per
 /// slot across scrolls and re-renders.
 enum AdSlot {
-    static let interval = 8
+    static let interval = 6
 
     /// All slot keys for a feed of `count` items (used to kick off loads when the
     /// feed appears).
@@ -49,17 +49,44 @@ struct NativeAdFeedSlot: View {
 /// shadow, fixed height so the media view absorbs slack).
 private struct NativeAdCardView: View {
     let nativeAd: NativeAd
+    @State private var showPaywall = false
 
     var body: some View {
-        NativeAdContainer(nativeAd: nativeAd)
-            .frame(height: 300)
-            .background(Color.nook.card)
-            .clipShape(RoundedRectangle(cornerRadius: NookRadii.md, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: NookRadii.md, style: .continuous)
-                    .stroke(Color.nook.border, lineWidth: 1)
+        VStack(spacing: 6) {
+            NativeAdContainer(nativeAd: nativeAd)
+                .frame(height: 300)
+                .background(Color.nook.card)
+                .clipShape(RoundedRectangle(cornerRadius: NookRadii.md, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: NookRadii.md, style: .continuous)
+                        .stroke(Color.nook.border, lineWidth: 1)
+                }
+                .shadow(color: .black.opacity(0.04), radius: 3, y: 1)
+
+            // Plus upsell — deliberately OUTSIDE the ad's tappable area so it can't
+            // cause accidental ad clicks (and stays AdMob-policy clean).
+            Button {
+                showPaywall = true
+            } label: {
+                HStack(spacing: 4) {
+                    Image("sparkle")
+                        .renderingMode(.template)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 11, height: 11)
+                    Text("Remove ads with Nook Plus")
+                        .font(NookFont.caption)
+                }
+                .foregroundStyle(Color.nook.mutedForeground)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 2)
+                .contentShape(Rectangle())
             }
-            .shadow(color: .black.opacity(0.04), radius: 3, y: 1)
+            .buttonStyle(.plain)
+        }
+        .sheet(isPresented: $showPaywall) {
+            NookPlusPaywallView()
+        }
     }
 }
 

@@ -23,6 +23,10 @@ final class AppRouter {
     var currentUserDisplayName: String = ""
     var currentUserUsername: String = ""
 
+    /// Set once when a brand-new user finishes onboarding, so the home screen can
+    /// present the Nook Plus paywall a single time. Cleared after it's shown.
+    var showPaywallAfterOnboarding = false
+
     private var authListenerTask: Task<Void, Never>?
 
     func startListening() {
@@ -121,6 +125,8 @@ final class AppRouter {
             ))
             .execute()
 
+        // New user reached the end of onboarding — cue the one-time paywall.
+        showPaywallAfterOnboarding = true
         currentScreen = .home
     }
 
