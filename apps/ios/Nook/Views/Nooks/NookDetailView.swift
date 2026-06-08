@@ -189,9 +189,12 @@ struct NookDetailView: View {
             authorAvatar
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(nook.curatorName)
-                    .font(NookFont.labelSmall)
-                    .foregroundStyle(Color.nook.detailTitle)
+                HStack(spacing: 5) {
+                    Text(nook.curatorName)
+                        .font(NookFont.labelSmall)
+                        .foregroundStyle(Color.nook.detailTitle)
+                    UserPlusBadge(userId: nook.ownerUserId)
+                }
 
                 if let created = nook.createdAt {
                     Text("Published \(created.formatted(.dateTime.month(.abbreviated).day().year()))")
@@ -800,15 +803,21 @@ struct NookDetailView: View {
     private func commentAuthorLink(_ comment: NookComment) -> some View {
         if let profile = userProfile(for: comment) {
             NavigationLink(value: profile) {
-                Text(comment.authorName)
-                    .font(NookFont.captionBold)
-                    .foregroundStyle(Color.nook.detailTitle)
+                HStack(spacing: 5) {
+                    Text(comment.authorName)
+                        .font(NookFont.captionBold)
+                        .foregroundStyle(Color.nook.detailTitle)
+                    UserPlusBadge(userId: comment.userId)
+                }
             }
             .buttonStyle(.plain)
         } else {
-            Text(comment.authorName)
-                .font(NookFont.captionBold)
-                .foregroundStyle(Color.nook.detailTitle)
+            HStack(spacing: 5) {
+                Text(comment.authorName)
+                    .font(NookFont.captionBold)
+                    .foregroundStyle(Color.nook.detailTitle)
+                UserPlusBadge(userId: comment.userId)
+            }
         }
     }
 

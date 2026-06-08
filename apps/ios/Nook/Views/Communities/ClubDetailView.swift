@@ -1375,6 +1375,8 @@ private extension ClubDetailView {
                             .foregroundStyle(Color.nook.clubDetailTitle)
                     }
 
+                    UserPlusBadge(userId: post.userId)
+
                     Text(post.timeAgo)
                         .font(NookFont.caption)
                         .foregroundStyle(Color.nook.clubDetailMeta)
@@ -1797,6 +1799,8 @@ private extension ClubDetailView {
                     .font(NookFont.labelSmall)
                     .foregroundStyle(Color.nook.clubDetailTitle)
             }
+
+            UserPlusBadge(userId: member.userId)
 
             Spacer()
 

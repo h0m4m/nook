@@ -69,12 +69,12 @@ private struct NativeAdCardView: View {
                 showPaywall = true
             } label: {
                 HStack(spacing: 4) {
-                    Image("sparkle")
+                    Image("x-bold")
                         .renderingMode(.template)
                         .resizable()
                         .aspectRatio(contentMode: .fit)
-                        .frame(width: 11, height: 11)
-                    Text("Remove ads with Nook Plus")
+                        .frame(width: 9, height: 9)
+                    Text("Remove ads")
                         .font(NookFont.caption)
                 }
                 .foregroundStyle(Color.nook.mutedForeground)

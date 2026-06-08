@@ -59,6 +59,7 @@
 		SUBMGR0000000000000000A2 /* SubscriptionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = SUBMGR0000000000000000A1 /* SubscriptionManager.swift */; };
 		PAYWALL000000000000000A2 /* NookPlusPaywallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = PAYWALL000000000000000A1 /* NookPlusPaywallView.swift */; };
 		ADMGR00000000000000000A2 /* AdManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADMGR00000000000000000A1 /* AdManager.swift */; };
+		PLUSSTORE0000000000000A2 /* PlusStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = PLUSSTORE0000000000000A1 /* PlusStore.swift */; };
 		NATADCARD0000000000000A2 /* NativeAdFeedCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = NATADCARD0000000000000A1 /* NativeAdFeedCard.swift */; };
 		A27881B804224019B33F7B18 /* LibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D1662AB256F4B7192FEB135 /* LibraryView.swift */; };
 		AA608F1EC2813B24E0BA9BC7 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9702BBB3E69FB7B1267F94CD /* RootView.swift */; };
@@ -123,6 +124,7 @@
 		PAYWALL000000000000000A1 /* NookPlusPaywallView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NookPlusPaywallView.swift; sourceTree = "<group>"; };
 		NOOKPLUSSTOREKIT00000001 /* NookPlus.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = NookPlus.storekit; sourceTree = SOURCE_ROOT; };
 		ADMGR00000000000000000A1 /* AdManager.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AdManager.swift; sourceTree = "<group>"; };
+		PLUSSTORE0000000000000A1 /* PlusStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PlusStore.swift; sourceTree = "<group>"; };
 		NATADCARD0000000000000A1 /* NativeAdFeedCard.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NativeAdFeedCard.swift; sourceTree = "<group>"; };
 		1NTERACT1VEPOP123456AB02 /* InteractivePopGesture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InteractivePopGesture.swift; sourceTree = "<group>"; };
 		1NV1T3MMBR123456789AB02 /* InviteMemberView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InviteMemberView.swift; sourceTree = "<group>"; };
@@ -301,6 +303,7 @@
 				1EF71350ECDD35D121FC2B7F /* ProfileService.swift */,
 				SUBMGR0000000000000000A1 /* SubscriptionManager.swift */,
 				ADMGR00000000000000000A1 /* AdManager.swift */,
+				PLUSSTORE0000000000000A1 /* PlusStore.swift */,
 				A63E2633397AA4E21A7BD212 /* NotificationService.swift */,
 				B05E12C30002000000000002 /* PushService.swift */,
 				B0507E120002000000000002 /* PushRouter.swift */,
@@ -654,6 +657,7 @@
 				A0B8C120E8ECCB7041FF8105 /* ProfileService.swift in Sources */,
 				SUBMGR0000000000000000A2 /* SubscriptionManager.swift in Sources */,
 				ADMGR00000000000000000A2 /* AdManager.swift in Sources */,
+				PLUSSTORE0000000000000A2 /* PlusStore.swift in Sources */,
 				NATADCARD0000000000000A2 /* NativeAdFeedCard.swift in Sources */,
 				75BDD51344A68DBC981E1640 /* NotificationService.swift in Sources */,
 				AADE1E0001000000000000A1 /* AppDelegate.swift in Sources */,

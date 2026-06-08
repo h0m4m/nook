@@ -308,9 +308,12 @@ private extension ReviewDetailView {
             ReviewerAvatar(url: review.reviewerAvatarURL, size: 44, iconSize: 18)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(review.reviewerName)
-                    .font(NookFont.labelSmall)
-                    .foregroundStyle(Color.nook.reviewDetailTitle)
+                HStack(spacing: 5) {
+                    Text(review.reviewerName)
+                        .font(NookFont.labelSmall)
+                        .foregroundStyle(Color.nook.reviewDetailTitle)
+                    UserPlusBadge(userId: review.reviewerUserId)
+                }
 
                 if let date = review.createdAt {
                     Text(relativeTime(from: date))
@@ -630,15 +633,21 @@ private extension ReviewDetailView {
     private func commentAuthorLink(_ comment: ReviewComment) -> some View {
         if let profile = userProfile(for: comment) {
             NavigationLink(value: profile) {
-                Text(comment.authorName)
-                    .font(NookFont.captionBold)
-                    .foregroundStyle(Color.nook.reviewDetailTitle)
+                HStack(spacing: 5) {
+                    Text(comment.authorName)
+                        .font(NookFont.captionBold)
+                        .foregroundStyle(Color.nook.reviewDetailTitle)
+                    UserPlusBadge(userId: comment.userId)
+                }
             }
             .buttonStyle(.plain)
         } else {
-            Text(comment.authorName)
-                .font(NookFont.captionBold)
-                .foregroundStyle(Color.nook.reviewDetailTitle)
+            HStack(spacing: 5) {
+                Text(comment.authorName)
+                    .font(NookFont.captionBold)
+                    .foregroundStyle(Color.nook.reviewDetailTitle)
+                UserPlusBadge(userId: comment.userId)
+            }
         }
     }
 

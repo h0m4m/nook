@@ -215,17 +215,20 @@ private extension PostDetailView {
                 ClubAvatarView(url: post.authorAvatarURL, size: 44, profile: profileFor(userId: post.userId, name: post.authorName, avatar: post.authorAvatarURL))
 
                 VStack(alignment: .leading, spacing: 2) {
-                    if let profile = profileFor(userId: post.userId, name: post.authorName, avatar: post.authorAvatarURL) {
-                        NavigationLink(value: profile) {
+                    HStack(spacing: 5) {
+                        if let profile = profileFor(userId: post.userId, name: post.authorName, avatar: post.authorAvatarURL) {
+                            NavigationLink(value: profile) {
+                                Text(post.authorName)
+                                    .font(NookFont.labelSmall)
+                                    .foregroundStyle(Color.nook.clubDetailTitle)
+                            }
+                            .buttonStyle(.plain)
+                        } else {
                             Text(post.authorName)
                                 .font(NookFont.labelSmall)
                                 .foregroundStyle(Color.nook.clubDetailTitle)
                         }
-                        .buttonStyle(.plain)
-                    } else {
-                        Text(post.authorName)
-                            .font(NookFont.labelSmall)
-                            .foregroundStyle(Color.nook.clubDetailTitle)
+                        UserPlusBadge(userId: post.userId)
                     }
 
                     Text(post.timeAgo)
@@ -552,6 +555,8 @@ private extension PostDetailView {
                             .font(NookFont.captionBold)
                             .foregroundStyle(Color.nook.clubDetailTitle)
                     }
+
+                    UserPlusBadge(userId: comment.userId)
 
                     if let date = comment.createdAt {
                         Text(relativeTime(from: date))

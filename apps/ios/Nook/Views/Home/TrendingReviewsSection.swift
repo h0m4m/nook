@@ -185,6 +185,7 @@ private struct ReviewCard: View {
                         .font(NookFont.captionBold)
                         .foregroundStyle(Color.nook.cardTitle)
                         .lineLimit(1)
+                    UserPlusBadge(userId: item.reviewerUserId)
                 }
             }
             .buttonStyle(.plain)

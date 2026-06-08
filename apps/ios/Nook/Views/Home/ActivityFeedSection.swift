@@ -170,10 +170,13 @@ private struct PostActivityCard: View {
                     )
 
                 VStack(alignment: .leading, spacing: 0) {
-                    Text(item.userName)
-                        .font(NookFont.captionBold)
-                        .foregroundStyle(Color.nook.cardTitle)
-                        .lineLimit(1)
+                    HStack(spacing: 5) {
+                        Text(item.userName)
+                            .font(NookFont.captionBold)
+                            .foregroundStyle(Color.nook.cardTitle)
+                            .lineLimit(1)
+                        UserPlusBadge(userId: item.userId)
+                    }
 
                     headerSubtitle
                 }
@@ -360,10 +363,13 @@ private struct CompactActivityCard: View {
                 )
 
             VStack(alignment: .leading, spacing: 0) {
-                Text(item.userName)
-                    .font(NookFont.captionBold)
-                    .foregroundStyle(Color.nook.cardTitle)
-                    .lineLimit(1)
+                HStack(spacing: 5) {
+                    Text(item.userName)
+                        .font(NookFont.captionBold)
+                        .foregroundStyle(Color.nook.cardTitle)
+                        .lineLimit(1)
+                    UserPlusBadge(userId: item.userId)
+                }
 
                 headerSubtitle
             }

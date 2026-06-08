@@ -1025,9 +1025,12 @@ private extension MediaDetailView {
                     ReviewerAvatar(url: review.authorAvatarURL, size: 32, iconSize: 14)
 
                     VStack(alignment: .leading, spacing: 0) {
-                        Text(review.authorName)
-                            .font(NookFont.captionBold)
-                            .foregroundStyle(Color.nook.detailReviewTitle)
+                        HStack(spacing: 5) {
+                            Text(review.authorName)
+                                .font(NookFont.captionBold)
+                                .foregroundStyle(Color.nook.detailReviewTitle)
+                            UserPlusBadge(userId: review.userId)
+                        }
 
                         Text(review.createdAt, style: .relative)
                             .font(.custom("PlusJakartaSans-Regular", size: 10))

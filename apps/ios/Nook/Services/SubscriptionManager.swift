@@ -38,6 +38,10 @@ final class SubscriptionManager: NSObject, PurchasesDelegate {
     private(set) var isLoadingOfferings = false
     private(set) var purchaseInProgress = false
 
+    /// The signed-in Supabase user id, so the PLUS badge can resolve the *current*
+    /// user from the live SDK entitlement (instant) instead of the DB column.
+    private(set) var currentUserID: UUID?
+
     private var configured = false
     private var authTask: Task<Void, Never>?
 
@@ -96,10 +100,12 @@ final class SubscriptionManager: NSObject, PurchasesDelegate {
                 guard let self else { return }
                 switch event {
                 case .initialSession, .signedIn:
+                    self.currentUserID = session?.user.id
                     if let uid = session?.user.id.uuidString {
                         await self.login(userId: uid)
                     }
                 case .signedOut:
+                    self.currentUserID = nil
                     await self.logout()
                 default:
                     break
