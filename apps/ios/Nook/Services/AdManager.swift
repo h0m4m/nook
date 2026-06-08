@@ -25,6 +25,17 @@ enum AdConfig {
 
     /// Whether ads are configured at all (gates SDK start + ATT).
     static var isEnabled: Bool { nativeUnitID != nil }
+
+    /// AdMob test-device hashes (from `ADMOB_TEST_DEVICE_IDS`, comma-separated).
+    /// Devices listed here are served **test** ads — safe to tap during dev —
+    /// even with the real ad unit configured. The SDK prints a device's hash on
+    /// its first ad request; add it here to click-test without risking the
+    /// account for invalid traffic. Simulators are always test devices.
+    static var testDeviceIDs: [String] {
+        guard let raw = Bundle.main.object(forInfoDictionaryKey: "ADMOB_TEST_DEVICE_IDS") as? String,
+              !raw.isEmpty else { return [] }
+        return raw.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+    }
 }
 
 /// App-wide native-ad provider for the free tier.
@@ -70,6 +81,12 @@ final class AdManager: NSObject, NativeAdLoaderDelegate {
             await withCheckedContinuation { cont in
                 ATTrackingManager.requestTrackingAuthorization { _ in cont.resume() }
             }
+        }
+        // Serve test ads to registered dev devices (safe to tap), even with the
+        // real ad unit live. Must be set before the first ad request.
+        let testIDs = AdConfig.testDeviceIDs
+        if !testIDs.isEmpty {
+            MobileAds.shared.requestConfiguration.testDeviceIdentifiers = testIDs
         }
         _ = await MobileAds.shared.start()
         ready = true

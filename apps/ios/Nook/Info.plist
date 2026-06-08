@@ -35,6 +35,8 @@
 	<string>$(ADMOB_APP_ID)</string>
 	<key>ADMOB_NATIVE_UNIT_ID</key>
 	<string>$(ADMOB_NATIVE_UNIT_ID)</string>
+	<key>ADMOB_TEST_DEVICE_IDS</key>
+	<string>$(ADMOB_TEST_DEVICE_IDS)</string>
 	<key>NSUserTrackingUsageDescription</key>
 	<string>This lets Nook show you more relevant ads. Your data is never sold, and Nook Plus removes ads entirely.</string>
 	<key>CFBundleURLTypes</key>

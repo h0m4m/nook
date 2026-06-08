@@ -42,12 +42,15 @@ targets:
         # RevenueCat public SDK key (appl_…). Set per-developer/CI; safe to embed
         # (it's a public key), but keep the real value out of source control.
         REVENUECAT_API_KEY: "appl_fLNFmNnTOFwCYBdlzmSCRlapSDB"
-        # AdMob app id (ca-app-pub-…~…). Defaults to Google's TEST app id so the
-        # SDK has a valid id and never crashes; swap for the real one at launch.
-        ADMOB_APP_ID: "ca-app-pub-3940256099942544~1458002511"
+        # AdMob app id (ca-app-pub-…~…) → Info.plist GADApplicationIdentifier.
+        ADMOB_APP_ID: "ca-app-pub-5609964541403026~8159388740"
         # Real native ad unit id (ca-app-pub-…/…). Empty → test ads in DEBUG, no
         # ads in RELEASE. See AdConfig.
-        ADMOB_NATIVE_UNIT_ID: ""
+        ADMOB_NATIVE_UNIT_ID: "ca-app-pub-5609964541403026/6818917145"
+        # Comma-separated AdMob test-device hashes (printed by the SDK on first ad
+        # request). Devices listed here get tappable TEST ads instead of live ones
+        # — set this for any physical device you test on, leave empty for release.
+        ADMOB_TEST_DEVICE_IDS: ""
         DEVELOPMENT_TEAM: 8PP9FS9CAY
         CODE_SIGN_STYLE: Automatic
         CODE_SIGN_ENTITLEMENTS: Nook/Nook.entitlements
