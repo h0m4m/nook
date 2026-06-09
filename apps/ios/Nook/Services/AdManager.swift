@@ -23,20 +23,6 @@ enum AdConfig {
         #endif
     }
 
-    /// Google's official test anchored-adaptive banner unit.
-    private static let testBannerUnitID = "ca-app-pub-3940256099942544/2435281174"
-
-    /// The anchored-adaptive banner unit, or `nil` when banners are disabled.
-    /// DEBUG always uses the test unit (real ads need an approved account).
-    static var bannerUnitID: String? {
-        #if DEBUG
-        return testBannerUnitID
-        #else
-        let id = Bundle.main.object(forInfoDictionaryKey: "ADMOB_BANNER_UNIT_ID") as? String
-        return (id?.isEmpty == false) ? id : nil
-        #endif
-    }
-
     /// Whether ads are configured at all (gates SDK start + ATT).
     static var isEnabled: Bool { nativeUnitID != nil }
 

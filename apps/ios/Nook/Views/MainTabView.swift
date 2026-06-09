@@ -117,29 +117,24 @@ struct MainTabView: View {
                 }
             }
 
-            if navPath.isEmpty && isFabMenuOpen {
-                Color.black.opacity(0.2)
-                    .ignoresSafeArea()
-                    .onTapGesture { closeFabMenu() }
-                    .transition(.opacity)
-            }
-
-            // Anchored banner for free users — above the tab bar on the main
-            // tabs, at the bottom on pushed detail screens.
-            VStack(spacing: 0) {
-                BottomBannerAd()
-                if navPath.isEmpty {
-                    NookBottomBar(
-                        selectedTab: $selectedTab,
-                        isFabMenuOpen: $isFabMenuOpen,
-                        onCreateNook: {
-                            showCreateNookSheet = true
-                        },
-                        onTrackMedia: {
-                            showTrackMediaSheet = true
-                        }
-                    )
+            if navPath.isEmpty {
+                if isFabMenuOpen {
+                    Color.black.opacity(0.2)
+                        .ignoresSafeArea()
+                        .onTapGesture { closeFabMenu() }
+                        .transition(.opacity)
                 }
+
+                NookBottomBar(
+                    selectedTab: $selectedTab,
+                    isFabMenuOpen: $isFabMenuOpen,
+                    onCreateNook: {
+                        showCreateNookSheet = true
+                    },
+                    onTrackMedia: {
+                        showTrackMediaSheet = true
+                    }
+                )
             }
         }
         .ignoresSafeArea(.keyboard)

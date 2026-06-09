@@ -47,9 +47,6 @@ targets:
         # Real native ad unit id (ca-app-pub-…/…). Empty → test ads in DEBUG, no
         # ads in RELEASE. See AdConfig.
         ADMOB_NATIVE_UNIT_ID: "ca-app-pub-5609964541403026/6818917145"
-        # Real anchored-adaptive banner unit (create one in AdMob). Empty → test
-        # banner in DEBUG, no banner in RELEASE. See AdConfig.bannerUnitID.
-        ADMOB_BANNER_UNIT_ID: ""
         # Comma-separated AdMob test-device hashes (printed by the SDK on first ad
         # request). Devices listed here get tappable TEST ads instead of live ones
         # — set this for any physical device you test on, leave empty for release.
