@@ -49,7 +49,7 @@ struct SettingsView: View {
 
     private let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
     private let buildNumber = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
-    private let feedbackEmail = "getnookapp@gmail.com"
+    private let feedbackEmail = "humammourad@gmail.com"
 
     var body: some View {
         NavigationStack {
