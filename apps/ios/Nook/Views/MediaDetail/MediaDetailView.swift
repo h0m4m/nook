@@ -934,6 +934,8 @@ private extension MediaDetailView {
                 }
                 detailRow(label: "Genre", value: media.genresFull)
             }
+
+            attributionFooter
         }
         .padding(16)
         .padding(.bottom, 100)
@@ -952,6 +954,77 @@ private extension MediaDetailView {
                     .font(NookFont.labelMediumSmall)
                     .foregroundStyle(Color.nook.detailTitle)
             }
+        }
+    }
+}
+
+// MARK: - Provider Attribution
+
+private extension MediaDetailView {
+    /// The data provider for this item's metadata, derived from its source.
+    /// TheTVDB and IGDB require attribution visible to end users viewing the
+    /// metadata; Kitsu and Open Library are credited as a courtesy.
+    var dataSource: MediaDataSource? {
+        media.source.flatMap(MediaDataSource.init(source:))
+    }
+
+    @ViewBuilder
+    var attributionFooter: some View {
+        if let dataSource {
+            Link(destination: dataSource.url) {
+                Text("Metadata provided by \(dataSource.name)")
+                    .font(NookFont.caption)
+                    .foregroundStyle(Color.nook.detailMeta.opacity(0.7))
+                    .underline()
+            }
+            .accessibilityHint("Opens \(dataSource.name) in your browser")
+        }
+    }
+}
+
+/// A third-party metadata provider Nook attributes in the UI.
+enum MediaDataSource: CaseIterable {
+    case theTVDB
+    case igdb
+    case kitsu
+    case openLibrary
+
+    init?(source: String) {
+        switch source {
+        case "thetvdb": self = .theTVDB
+        case "igdb": self = .igdb
+        case "kitsu": self = .kitsu
+        case "openlibrary": self = .openLibrary
+        default: return nil
+        }
+    }
+
+    var name: String {
+        switch self {
+        case .theTVDB: "TheTVDB"
+        case .igdb: "IGDB"
+        case .kitsu: "Kitsu"
+        case .openLibrary: "Open Library"
+        }
+    }
+
+    /// What this provider supplies — used in the consolidated credits list.
+    var coverage: String {
+        switch self {
+        case .theTVDB: "Movies & TV"
+        case .igdb: "Games"
+        case .kitsu: "Anime & Manga"
+        case .openLibrary: "Books"
+        }
+    }
+
+    var url: URL {
+        switch self {
+        // TheTVDB's sample attribution links to their subscribe page.
+        case .theTVDB: URL(string: "https://www.thetvdb.com/subscribe")!
+        case .igdb: URL(string: "https://www.igdb.com")!
+        case .kitsu: URL(string: "https://kitsu.io")!
+        case .openLibrary: URL(string: "https://openlibrary.org")!
         }
     }
 }

@@ -1016,7 +1016,34 @@ private struct AboutSheet: View {
                     .padding(.horizontal, 32)
             }
 
+            dataSources
+                .padding(.top, 32)
+                .padding(.horizontal, 32)
+
             Spacer()
+        }
+    }
+
+    /// Credits the third-party metadata providers Nook relies on. TheTVDB and
+    /// IGDB require attribution; Kitsu and Open Library are credited as well.
+    private var dataSources: some View {
+        VStack(spacing: 10) {
+            Text("Data Sources")
+                .font(NookFont.tabLabel)
+                .tracking(0.5)
+                .textCase(.uppercase)
+                .foregroundStyle(Color.nook.settingsRowSubtitle)
+
+            VStack(spacing: 6) {
+                ForEach(MediaDataSource.allCases, id: \.self) { source in
+                    Link(destination: source.url) {
+                        Text("\(source.coverage) — \(source.name)")
+                            .font(NookFont.caption)
+                            .foregroundStyle(Color.nook.settingsRowSubtitle)
+                            .underline()
+                    }
+                }
+            }
         }
     }
 }
