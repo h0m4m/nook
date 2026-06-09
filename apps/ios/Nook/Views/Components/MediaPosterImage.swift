@@ -324,7 +324,9 @@ struct ZoomableImageView: View {
         .scaleEffect(scale)
         .offset(offset)
         .gesture(magnification)
-        .simultaneousGesture(pan)
+        // Only claim drags while zoomed in — otherwise the recognizer eats the
+        // TabView's horizontal swipe and you can't page between images at 1×.
+        .simultaneousGesture(scale > 1 ? pan : nil)
         .onTapGesture(count: 2) { toggleZoom() }
         .onDisappear { reset() }
     }
