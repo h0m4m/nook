@@ -288,11 +288,11 @@ struct NookPlusPaywallView: View {
                 .font(NookFont.caption)
                 .foregroundStyle(Color.nook.mutedForeground)
 
-            Link("Terms", destination: URL(string: "https://getnook.app/terms")!)
+            Link("Terms", destination: URL(string: "https://h0m4m.github.io/terms")!)
                 .font(NookFont.caption)
                 .foregroundStyle(Color.nook.mutedForeground)
 
-            Link("Privacy", destination: URL(string: "https://getnook.app/privacy")!)
+            Link("Privacy", destination: URL(string: "https://h0m4m.github.io/privacy")!)
                 .font(NookFont.caption)
                 .foregroundStyle(Color.nook.mutedForeground)
         }
