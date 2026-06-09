@@ -23,8 +23,8 @@ struct StatsView: View {
             ZStack(alignment: .top) {
                 ScrollView {
                     VStack(spacing: 32) {
-                        overviewSection
                         if subscriptions.isPlus {
+                            overviewSection
                             streakCard
                             categoryBreakdownSection
                             ratingDistributionSection
@@ -55,8 +55,8 @@ struct StatsView: View {
 
     // MARK: - Locked teaser (free tier)
 
-    /// Free users see the real Overview, then a blurred preview of the deeper
-    /// sections with an "unlock" card — the primary Nook Plus upsell.
+    /// Free users see no readable stats at all — just a blurred preview behind
+    /// the "unlock" card (the Overview is gated too). The primary Plus upsell.
     private var lockedSections: some View {
         ZStack(alignment: .top) {
             VStack(spacing: 32) {
