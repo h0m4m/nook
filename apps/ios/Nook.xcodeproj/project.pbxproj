@@ -808,7 +808,7 @@
 				CODE_SIGN_ENTITLEMENTS = Nook/Nook.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = 8PP9FS9CAY;
 				INFOPLIST_FILE = Nook/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -819,7 +819,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 0.1.0;
+				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.getnook;
 				REVENUECAT_API_KEY = "appl_fLNFmNnTOFwCYBdlzmSCRlapSDB";
 				ADMOB_APP_ID = "ca-app-pub-5609964541403026~8159388740";
@@ -827,7 +827,7 @@
 				ADMOB_TEST_DEVICE_IDS = "";
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 6.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = "1";
 			};
 			name = Release;
 		};
@@ -838,7 +838,7 @@
 				CODE_SIGN_ENTITLEMENTS = Nook/Nook.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = 8PP9FS9CAY;
 				INFOPLIST_FILE = Nook/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -849,7 +849,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 0.1.0;
+				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.getnook;
 				REVENUECAT_API_KEY = "appl_fLNFmNnTOFwCYBdlzmSCRlapSDB";
 				ADMOB_APP_ID = "ca-app-pub-5609964541403026~8159388740";
@@ -857,7 +857,7 @@
 				ADMOB_TEST_DEVICE_IDS = "";
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 6.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = "1";
 			};
 			name = Debug;
 		};
