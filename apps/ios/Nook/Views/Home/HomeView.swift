@@ -29,6 +29,7 @@ struct HomeView: View {
             .background(Color.nook.background)
             .modifier(HomeTopBar(
                 avatarURL: router.currentUserAvatarURL,
+                displayName: router.currentUserDisplayName,
                 notifBadgeCount: unreadNotifCount,
                 onAvatarTapped: onAvatarTapped,
                 onNotificationsTapped: onNotificationsTapped
@@ -235,6 +236,7 @@ final class HomeStore {
 
 private struct HomeTopBar: ViewModifier {
     let avatarURL: URL?
+    var displayName: String = ""
     var notifBadgeCount: Int = 0
     var onAvatarTapped: () -> Void = {}
     var onNotificationsTapped: () -> Void = {}
@@ -244,6 +246,7 @@ private struct HomeTopBar: ViewModifier {
             content.safeAreaBar(edge: .top, spacing: 0) {
                 HomeHeaderView(
                     avatarURL: avatarURL,
+                    displayName: displayName,
                     notifBadgeCount: notifBadgeCount,
                     onAvatarTapped: onAvatarTapped,
                     onNotificationsTapped: onNotificationsTapped
@@ -255,6 +258,7 @@ private struct HomeTopBar: ViewModifier {
             content.safeAreaInset(edge: .top, spacing: 0) {
                 HomeHeaderView(
                     avatarURL: avatarURL,
+                    displayName: displayName,
                     notifBadgeCount: notifBadgeCount,
                     onAvatarTapped: onAvatarTapped,
                     onNotificationsTapped: onNotificationsTapped

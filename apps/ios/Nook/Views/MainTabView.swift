@@ -50,8 +50,6 @@ struct MainTabView: View {
     @State private var libraryVM = LibraryViewModel()
     @State private var clubsVM = CommunitiesViewModel()
     @State private var searchVM = SearchViewModel()
-    @State private var showNewUserPaywall = false
-    @Environment(SubscriptionManager.self) private var subscriptions
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -157,9 +155,6 @@ struct MainTabView: View {
                 .presentationDragIndicator(.hidden)
                 .presentationBackground(Color.nook.profileMenuBackground)
         }
-        .sheet(isPresented: $showNewUserPaywall) {
-            NookPlusPaywallView()
-        }
         // A tapped push notification routes here (set by AppDelegate via PushRouter).
         .onChange(of: pushRouter.pendingRoute) { _, _ in applyPendingPushRoute() }
         .task {
@@ -169,14 +164,6 @@ struct MainTabView: View {
             homeStore.loadIfNeeded()
             await libraryVM.loadIfNeeded()
             await clubsVM.loadIfNeeded()
-        }
-        .task {
-            // One-time Nook Plus paywall right after a new user finishes onboarding.
-            guard router.showPaywallAfterOnboarding else { return }
-            router.showPaywallAfterOnboarding = false
-            guard !subscriptions.isPlus else { return }
-            try? await Task.sleep(for: .milliseconds(700))
-            showNewUserPaywall = true
         }
     }
 

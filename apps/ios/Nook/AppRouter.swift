@@ -23,10 +23,6 @@ final class AppRouter {
     var currentUserDisplayName: String = ""
     var currentUserUsername: String = ""
 
-    /// Set once when a brand-new user finishes onboarding, so the home screen can
-    /// present the Nook Plus paywall a single time. Cleared after it's shown.
-    var showPaywallAfterOnboarding = false
-
     private var authListenerTask: Task<Void, Never>?
 
     func startListening() {
@@ -125,8 +121,11 @@ final class AppRouter {
             ))
             .execute()
 
-        // New user reached the end of onboarding — cue the one-time paywall.
-        showPaywallAfterOnboarding = true
+        // Load the shared profile fields before showing home. The onboarding-resume
+        // path (username already set → routed straight to interests) never calls
+        // loadCurrentUserProfile, so without this the home/profile surfaces would
+        // render an empty avatar and "Nook User" even though the DB has the data.
+        await loadCurrentUserProfile()
         currentScreen = .home
     }
 
