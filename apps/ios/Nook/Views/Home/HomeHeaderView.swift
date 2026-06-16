@@ -2,6 +2,7 @@ import SwiftUI
 
 struct HomeHeaderView: View {
     let avatarURL: URL?
+    var displayName: String = ""
     var notifBadgeCount: Int = 0
     var onAvatarTapped: () -> Void = {}
     var onNotificationsTapped: () -> Void = {}
@@ -26,7 +27,13 @@ struct HomeHeaderView: View {
                         .resizable()
                         .scaledToFill()
                 default:
-                    Color.nook.secondary
+                    Circle()
+                        .fill(Color.nook.accent)
+                        .overlay {
+                            Text(String(displayName.prefix(1)).uppercased())
+                                .font(NookFont.labelSmall)
+                                .foregroundStyle(.white)
+                        }
                 }
             }
             .frame(width: 34, height: 34)
